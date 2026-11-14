@@ -6125,15 +6125,17 @@ static void draw_sub(void)
 }
 /* a drum key's own envelope: its lag (flat), the attack's rise, the hold, the decay's fall (or, off, the level
  * held to the right edge: the sound's own length rules), the key's colour under it */
-/* the envelope figures: an envelope generator, a module of four sliders (the page's four knobs, numbered, their caps
- * at the live values) beside the window of its chart recorder, which plots the shape on its paper roll: the curve's
- * area hatched in the track's ink, the curve in ink with its corners circled, the pen at its end; under it a
- * dimension line for each stage, broken by its knob's circled number. A stage at its least is still drawn EF_MIN
- * wide, so each callout has room: a schematic, not to scale */
-#define EF_X0 112.0f
-#define EF_TOP 40.0f
-#define EF_BASE 84.0f
-#define EF_DIM 100
+/* the envelope figures: a chart recorder, drawn in elevation. Its paper comes off the supply roll at the right, runs
+ * over the deck past the pen and leaves at the left, hanging over the front in a curl; the pen arm swings from its
+ * pivot on a turret to the end of the trace, blank paper still to come ahead of it. The trace: the curve's area
+ * hatched in the track's ink, the curve in ink with its corners circled, under it a dimension line for each stage
+ * broken by its knob's circled number. The recorder's own four sliders on its front are the page's four knobs
+ * (numbered, at the live values). A stage at its least is still drawn EF_MIN wide, so each callout has room: a
+ * schematic, not to scale */
+#define EF_X0 26.0f
+#define EF_TOP 42.0f
+#define EF_BASE 64.0f
+#define EF_DIM 71
 #define EF_MIN 15.0f
 typedef struct { float x[64], y[64]; int n, dash; } curve_t;   /* (dash: the points from there on dashed) */
 static void ef_pt(curve_t *c, float x, float y)
@@ -6141,10 +6143,15 @@ static void ef_pt(curve_t *c, float x, float y)
     if (c->n < 64)
         c->x[c->n] = x, c->y[c->n++] = y;
 }
-static void ef_head(const char *tag, const char *what)   /* "KICK  amplitude over time" */
+/* the figure's name large, what it plots in tracked capitals at the right, a detail under that */
+static void ef_head(const char *name, const char *cap, const char *det)
 {
-    int32_t e = tr_text(8, 3, F_LAB, tag, K_DIM, 1);
-    cv_text(e + 7, 0, &FONT_XS, what, K_TEXT);
+    int32_t e = cv_text(8, 0, &FONT_L, name, K_TEXT) + 10, w = tr_w(F_LAB, cap, 1);
+    tr_text(232 - w, 3, F_LAB, cap, K_DIM, 1);
+    if (text_w(&FONT_XS, det) <= 232 - e)
+        text_r(232, 16, &FONT_XS, det, K_TEXT);
+    else
+        text_fit(e, 16, &FONT_XS, det, 232 - e, K_TEXT);
 }
 static void ef_curve(const curve_t *c)
 {
@@ -6156,7 +6163,7 @@ static void ef_curve(const curve_t *c)
     poly[2 * n] = c->x[c->n - 1], poly[2 * n + 1] = EF_BASE, n++;
     poly[2 * n] = c->x[0], poly[2 * n + 1] = EF_BASE, n++;
     cv_poly(poly, n, K_NOW, 150u, 6);                /* the area under it, hatched in the track's ink */
-    cv_rect(108, (int32_t)EF_BASE, 115, 1, K_TEXT);
+    cv_rect(10, (int32_t)EF_BASE, (int32_t)c->x[c->n - 1] - 9, 1, K_TEXT);   /* (the line written so far) */
     pn.w = 2.0f;
     for (int i = 0; i < c->n; i++) {
         if (c->dash && i > c->dash && (i & 1))       /* (dashed: every other step left out) */
@@ -6179,7 +6186,7 @@ static void ef_dim(float a, float b, int knob)        /* a stage's dimension, it
 }
 /* the stages of a figure whose curve spans its full width (EF_X0 .. EF_X0 + EF_SPAN): each EF_MIN wide at least (room for its
  * callout), the rest shared by weight e[i] (the knobs' values, each stage a little even at 0) */
-#define EF_SPAN 96.0f
+#define EF_SPAN 120.0f
 static void ef_stages(float *w, const float *e, int n)
 {
     float sum = 0.0f, rest = EF_SPAN - (float)n * EF_MIN;
@@ -6195,41 +6202,43 @@ static void ef_break(float x, float y)
     cv_linef(x - 2.5f, y + 4.0f, x + 0.5f, y - 4.0f, K_TEXT, 1.3f);
     cv_linef(x + 0.5f, y + 4.0f, x + 3.5f, y - 4.0f, K_TEXT, 1.3f);
 }
-/* the module: a wedge console of four sliders at v (0..127, knob k's at v[k]), cabled to its chart recorder: a cabinet
- * whose paper runs right to left, fresh off the thin supply roll at the right, under the pen, and wound written onto
- * the fat take-up roll at the left; sprocket holes along its top edge, the pen's carriage on its rail over the paper
- * and the stylus down on it at the plot's end (pen, py), blank paper still to come after it */
+/* the recorder (see above): v the four sliders (0..127, knob k's at v[k]); the pen at (pen, py) */
 static void ef_module(int v0, int v1, int v2, int v3, float pen, float py)
 {
     int v[4] = {v0, v1, v2, v3};
-    float wedge[8] = {8.0f, 24.0f, 86.0f, 17.0f, 86.0f, 116.0f, 8.0f, 116.0f};
-    cv_poly(wedge, 4, K_PANEL2, 256u, 0);
-    p2_outline(8.5f, 116.5f, 86.5f, 116.5f, K_TEXT, 1.2f);
-    cv_linef(8.5f, 24.0f, 86.5f, 17.0f, K_TEXT, 1.6f);
-    cv_linef(8.5f, 24.0f, 8.5f, 116.5f, K_TEXT, 1.2f), cv_linef(86.5f, 17.0f, 86.5f, 116.5f, K_TEXT, 1.2f);
-    cv_rect(10, 112, 75, 1, K_LINE);                 /* (its foot) */
-    for (int k = 0; k < 4; k++)
-        p2_vslider(22 + k * 18, 42, 64, (float)v[k] / 127.0f, k + 1);
-    cv_rect(87, 98, 8, 1, K_TEXT), cv_rect(87, 101, 8, 1, K_TEXT);   /* the lead to the recorder */
-    cv_round(95, 16, 138, 102, 5, K_TEXT);           /* the recorder's cabinet */
-    cv_rect(97, 18, 134, 98, K_PANEL2);
-    cv_rect(106, 24, 118, 88, K_CARD);               /* the paper, its grid, its sprocket holes */
-    cv_grid(110, 32, 112, 60, 8, MAIN_Y, K_GRID);
-    cv_rect(106, 24, 118, 1, K_TEXT), cv_rect(106, 111, 118, 1, K_TEXT);
-    for (int k = 0; k < 14; k++)
-        cv_rect(110 + k * 8, 27, 3, 3, K_LINE);
-    cv_round(98, 19, 11, 97, 5, K_TEXT);             /* the take-up roll (left), wound fat; the supply roll (right) */
-    cv_rect(100, 24, 7, 87, K_CARD);
+    float px = 207.0f, pyv = 60.0f, tx = pen + 3.0f, ty = py - 7.0f;
+    p2_panel(8, 81, 225, 36, K_PANEL2);              /* the body: its front, its deck, its feet */
+    cv_rect(8, 77, 225, 5, K_PANEL);
+    p2_outline(8.5f, 77.5f, 232.5f, 81.5f, K_TEXT, 1.2f);
+    cv_rect(16, 117, 14, 2, K_TEXT), cv_rect(210, 117, 14, 2, K_TEXT);
+    fxm_ticks(46.0f, 100.0f, 9.0f, 11.0f, 7);        /* the front's quiet parts: chart speed, three switches, a lamp */
+    p2_knob(46.0f, 100.0f, 6.5f, 0.5f, 0, 0, 0);
     for (int k = 0; k < 3; k++)
-        cv_rect(101 + k * 2, 24, 1, 87, K_LINE);
-    cv_round(223, 21, 7, 93, 3, K_TEXT);
-    cv_rect(224, 24, 5, 87, K_CARD);
-    cv_disc(103.5f, 17.0f, 2.4f, K_TEXT), cv_disc(226.5f, 19.0f, 2.0f, K_TEXT);
-    cv_rect(109, 19, 112, 2, K_TEXT);                /* the rail, the carriage, the stylus down on the paper */
-    cv_round((int32_t)pen - 5, 16, 11, 8, 2, K_TEXT);
-    cv_rect((int32_t)pen - 2, 18, 5, 2, K_CARD);
-    cv_linef(pen, 24.0f, pen, py - 8.0f, K_TEXT, 1.3f);
-    cv_tri(pen - 2.5f, py - 9.0f, pen + 2.5f, py - 9.0f, pen, py - 3.0f, K_TEXT);
+        cv_frame(66 + k * 10, 93, 6, 14, 1, K_TEXT, K_CARD), cv_rect(67 + k * 10, k == 1 ? 100 : 94, 4, 6, K_TEXT);
+    cv_ring(110.0f, 100.0f, 4.5f, 1.0f, K_TEXT), cv_disc(110.0f, 100.0f, 2.2f, K_TEXT);
+    for (int k = 0; k < 4; k++)                      /* its sliders: the page's knobs */
+        p2_vslider(146 + k * 23, 95, 20, (float)v[k] / 127.0f, k + 1);
+    cv_rect(10, 35, 162, 43, K_CARD);                /* the paper on the deck: its grid, its sprocket holes */
+    cv_grid(12, 41, 158, 34, 8, MAIN_Y, K_GRID);
+    cv_rect(10, 35, 162, 1, K_TEXT);
+    for (int k = 0; k < 20; k++)
+        cv_rect(14 + k * 8, 37, 3, 2, K_LINE);
+    cv_rect(12, 78, 15, 24, K_CARD);                 /* its written end hanging over the front, curling up */
+    cv_rect(12, 78, 1, 24, K_TEXT), cv_rect(26, 78, 1, 24, K_TEXT);
+    for (int k = 0; k < 3; k++)
+        cv_rect(15, 83 + k * 6, 2, 3, K_LINE);
+    cv_disc(20.0f, 106.0f, 8.0f, K_CARD);
+    cv_ring(20.0f, 106.0f, 8.0f, 1.2f, K_TEXT);
+    ellipse_arc(21.0f, 106.5f, 4.5f, 4.0f, 0.25f, 1.1f, 1.0f, K_TEXT);
+    cv_round(171, 34, 12, 45, 4, K_TEXT);            /* the supply roll */
+    cv_rect(173, 37, 8, 39, K_CARD);
+    cv_rect(175, 37, 1, 39, K_LINE), cv_rect(178, 37, 1, 39, K_LINE);
+    cv_frame(188, 48, 40, 31, 8, K_TEXT, K_PANEL2);  /* the pen's turret, its arm, its counterweight, the pen down */
+    cv_linef(px + (px - tx) * 0.2f, pyv + (pyv - ty) * 0.2f, tx, ty, K_TEXT, 3.0f);
+    cv_disc(px + (px - tx) * 0.2f, pyv + (pyv - ty) * 0.2f, 4.5f, K_TEXT);
+    cv_disc(px, pyv, 4.5f, K_CARD), cv_ring(px, pyv, 4.5f, 1.3f, K_TEXT), cv_disc(px, pyv, 1.5f, K_TEXT);
+    cv_disc(tx, ty, 3.0f, K_TEXT);
+    cv_linef(tx, ty, pen, py - 1.0f, K_TEXT, 1.6f);
 }
 /* a kit key's envelope: lag (4), attack (1), hold (2), decay (3); decay off: the sound's own length, dashed */
 static void draw_key_env(void)
@@ -6261,7 +6270,7 @@ static void draw_key_env(void)
             ef_pt(&c, x3 + (x4 - x3) * u, EF_BASE - (EF_BASE - EF_TOP) * ease_exp(u));
         }
     }
-    ef_head(DL_SOUND_NAME[key], open ? "decay off: it runs to its own end" : "amplitude over time");
+    ef_head(DL_SOUND_NAME[key], "KEY ENVELOPE", open ? "decay off: it runs to its own end" : "amplitude over time");
     ef_curve(&c);
     if (open) {
         float bx = (x3 + x4) * 0.5f;
@@ -6270,8 +6279,8 @@ static void draw_key_env(void)
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP);
         {   /* (on a slip of its own over the hatching) */
             int32_t tw = text_w(&FONT_XS, "plays on"), tx = (int32_t)x4 + 2 - tw;
-            cv_rect(tx - 2, (int32_t)EF_TOP + 9, tw + 4, 15, K_CARD);
-            cv_text(tx, (int32_t)EF_TOP + 10, &FONT_XS, "plays on", K_TEXT);
+            cv_rect(tx - 2, (int32_t)EF_TOP + 2, tw + 4, 15, K_CARD);
+            cv_text(tx, (int32_t)EF_TOP + 3, &FONT_XS, "plays on", K_TEXT);
         }
         ef_dim(EF_X0, x1, 4), ef_dim(x1, x2, 1), ef_dim(x2, x4, 3);
     } else {
@@ -6486,7 +6495,7 @@ static void draw_env(int filter)
         if (!begin_main(hash_u(h, 0xAC1Du)))
             return;
         ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], EF_X0 + EF_SPAN, base);
-        ef_head("ACID", "filter; dim: accented; line: level");
+        ef_head("acid", "FILTER OPENING", "dim: accented; line: level");
         for (int32_t xi = 0; xi <= (int32_t)EF_SPAN; xi++) {
             float ms = (float)xi * (3000.0f / EF_SPAN);
             float rise = 1.0f - fm_expf(-ms / ta), fl = rise * fm_expf(-ms / td), ac = fm_expf(-ms / tc);
@@ -6518,7 +6527,7 @@ static void draw_env(int filter)
             float t = (float)i / 32.0f;
             ef_pt(&c, x2 + (x3 - x2) * t, EF_BASE - (EF_BASE - EF_TOP) * ease_exp(t));
         }
-        ef_head("KIT", "every key: lag, attack, length");
+        ef_head("kit", "EVERY KEY", "lag, attack, length");
         ef_curve(&c);
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP), ef_node(x3, EF_BASE);
         ef_dim(EF_X0, x1, 1), ef_dim(x1, x2, 2), ef_dim(x2, x3, 4);
@@ -6526,8 +6535,8 @@ static void draw_env(int filter)
         return;
     }
     {   /* attack (1), decay (2) to the sustain's level (3, its height), the note held, release (4) */
-        float a = EF_MIN + (float)p[b] * 14.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 14.0f / 127.0f;
-        float r = EF_MIN + (float)p[b + 3] * 14.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
+        float a = EF_MIN + (float)p[b] * 20.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 20.0f / 127.0f;
+        float r = EF_MIN + (float)p[b + 3] * 20.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
         float x1 = EF_X0 + a, x2 = x1 + d, x4 = EF_X0 + EF_SPAN, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
         curve_t c = {{0}, {0}, 0, 0};
         ef_module(p[b], p[b + 1], p[b + 2], p[b + 3], x4, EF_BASE);
@@ -6544,7 +6553,7 @@ static void draw_env(int filter)
             float t = (float)i / 16.0f;
             ef_pt(&c, x3 + r * t, EF_BASE - (EF_BASE - ys) * ease_exp(t));
         }
-        ef_head(filter ? "FILTER" : "AMP", filter ? "cutoff over time" : "amplitude over time");
+        ef_head(filter ? "filter" : "amp", filter ? "CUTOFF" : "AMPLITUDE", "over time");
         ef_curve(&c);
         ef_node(x1, EF_TOP), ef_node(x2, ys), ef_node(x3, ys), ef_node(x4, EF_BASE);
         ef_dim(EF_X0, x1, 1), ef_dim(x1, x2, 2), ef_dim(x3, x4, 4);
