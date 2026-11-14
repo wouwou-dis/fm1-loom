@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: MPL-2.0
-# The Braids engines' host test (tests/host/braids_test.c): cane, voile and gingham bounded, in tune, at their
-# levels, cane's cap, the arp; their cost a voice by model. Built with the device's rules (C99, float only in the
+# The Braids engine's host test (tests/host/braids_test.c): voile bounded, in tune, at its levels; its cost a voice by
+# model. Built with the device's rules (C99, float only in the
 # DSP, no fused multiply-add).
 #   tests/host/braids_test.sh
 set -e

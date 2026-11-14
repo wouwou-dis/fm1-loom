@@ -40,12 +40,12 @@ shot 46_Engine-jacquard.png
 knob 2 engine bellows
 wait 300
 shot 47_Engine-bellows.png
-knob 2 engine cane
+knob 2 engine sequin
 wait 300
-shot 48_Engine-cane.png
+shot 48_Engine-sequin.png
 knob 2 e1 4
 wait 300
-shot 49_Engine-cane-bell.png
+shot 49_Engine-sequin-wave.png
 knob 2 engine voile
 wait 300
 shot 50_Engine-voile.png

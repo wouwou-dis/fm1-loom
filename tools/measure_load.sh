@@ -11,7 +11,7 @@
 #   idle                       stopped, nothing held
 #   <engine> xN                N keys held (1, 3, 6, and the engine's cap where lower) on T3, its engine picked
 #                              from SEL's list (its first preset), set to poly; knit at a unison of 7, 5 and 3 (seven its
-#                              most), cane's pluck and bell, voile's vowel and choir; the sample engine looping (its
+#                              most), sequin, voile's vowel and choir; the sample engine looping (its
 #                              one-shot piano would end)
 #   kit playing                a beat written on T1's empty pattern 1 (kick, snare, hats), playing
 #   kit + knit x6              the beat and six knit voices
@@ -47,16 +47,16 @@ pick = opt("--engines")
 WHITE_K = [0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26]
 BLACK_K = [1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25]
 CHORD = [WHITE_K[i] for i in (1, 3, 5, 7, 9, 11)]          # G3 B3 D4 F4 A4 C5: six keys a third apart
-EG = ["knit", "rayon", "jacquard", "bellows", "cane", "voile", "sample", "slice", "kit", "midi"]   # synth.c EG_NAME, in order
-NAMES = {"model": {"cane": ["pluck", "bow", "reed", "flute", "bell", "drum"],
-                   "voile": ["vosim", "vowel", "choir", "whisper"]},
+EG = ["knit", "rayon", "jacquard", "bellows", "cane", "voile", "sample", "slice", "kit", "midi", "acid",
+      "sequin"]                                   # synth.c EG_NAME, in order (cane retired: the pickers step past it)
+NAMES = {"model": {"voile": ["vosim", "vowel", "choir", "whisper"]},
          "mode": ["one-shot", "loop", "reverse", "ping-pong"]}
 # (case name, engine, knob settings on the Engine page [(encoder, knob, value)], voice cap)
 ENGINES = [("knit", "knit", [], 6), ("knit 7", "knit", [("K3", "voices", 7)], 5),
            ("knit 5", "knit", [("K3", "voices", 5)], 6), ("knit 3", "knit", [("K3", "voices", 3)], 6),
            ("rayon", "rayon", [], 16), ("jacquard", "jacquard", [], 16), ("bellows", "bellows", [], 16),
            ("sample loop", "sample", [("K4", "mode", "loop")], 16), ("slice", "slice", [], 16),
-           ("cane pluck", "cane", [("K1", "model", "pluck")], 4), ("cane bell", "cane", [("K1", "model", "bell")], 4),
+           ("sequin", "sequin", [], 16),
            ("voile vowel", "voile", [("K1", "model", "vowel")], 16),
            ("voile choir", "voile", [("K1", "model", "choir")], 16)]
 if pick:
@@ -320,7 +320,7 @@ if only in (None, "engines"):
             on_edit()
             hold(CHORD[:n])
             got = read_status(f"{name} x{n}", min(n, cap))
-            if got < min(n, cap) and eng not in ("slice", "cane"):
+            if got < min(n, cap) and eng != "slice":
                 release_all()                # once more: a key that did not land
                 on_edit()
                 hold(CHORD[:n])

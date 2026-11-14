@@ -4353,7 +4353,7 @@ static void draw_bar(void)
  * top left, the preset's role, place and name at the top right. knit: a wood-cheeked polysynth with a slider bank;
  * rayon: a flat digital slab with membrane buttons, a display and a cartridge half in; jacquard: a rack unit with a
  * wave display and a big table selector; bellows: a combo organ on legs, its drawbars out, a rotary cabinet beside;
- * cane: a long modular case with patch cables hanging; voile: a wedge case with sliders and a gooseneck microphone;
+ * voile: a wedge case with sliders and a gooseneck microphone;
  * acid: a small box with a row of knobs and a one-octave button keyboard, its cable coiled; kit: a drum machine, its
  * eleven pads (the sounds, named) and sixteen step buttons (the selected sound's steps in this bar); sample: a rack
  * sampler with a floppy disk half in and the real sample in its window; slice: a turntable and the real loop cut into
@@ -4632,35 +4632,6 @@ static void m_bellows(const uint8_t *p)
     p2_knob(210.0f, 102.0f, 6.0f, p2_u(p, TP_E4), 4, 0, -16);
     cv_rect(170, 116, 6, 2, K_TEXT), cv_rect(218, 116, 6, 2, K_TEXT);   /* its feet */
 }
-/* cane: a long modular case, its rails and screws, four modules: the model's rotary switch (1), timbre and color (2,
- * 3), damp (4) and a module of jacks; patch cables hanging across */
-static void m_cane(const uint8_t *p)
-{
-    p2_panel(8, 40, 224, 70, K_PANEL);
-    cv_rect(8, 44, 224, 1, K_TEXT), cv_rect(8, 105, 224, 1, K_TEXT);   /* the rails */
-    for (int k = 0; k < 8; k++)
-        p2_screw(16.0f + (float)k * 30.0f, 42.0f), p2_screw(16.0f + (float)k * 30.0f, 108.0f);
-    p2_panel(12, 46, 58, 58, K_CARD);                /* the model: a rotary switch */
-    {
-        int n = tp_info_par(TP_E1, p)->hi + 1;
-        for (int k = 0; k < n && n <= 12; k++) {
-            float t = 0.375f + 0.75f * (float)k / (float)(n - 1);
-            cv_disc(41.0f + 17.0f * fm_sin_turns(t + 0.25f), 72.0f + 17.0f * fm_sin_turns(t), 1.3f, K_TEXT);
-        }
-        p2_knob(41.0f, 72.0f, 11.0f, p2_u(p, TP_E1), 1, -20, -20);
-    }
-    p2_panel(72, 46, 40, 58, K_CARD);
-    p2_knob(92.0f, 62.0f, 8.0f, p2_u(p, TP_E2), 2, -14, -10);
-    p2_knob(92.0f, 88.0f, 8.0f, p2_u(p, TP_E3), 3, -14, -10);
-    p2_panel(114, 46, 30, 58, K_CARD);
-    p2_knob(129.0f, 62.0f, 6.5f, p2_u(p, TP_E4), 4, 0, 14);
-    p2_panel(146, 46, 82, 58, K_CARD);               /* the jacks */
-    for (int k = 0; k < 8; k++)
-        cv_ring(158.0f + (float)(k % 4) * 20.0f, 60.0f + (float)(k / 4) * 22.0f, 3.2f, 1.2f, K_TEXT);
-    p2_cable(129.0f, 92.0f, 158.0f, 60.0f, 26.0f, K_TEXT);
-    p2_cable(178.0f, 82.0f, 218.0f, 60.0f, 22.0f, K_NOW);
-    p2_cable(198.0f, 82.0f, 41.0f, 96.0f, 18.0f, K_DIM);
-}
 /* voile: a wedge case (its back higher than its front), four sliders (model, timbre, color, breath), a gooseneck
  * microphone rising from it, its lead patched into the front */
 static void m_voile(const uint8_t *p)
@@ -4932,7 +4903,6 @@ static void draw_engine(void)
     case EG_RAYON: m_rayon(p); break;
     case EG_JACQUARD: m_jacquard(p); break;
     case EG_BELLOWS: m_bellows(p); break;
-    case EG_CANE: m_cane(p); break;
     case EG_VOILE: m_voile(p); break;
     case EG_ACID: m_acid(p); break;
     case EG_SAMPLE: m_sample(p); break;

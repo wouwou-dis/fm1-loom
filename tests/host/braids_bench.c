@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MPL-2.0 */
-/* The Braids engines' cost and sound on their own (dsp/braids.h through synth.c's eng_* hooks): each cane and
- * voile model rendered as the voice path calls it (a prep when the knobs or the pitch move, eng_chunk every
+/* The Braids engine's cost and sound on its own (dsp/braids.h through synth.c's eng_* hooks): each voile model
+ * rendered as the voice path calls it (a prep when the knobs or the pitch move, eng_chunk every
  * 64 samples, eng_run SUB samples at a time), at three notes and two knob settings, with a slow vibrato so the
  * prep runs every chunk. Prints each model's engine instructions a sample (and ns a sample, the best of the
  * repetitions); "save" keeps the rendered sound, a later run compares with it (the largest and the RMS
@@ -19,10 +19,9 @@ static double now_ns(void) { return (double)ns_now(); }
 
 #define SECS 2
 #define NS (44100 * SECS)
-static const char *const CN_NM[NCANE] = {"pluck", "bow", "reed", "flute", "bell", "drum"};
 static const char *const VO_NM[NVOILE] = {"vosim", "vowel", "choir", "whisper"};
 static const int NOTES[3] = {40, 57, 81};
-static const float KN[2][3] = {{0.5f, 0.5f, 0.5f}, {0.9f, 0.2f, 0.3f}};   /* timbre, color, breath / damp */
+static const float KN[2][3] = {{0.5f, 0.5f, 0.5f}, {0.9f, 0.2f, 0.3f}};   /* timbre, color, breath */
 static voice_t vv;
 static float vib_amt = 0.003f;                 /* ("novib": none, the prep every fourth chunk only) */
 static float out[NS];
@@ -34,7 +33,6 @@ static void render(int eng, int md, int note, const float *kn, float *o)
     int i, j, k;
     memset(v, 0, sizeof *v);
     v->engine = (uint8_t)eng;
-    v->tws = 0;
     v->rng = 0x12345678u;
     eng_init(v);
     v->c.ek[0] = (float)md;
@@ -46,12 +44,8 @@ static void render(int eng, int md, int note, const float *kn, float *o)
         v->c.freq = 440.0f * fm_exp2f(((float)note - 69.0f) * (1.0f / 12.0f)) * (1.0f + vib);
         if (i == 0 || vib_amt > 0.0f || ((i / SY_CHUNK) & 3) == 0)
             eng_prep(v, 120.0f);
-        if (i == 0) {
-            if (eng == EG_CANE)
-                cn_strike(v, 1);
-            else
-                vo_strike(v);
-        }
+        if (i == 0)
+            vo_strike(v);
         eng_chunk(v);
         for (j = 0; j < SY_CHUNK; j += SUB) {
             float xl[SUB], xr[SUB];
@@ -75,8 +69,8 @@ int main(int argc, char **argv)
     if (!ref && !save)
         printf("(no reference: run with save first; timing only)\n");
     printf("engine only, instructions a sample (ns a sample, best of 5), notes 40 57 81 x 2 knob settings\n");
-    for (e = 0; e < 2; e++) {
-        int eng = e ? EG_VOILE : EG_CANE, nm = e ? NVOILE : NCANE;
+    for (e = 0; e < 1; e++) {
+        int eng = EG_VOILE, nm = NVOILE;
         for (md = 0; md < nm; md++) {
             uint64_t ins = 0;
             double best = 1e30, sig = 0.0, dmax = 0.0, dsum = 0.0;
@@ -109,7 +103,7 @@ int main(int argc, char **argv)
                             cnt++;
                         }
                 }
-            printf("  %-6s %-8s %7.1f instr  %6.2f ns", e ? "voile" : "cane", e ? VO_NM[md] : CN_NM[md],
+            printf("  %-6s %-8s %7.1f instr  %6.2f ns", "voile", VO_NM[md],
                    (double)ins / (6.0 * NS), best / (6.0 * NS));
             if (cnt) {
                 double rs = sqrt(sig / (double)cnt);

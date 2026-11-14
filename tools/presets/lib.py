@@ -28,10 +28,10 @@ files list them (gen_presets.py FILES); an engine's first preset is its sound in
 ROLES = ["bass", "lead", "pad", "keys", "pluck", "bell", "stab", "strings", "brass", "voice", "chord", "fx", "drum",
          "loop"]                                      # synth.h RL_*, in order
 ENGINES = ["knit", "rayon", "jacquard", "bellows", "cane", "voile", "sample", "slice", "kit", "midi", "acid",
-           "sequin"]                                  # synth.h EG_*, in order
+           "sequin"]                                  # synth.h EG_*, in order (cane retired: its place kept)
 KNOBS = {"knit": ["wave", "detune", "voices", "width"], "rayon": ["bright", "ratio", "edge", "tine"],
          "jacquard": ["table", "scan", "bend", "ripple"], "bellows": ["stops", "pedal", "rotor", "rate"],
-         "cane": ["model", "timbre", "color", "damp"], "voile": ["model", "timbre", "color", "breath"],
+         "voile": ["model", "timbre", "color", "breath"],
          "sample": ["sample", "start", "length", "mode"], "slice": ["sample", "slices", "pitch", "gate"],
          "acid": ["wave", "accent", "slide", "tune"], "sequin": ["wave", "duty", "crush", "sweep"]}
 MODES = ["poly", "mono", "legato"]                    # VM_*

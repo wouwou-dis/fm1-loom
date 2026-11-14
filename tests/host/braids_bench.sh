@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MPL-2.0
-# The Braids engines' cost a sample and their sound against a saved reference (tests/host/braids_bench.c).
+# The Braids engine's (voile's) cost a sample and its sound against a saved reference (tests/host/braids_bench.c).
 #   tests/host/braids_bench.sh save     before a change: build/host/braids_bench.ref
 #   tests/host/braids_bench.sh          after it: the cost, and how far the sound moved
 # SCALAR=1 builds without the host's vector units (nearer the FM-1's scalar core).
