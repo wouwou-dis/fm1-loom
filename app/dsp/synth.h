@@ -38,8 +38,11 @@
  * envelopes are left out (the character stage, the LFO, the sends and the mix are as on any track). A note of
  * velocity ACID_ACCENT or more is accented; a note that starts while the last one is still held slides to it, and so
  * does a note with a glide (a step's glide trick, the arp's glide) after a short one: on the same pitch, a tie. */
+/* EG_SEQUIN (2026-11): a chip voice, Felucca-Engines' LOFI (dsp/chip.h, MIT): pulse, triangle, saw, a shift
+ * register's noise and a wave memory of 32 x 4-bit steps; E1..E4 wave, duty, crush, sweep, its Sub page chip (the
+ * bit depth, step: the envelope stepped), arp, vib, tone */
 enum { EG_KNIT, EG_RAYON, EG_JACQUARD, EG_BELLOWS, EG_CANE, EG_VOILE, EG_SAMPLE, EG_SLICE, EG_DRUMLINE, EG_MIDI,
-       EG_ACID, NENGINE };                           /* (saved by number: PROJ_FORMAT 10 renumbered them; a new one
+       EG_ACID, EG_SEQUIN, NENGINE };                /* (saved by number: PROJ_FORMAT 10 renumbered them; a new one
                                                       * goes last) */
 #define NACID 2
 #define ACID_ACCENT 112

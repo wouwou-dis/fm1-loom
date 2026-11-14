@@ -43,7 +43,8 @@ static const uint8_t E_GLIDE[NENGINE] = {
     0xE, /* jacquard: scan, bend, ripple (not the table) */ 0x0, /* bellows: four switches */
     0xE, /* cane: timbre, color, damp */ 0xE,               /* voile: timbre, color, breath */
     0x0, 0x0, 0x0, 0x0,                                    /* sample, slice (where a note starts), the kit, midi */
-    0x0};                                                  /* acid (bass303_set: its own) */
+    0x0,                                                   /* acid (bass303_set: its own) */
+    0x0};                                                  /* sequin: steps, all of them (a chip's registers) */
 static inline float glide_to(float from, float to)
 {
     float d = to - from;
@@ -63,18 +64,19 @@ static inline float glide_to(float from, float to)
 const char *const RL_NAME[NRL] = {"bass", "lead", "pad", "keys", "pluck", "bell", "stab", "strings", "brass", "voice",
                                   "chord", "fx", "drum", "loop"};
 const char *const EG_NAME[NENGINE] = {"knit", "rayon", "jacquard", "bellows", "cane", "voile", "sample", "slice",
-                                      "kit", "midi", "acid"};
+                                      "kit", "midi", "acid", "sequin"};
 const char *const EG_KNOB[NENGINE][4] = {
     {"wave", "detune", "voices", "width"}, {"bright", "ratio", "edge", "tine"},     {"table", "scan", "bend", "ripple"},
     {"stops", "pedal", "rotor", "rate"},   {"model", "timbre", "color", "damp"},   {"model", "timbre", "color", "breath"},
     {"sample", "start", "length", "mode"}, {"sample", "slices", "pitch", "gate"},  {"-", "-", "-", "-"},
     {"cc", "cc", "cc", "cc"},                    /* (midi: each knob named by its CC, tp_info_par) */
-    {"wave", "accent", "slide", "tune"}};
+    {"wave", "accent", "slide", "tune"},   {"wave", "duty", "crush", "sweep"}};
 /* each engine's plain sound (INIT), 0..127; bellows' four are discrete 1..8, knit's voices 1..7, the Braids engines'
  * models a name each (synth.h NCANE ...) */
 static const uint8_t EG_DEF[NENGINE][4] = {{0, 20, 1, 0},  {40, 25, 0, 0}, {0, 40, 0, 0},  {3, 4, 2, 5},
                                            {0, 64, 64, 0}, {2, 0, 64, 0},  {5, 0, 127, SM_ONESHOT}, {SMP_BREAK, 1, 64, 127},
-                                           {0, 0, 0, 0}, {64, 64, 64, 64}, {0, 64, 21, 64}};   /* (acid: X0X's) */
+                                           {0, 0, 0, 0}, {64, 64, 64, 64}, {0, 64, 21, 64},   /* (acid: X0X's) */
+                                           {0, 96, 0, 0}};                     /* sequin: a square */
 static const char *const VMODE_N[3] = {"poly", "mono", "legato"};
 static const char *const FTYPE_N[NFT] = {"lp24", "ladder", "lp12", "hp12", "bp12", "off"};   /* FT_DYNAMIC: no
                                                                           * filter on a synth track; the kit's
@@ -378,6 +380,8 @@ static void eng_init(voice_t *v)
         vo_init(v);
     else if (v->engine == EG_ACID)
         v->o[4] = 1.0f;                          /* its 303 set up from scratch on the render's side (acid_chunk) */
+    else if (v->engine == EG_SEQUIN)
+        v->o[7] = 32767.0f;                      /* (its shift register: never 0) */
 }
 
 /* a rising saw crossfading into a pulse that is low first and high after pw: the two in step, so the
@@ -863,6 +867,8 @@ static void knit_init(voice_t *v)                  /* the voices from random pha
 /* cane, voile and gingham: Braids' models (dsp/braids.h, MIT) */
 #define CN_NONE 0xFFu
 #include "braids.h"
+/* sequin: Felucca-Engines' LOFI (dsp/chip.h, MIT) */
+#include "chip.h"
 
 /* sample: a sample of the bank (dsp/sample.h) at the note's pitch; its root note plays it at its own rate
  * (sm->rate: the factory's 22.05 kHz, half a sample a frame), linearly interpolated. start: where in it
@@ -1300,6 +1306,7 @@ static void eng_chunk(voice_t *v)                /* every chunk: the engines' ow
     case EG_KNIT: knit_chunk(v); break;
     case EG_VOILE: vo_chunk(v); break;
     case EG_ACID: acid_chunk(v); break;
+    case EG_SEQUIN: ch_chunk(v); break;
     default: break;
     }
 }
@@ -1314,6 +1321,7 @@ static void eng_prep(voice_t *v, float bpm)
     case EG_CANE: cn_prep(v); break;
     case EG_VOILE: vo_prep(v); break;
     case EG_ACID: v->c.stereo = 0; break;        /* (its own: acid_chunk) */
+    case EG_SEQUIN: ch_prep(v); break;
     default: knit_prep(v); break;
     }
 }
@@ -1328,6 +1336,7 @@ static void eng_run(voice_t *v, float *xl, float *xr, int m)
     case EG_CANE: cn_run(v, xl, xr, m); break;
     case EG_VOILE: vo_run(v, xl, xr, m); break;
     case EG_ACID: acid_run(v, xl, m); break;
+    case EG_SEQUIN: ch_run(v, xl, m); break;
     default: knit_run(v, xl, xr, m); break;
     }
 }
@@ -1380,6 +1389,8 @@ static void voice_start(synth_t *s, voice_t *v, int note, int vel, int glide_ms,
         vo_strike(v);
     else if (v->engine == EG_ACID)
         acid_note(v, note, vel, glide_ms > 0);
+    else if (v->engine == EG_SEQUIN)
+        ch_note(v);
     if (!in_render)
         t->last_pitch = v->pitch;
     v->fresh = 1;
@@ -1785,6 +1796,8 @@ void synth_note_on(synth_t *s, int trk, int note, int vel, int glide_ms, uint32_
                     cn_strike(v, 0);
                 else if (v->engine == EG_VOILE)
                     vo_strike(v);
+                else if (v->engine == EG_SEQUIN)
+                    ch_retrigger(v);
             }
             if (v->engine == EG_ACID)            /* the 303: a note held still slides (its own legato), and one
                                                   * with a glide (the step's trick, the arp's) slides anyway */
@@ -1955,7 +1968,9 @@ int synth_voice_cost(const synth_t *s, int vi)
         return 3 + (int)(1.5f * fm_clampf(v->c.ex[2], 1.0f, (float)KNIT_MAX)) + (v->c.ex[14] > 0.0f) +
                (v->c.ex[16] > 0.0f || v->c.ex[17] > 0.0f);
     if (v->engine == EG_RAYON)
-        return 5;                                /* (the FM-1, 2026-10-19: a quarter above an ordinary voice) */
+        return 5;
+    if (v->engine == EG_SEQUIN)
+        return 3;                                /* (the host's count: under knit's lightest voice) */                                /* (the FM-1, 2026-10-19: a quarter above an ordinary voice) */
     if (v->engine == EG_ACID)
         return 16;                               /* (the FM-1, 2026-10-30: 17 to 19 % of a core, its 303 oversampled
                                                   * twice: a knit unison voice's) */
@@ -2628,6 +2643,12 @@ static void voice_chunk(synth_t *s, voice_t *v)
             c->ex[8] = a;
             c->ex[9] = b;
         }
+        if (v->engine == EG_SEQUIN)            /* its second page (ch_prep): chip, arp, vib, tone */
+            for (i = 0; i < 4; i++) {
+                float xv = (float)P(s, trk, TP_X1 + i);
+                moved |= xv != c->ex[18 + i];
+                c->ex[18 + i] = xv;
+            }
         if (v->engine == EG_KNIT) {            /* its second page (knit_prep) */
             for (i = 0; i < 4; i++) {
                 float xv = (float)P(s, trk, TP_X1 + i);
@@ -2731,7 +2752,7 @@ static void voice_subblock(synth_t *s, voice_t *v, int aligned)
     v->fkq = c->kq;
     v->fkres = c->kres;
     v->fty = c->ftype;
-    v->amp_step = (v->amp.level - v->amp_cur) * (1.0f / (float)SUB);
+    v->amp_step = ((v->engine == EG_SEQUIN ? ch_amp(v) : v->amp.level) - v->amp_cur) * (1.0f / (float)SUB);
     if (v->steal_phase == 1) {
         v->sg_step = v->steal_gain > STEAL_RATE * (float)SUB ? -STEAL_RATE : -v->steal_gain * (1.0f / (float)SUB);
     } else if (v->steal_phase == 2) {
@@ -2969,7 +2990,8 @@ static void voice_samples(synth_t *s, voice_t *v, float *l, float *r, float *s1,
         if (ahead) {                             /* (knit's oscillators made for the whole call already: below) */
             xl = bl + i;
             xr = br + i;
-        } else if (i == 0 && (v->engine == EG_KNIT || v->engine == EG_ACID) && v->steal_phase != 1 && m <= SY_CHUNK) {
+        } else if (i == 0 && (v->engine == EG_KNIT || v->engine == EG_ACID || v->engine == EG_SEQUIN) &&
+                   v->steal_phase != 1 && m <= SY_CHUNK) {
             /* knit's oscillators depend on the chunk's values alone (its pitch, detune, gains: voice_chunk), and m
              * stays inside a chunk: all of them at once, each oscillator's set-up once instead of a sub-block's
              * worth of times; the filter, the character and the outputs keep their sub-blocks below (a pending
@@ -3305,6 +3327,9 @@ static const tp_info_t RUP_P = {"oct up", 0, 3, 0, PK_NUM, 0};   /* (TP_RUP: the
 static const tp_info_t SAMPLE_X_P[4] = {{"loop start", 0, 127, 0, PK_PCT, 0}, {"loop len", 0, 127, 0, PK_PCT, 0},
                                         {"-", 0, 0, 0, PK_NUM, 0}, {"-", 0, 0, 0, PK_NUM, 0}};
 /* orbit's second page: the index's fall (0 held; 20 ms .. 4 s), its floor, keyscale (rayon_prep) */
+/* sequin's second page: chip (the bit depth, step), arp, vib, tone (ch_prep) */
+static const tp_info_t SEQUIN_X_P[4] = {{"chip", 0, NCC - 1, CC_4BIT, PK_NAMES, CH_CHIP_N}, {"arp", 0, 3, 0, PK_NAMES, CH_ARP_N},
+                                        {"vib", 0, 127, 0, PK_PCT, 0}, {"tone", 0, 127, 127, PK_PCT, 0}};
 static const tp_info_t RAYON_X_P[4] = {{"fall", 0, 127, 0, PK_NUM, 0}, {"floor", 0, 127, 0, PK_PCT, 0},
                                        {"keyscale", 0, 127, 0, PK_PCT, 0}, {"-", 0, 0, 0, PK_NUM, 0}};
 /* the MIDI engine (EG_MIDI): its second page's knobs (each named by its CC: tp_info_par), and the eight knobs' CC
@@ -3396,6 +3421,11 @@ static void eknob_init(void)
                 i->hi = (uint8_t)(k == 0 ? 1 : 127);
                 i->names = k == 0 ? ACIDW_N : 0;
             }
+            if (e == EG_SEQUIN && k == 0) {    /* the wave (tp_text_par: the duty as a fraction, the table's name) */
+                i->hi = NCW - 1;
+                i->kind = PK_NAMES;
+                i->names = CH_WAVE_N;
+            }
             if (e == EG_SLICE) {               /* sample, slices (4 8 16 32), pitch (+-24 st), gate */
                 static const uint8_t KIND[4] = {PK_SAMPLE, PK_NAMES, PK_BIPST, PK_PCT};
                 i->kind = KIND[k];
@@ -3461,7 +3491,7 @@ const tp_info_t *tp_info(int p, int engine)
     if (p >= TP_X1 && p <= TP_X4)                /* the engine's second page: knit's, rayon's, else none */
         return engine == EG_MIDI ? &MIDI_X_P[p - TP_X1] : engine == EG_RAYON ? &RAYON_X_P[p - TP_X1]
              : engine == EG_KNIT ? &KNIT_X_P[p - TP_X1] : engine == EG_SAMPLE ? &SAMPLE_X_P[p - TP_X1]
-             : engine == EG_ACID ? &ACID_X_P[p - TP_X1] : &NONE_P;
+             : engine == EG_ACID ? &ACID_X_P[p - TP_X1] : engine == EG_SEQUIN ? &SEQUIN_X_P[p - TP_X1] : &NONE_P;
     if (engine == EG_ACID) {                     /* its 303's filter and envelope; no glide, one mode, one filter */
         if (p >= TP_CUT && p <= TP_KTRK)
             return &ACID_F_P[p - TP_CUT];
@@ -3761,6 +3791,15 @@ void tp_text_par(int p, int v, const uint8_t *par, char *num, char *unit)
     }
     if (p == TP_CAMT && ct == CT_SAMPLER) {                       /* the rate */
         hz_text(ch_smp_rate((float)(v > 127 ? 127 : v) * (1.0f / 127.0f)), num, unit);
+        return;
+    }
+    if (p == TP_E2 && par[TP_ENGINE] == EG_SEQUIN) {             /* the duty, or the wave memory's table */
+        static const char *const DUTY_N[5] = {"1/8", "1/4", "3/8", "1/2", "3/4"};
+        static const uint8_t STEP_D[4] = {0, 1, 3, 4};
+        int d = (v > 127 ? 127 : v) >> 5;
+        put_s(num, par[TP_E1] == CW_WAVE ? CH_TABLE_N[((v > 127 ? 127 : v) >> 3) & 15]
+                   : DUTY_N[par[TP_X1] == CC_STEP ? STEP_D[d] : d]);
+        unit[0] = 0;
         return;
     }
     if (p == TP_CTONE && ct == CT_RING) {                         /* the ratio */
