@@ -7453,7 +7453,7 @@ static void draw_mix(void)
 }
 /* Master color: the colour stage drawn as what it is. Tape: two reels and the tape between them over the head, the
  * tape wavering as much as the amount's wow (the reels turn while it plays); sampler: a sine and what the sampler
- * keeps of it, held in steps as coarse as the amount; off: a plain wire. Callouts 2-4 at the left; the tone a
+ * keeps of it, held in steps as coarse as the amount; off: a cable from IN to OUT, the machine under its dust cover. Callouts 2-4 at the left; the tone a
  * roll-off's corner under the figure, the mix the share of the wet line */
 static void draw_master_color(void)
 {
@@ -7468,11 +7468,30 @@ static void draw_master_color(void)
         return;
     p2_title(MC_NAME[ty], ABOUT[ty], 120);
     if (ty == MC_OFF) {
+        static const int8_t CV[16][2] = {{0, 47}, {7, 9}, {10, 3}, {16, 0}, {74, 0}, {80, 3}, {83, 9}, {90, 47},
+                                         {79, 44}, {68, 47}, {57, 44}, {46, 47}, {35, 44}, {24, 47}, {13, 44}, {0, 47}};
+        float cover[32];
+        pen_t pc = {0};
         cv_text(9, 54, &FONT_XS, "on the whole mix: nothing", K_DIM);
         cv_text(9, 70, &FONT_XS, "KNOB 1: tape or sampler", K_DIM);
-        cv_rect(140, 52, 84, 2, K_FAINT);
-        cv_disc(140.0f, 52.5f, 3.0f, K_TEXT);
-        cv_disc(224.0f, 52.5f, 3.0f, K_TEXT);
+        for (int e = 0; e < 2; e++) {                /* the mix wired straight through, jack to jack */
+            int32_t jx = e ? 216 : 136;
+            cv_frame(jx, 20, 16, 12, 2, K_TEXT, K_PANEL2);
+            cv_disc((float)jx + 8.0f, 26.0f, 2.2f, K_TEXT);
+            tr_text(jx + 8 - tr_w(F_LAB, e ? "OUT" : "IN", 1) / 2, 3, F_LAB, e ? "OUT" : "IN", K_DIM, 1);
+        }
+        p2_cable(144.0f, 34.0f, 224.0f, 34.0f, 7.0f, K_TEXT);
+        for (int i = 0; i < 16; i++)                  /* the colour machine asleep under a dust cover: the cloth */
+            cover[2 * i] = 138.0f + (float)CV[i][0], cover[2 * i + 1] = 65.0f + (float)CV[i][1];
+        cv_poly(cover, 15, K_PANEL2, 256u, 0);
+        cv_poly(cover, 15, K_LINE, 200u, 6);
+        pc.w = 1.2f;
+        for (int i = 0; i < 16; i++)                  /* (its outline, the hem's scallops) */
+            pen_to(&pc, cover[2 * i], cover[2 * i + 1], K_TEXT);
+        ellipse_arc(166.0f, 84.0f, 10.0f, 9.0f, 0.5f, 1.0f, 1.0f, K_DIM);   /* two reels' bumps through it, a fold */
+        ellipse_arc(200.0f, 84.0f, 10.0f, 9.0f, 0.5f, 1.0f, 1.0f, K_DIM);
+        cv_linef(183.0f, 70.0f, 179.0f, 108.0f, K_DIM, 0.9f);
+        cv_linef(150.0f, 76.0f, 146.0f, 106.0f, K_DIM, 0.9f);
         cv_blit(0, MAIN_Y);
         return;
     }
