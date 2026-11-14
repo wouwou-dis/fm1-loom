@@ -250,6 +250,8 @@ int main(void)
            "   after the burst, the last second; dBFS), written to build/host/fx_<name>.wav\n");
     for (t = 0; t < NFXPICK; t++) {
         const uint8_t *def = t > FXT_REVERB ? RV_SPU_DEFAULT : FXT_DEFAULT[fx_pick_type(t)];
+        if (fx_pick_retired(t))                          /* (studio S and L: retired, the studio's) */
+            continue;
         snprintf(name, sizeof name, "build/host/fx_%s.wav", fx_pick_name(t));
         for (i = 0; name[i]; i++)
             if (name[i] == ' ')
@@ -262,6 +264,8 @@ int main(void)
     printf("-- and at mid knobs (64)\n");
     for (t = 0; t < NFXPICK; t++) {
         static const uint8_t mid[4] = {64, 64, 64, 64};
+        if (fx_pick_retired(t))
+            continue;
         run_fx(t, mid, &r, 0);
         snprintf(name, sizeof name, "  %-10s %6.1f  %6.1f  %6.1f  %6.1f", fx_pick_name(t), (double)db(r.peak),
                  (double)db(r.rms), (double)db(r.rms_after), (double)db(r.rms_end));
@@ -274,12 +278,19 @@ int main(void)
             {"rate", "depth", "feedback", "width"}, {"time", "fine", "repeats", "tone"},
             {"rate", "bits", "smooth", "width"},    {"freq", "depth", "rate", "feedback"},
             {"size", "motion", "tone", "damp"}};
-        static const char *const picks[NFXPICK] = {"chorus", "delay", "lofi", "phaser", "plate", "room", "studio S",
-                                                   "studio M", "studio L", "hall", "half echo", "space echo",
+        static const char *const picks[NFXPICK] = {"chorus", "delay", "lofi", "phaser", "plate", "room", "studio",
+                                                   "studio", "studio", "hall", "half echo", "space echo",
                                                    "chaos echo", "one echo", "lush"};
-        int ok = 1, k;
-        check("five send effects (no distortion), the reverb with eleven modes", NFXT == 5 && NRV == 11 && NFXPICK == 15 &&
-                                                                              !strcmp(FXT_NAME[FXT_REVERB], "reverb"));
+        int ok = 1, k, n = 0;
+        for (t = 0; t < NFXPICK; t++)
+            n += t >= FXT_REVERB && !fx_pick_retired(t);
+        check("five send effects (no distortion), the reverb with nine modes (eleven numbers, two retired)",
+              NFXT == 5 && NRV == 11 && NFXPICK == 15 && n == 9 && !strcmp(FXT_NAME[FXT_REVERB], "reverb"));
+        check("studio S and L retired: never picked, played as the studio",
+              fx_pick_retired(FXT_REVERB + RV_STUDIO_S) && fx_pick_retired(FXT_REVERB + RV_STUDIO_L) &&
+              !fx_pick_retired(FXT_REVERB + RV_STUDIO) && !fx_has(fx, FXT_REVERB + RV_STUDIO_S) &&
+              !fx_has(fx, FXT_REVERB + RV_STUDIO_L) && fx_has(fx, FXT_REVERB + RV_STUDIO) &&
+              fx_pick_mode(FXT_REVERB + RV_STUDIO_L) == RV_STUDIO);
         for (t = 0; t < NFXT; t++)
             for (k = 0; k < 4; k++)
                 ok &= FXT_DEFAULT[t][k] == want[t][k];
@@ -913,6 +924,8 @@ int main(void)
             uint8_t kn[4] = {RV_SPU_DEFAULT[0], RV_SPU_DEFAULT[1], RV_SPU_DEFAULT[2], RV_SPU_DEFAULT[3]};
             int chaos = t == FXT_REVERB + RV_CHAOS_ECHO;
             float pk = 0.0f;
+            if (fx_pick_retired(t))
+                continue;
             if (chaos)
                 kn[1] = 0;
             run_fx(t, kn, &r, 0);
@@ -957,11 +970,11 @@ int main(void)
         {   /* damp darkens the tail */
             static const uint8_t k0[4] = {127, 64, 64, 0}, k1[4] = {127, 64, 64, 127};
             float br[2];
-            impulse(FXT_REVERB + RV_STUDIO_L, k0, imp_l, imp_r, SR);
+            impulse(FXT_REVERB + RV_STUDIO, k0, imp_l, imp_r, SR);
             br[0] = bright(imp_l, 4410, SR);
-            impulse(FXT_REVERB + RV_STUDIO_L, k1, imp_l, imp_r, SR);
+            impulse(FXT_REVERB + RV_STUDIO, k1, imp_l, imp_r, SR);
             br[1] = bright(imp_l, 4410, SR);
-            snprintf(name, sizeof name, "  studio L damp 0 -> 127: the tail darker (%.4f -> %.4f)", (double)br[0], (double)br[1]);
+            snprintf(name, sizeof name, "  studio damp 0 -> 127: the tail darker (%.4f -> %.4f)", (double)br[0], (double)br[1]);
             check(name, br[1] < br[0] * 0.7f);
         }
         {   /* another mode mid-tail: the area emptied, the new one starts quiet */
@@ -988,6 +1001,8 @@ int main(void)
         uint64_t i0, di;
         for (t = 0; t < NFXPICK; t++) {
             static const uint8_t mid[4] = {64, 64, 64, 64};
+            if (fx_pick_retired(t))
+                continue;
             fx_init(fx, dly_l, dly_r, rv);
             fx_set(fx, t, t > FXT_REVERB ? RV_SPU_DEFAULT : mid);
             for (b = 0; b < 40; b++)                          /* (an SPU mode clears its area first) */

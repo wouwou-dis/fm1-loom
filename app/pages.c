@@ -5100,7 +5100,7 @@ static void draw_punch(void)
  * whose size follows knob 1 (its floor dimensioned, callout 1); rings spreading on its floor, as many and as lasting as
  * knob 2 lets them (the plate's: its damping, less damping more rings); callouts 2-4 at the left with their knobs'
  * names, 2's dashed leader to the rings. The source and the first ring vermilion while the effect sounds */
-static const char *const RV_DESC[NRV] = {"BRIGHT METAL PLATE", "A SMALL ROOM", "SMALL STUDIO", "MEDIUM STUDIO", "LARGE STUDIO",
+static const char *const RV_DESC[NRV] = {"BRIGHT METAL PLATE", "A SMALL ROOM", "A STUDIO", "A STUDIO", "A STUDIO",
                                          "A CONCERT HALL", "ROOM WITH ECHO", "ECHOES IN SPACE", "ALMOST ENDLESS",
                                          "A SINGLE ECHO", "SMOOTH, WIDE PLATE"};
 /* ---- P3 helpers (the fx, character, sends, LFO, players and setup pages): a fine dotted line, a dotted curve ---- */

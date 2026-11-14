@@ -53,7 +53,7 @@ static void zero16(int16_t *b, int32_t n);
 #include "psxrev.h"
 
 const char *const FXT_NAME[NFXT] = {"chorus", "delay", "lofi", "phaser", "reverb"};
-const char *const RV_NAME[NRV] = {"plate", "room", "studio S", "studio M", "studio L", "hall", "half echo",
+const char *const RV_NAME[NRV] = {"plate", "room", "studio", "studio", "studio", "hall", "half echo",
                                   "space echo", "chaos echo", "one echo", "lush"};
 static const char *const FXT_KNOB[NFXT][4] = {
     {"rate", "depth", "feedback", "width"}, {"time", "fine", "repeats", "tone"},
@@ -362,7 +362,7 @@ void fx_clear(fxslot_t *f)
 int fx_has(const fxslot_t *f, int pick)
 {
     int type = fx_pick_type(pick);
-    if (pick < 0 || pick >= NFXPICK)
+    if (pick < 0 || pick >= NFXPICK || fx_pick_retired(pick))   /* (a retired reverb mode: never picked) */
         return 0;
     if (type == FXT_REVERB)
         return f->rv != 0;
@@ -374,6 +374,8 @@ int fx_has(const fxslot_t *f, int pick)
 void fx_set(fxslot_t *f, int pick, const uint8_t knob[4])
 {
     int i, type, mode;
+    if (fx_pick_retired(pick))                /* (a retired reverb mode plays as the studio) */
+        pick = FXT_REVERB + RV_STUDIO;
     if (!fx_has(f, pick))
         pick = FXT_CHORUS;
     type = fx_pick_type(pick);

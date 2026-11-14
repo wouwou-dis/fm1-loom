@@ -304,7 +304,7 @@ static void fx_cases(void)
     char name[64];
     static const uint8_t mid[4] = {64, 64, 64, 64}, hi[4] = {120, 110, 20, 100};
     for (t = 0; t < NFXPICK; t++)
-        for (v = 0; v < 3; v++) {
+        for (v = 0; v < 3 && !fx_pick_retired(t); v++) {   /* (studio S and L retired) */
             fx_init(fx, dly_l, dly_r, rv);
             fx_tempo(fx, 120.0f);
             fx_set(fx, t, v == 0 ? (t >= FXT_REVERB ? RV_SPU_DEFAULT : FXT_DEFAULT[t]) : v == 1 ? mid : hi);

@@ -381,6 +381,9 @@ static int settings_valid(settings_t *s)
             engine_retire(p);
             p[TP_O2FINE] = 64;
         }
+        if (t >= AUX_FX1 && fx_pick_retired(p[TP_ENGINE]))   /* a retired reverb mode (studio S, L): the studio, its
+                                                                 * knobs as they were (the SPU modes share them) */
+            p[TP_ENGINE] = FXT_REVERB + RV_STUDIO;
         if (t < NTRK)
             keys_fix(p, s->format < 17u);
         if (t < NTRK)

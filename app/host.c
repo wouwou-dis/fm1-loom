@@ -815,7 +815,7 @@ static int value_of(int t, int p, const char *s)   /* a number, a name of the va
                 return k;
     if (t == AUX_FX1 || t == AUX_FX2)
         for (int k = 0; k < NFXPICK; k++)
-            if (p == TP_ENGINE && ieq(s, fx_pick_name(k)))
+            if (p == TP_ENGINE && !fx_pick_retired(k) && ieq(s, fx_pick_name(k)))
                 return k;
     if (!isnum(s))
         host_die("no value", s);
