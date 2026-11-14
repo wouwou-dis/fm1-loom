@@ -7543,8 +7543,9 @@ static float mst_eq_db(float oct, const uint8_t *m)  /* oct: octaves over 20 Hz 
     float sl = 1.0f / (1.0f + fm_expf((oct - 2.58f) * 3.0f)), sh = 1.0f / (1.0f + fm_expf(-(oct - 8.23f) * 3.0f));
     return lo * sl + mid * fm_expf(-d * d) + hi * sh;
 }
-/* Master, out: the two groups' levels (1, 2) as bars, the compressor's transfer curve (3: its threshold and ratio)
- * with its gain reduction now hanging at the graph's right in vermilion, and the pump's duck now (4) beside it */
+/* Master, out: the two groups' levels (1, 2) as bars; the compressor's gain reduction now on a needle meter (0 dB at
+ * the right, 20 at the left), its transfer curve (3: its threshold and ratio) under it, and the pump's duck now (4) a
+ * column of lamps beside that, lit from the top (ink: the meters are not the playhead's vermilion) */
 static void draw_master(void)
 {
     int pg = ui.page == P_MASTER ? 0 : 2;
@@ -7604,7 +7605,7 @@ static void draw_master(void)
         }
         text_r(232, 104, &FONT_XS, "64 on a knob: flat", K_DIM);
     } else {
-        int32_t gx = 140, gy = 16, g = 80;          /* the transfer graph: in -48 .. 0 dB across, out up */
+        int32_t gx = 142, gy = 62, g = 40;          /* the transfer graph: in -48 .. 0 dB across, out up */
         int v = m[MS_COMP], ri = v ? 1 + (int)((float)v * (4.0f / 127.0f) + 0.5f) : 0;
         static const float R[6] = {1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f};
         float thr = -4.0f - 28.0f * (float)v / 127.0f, sc = (float)g / 48.0f;
@@ -7628,6 +7629,27 @@ static void draw_master(void)
         else
             s_cat(t, "off");
         cv_text(13, 102, &FONT_XS, t, m[MS_PUMP] ? K_TEXT : K_DIM);
+        {   /* the gain reduction now on a meter: its window, the scale 0 (right) .. 20 dB (left), the needle */
+            float px = 184.0f, py = 52.0f, u = fm_clampf(gr / 20.0f, 0.0f, 1.0f);
+            static const uint8_t TK[5] = {0, 3, 6, 10, 20};
+            p2_panel(134, 2, 100, 52, K_PANEL2);
+            cv_rect(139, 7, 90, 36, K_CARD);
+            p2_outline(139.0f, 7.0f, 229.0f, 43.0f, K_TEXT, 0.9f);
+            ellipse_arc(px, py, 30.0f, 30.0f, 0.58f, 0.92f, 1.2f, K_TEXT);
+            for (int i = 0; i < 5; i++) {
+                float t = 0.92f - 0.34f * (float)TK[i] / 20.0f, c = fm_sin_turns(t + 0.25f), sn = fm_sin_turns(t);
+                cv_linef(px + c * 30.0f, py + sn * 30.0f, px + c * 35.0f, py + sn * 35.0f, K_TEXT, i ? 0.9f : 1.6f);
+            }
+            tr_text(141, 9, F_LAB, "20", K_DIM, 0);
+            text_r(227, 9, F_LAB, "0", K_DIM);
+            tr_text(160, 9, F_LAB, "GR", K_DIM, 1);
+            {
+                float t = 0.92f - 0.34f * u, c = fm_sin_turns(t + 0.25f), sn = fm_sin_turns(t);
+                cv_linef(px + c * 8.0f, py + sn * 8.0f, px + c * 36.0f, py + sn * 36.0f, K_TEXT, 1.3f);
+            }
+            cv_rect(139, 43, 91, 6, K_PANEL2);
+            p2_outline(139.0f, 43.0f, 229.0f, 43.0f, K_TEXT, 0.9f);
+        }
         cv_grid(gx, gy, g + 1, g + 1, 8, MAIN_Y, K_GRID);
         cv_rect(gx, gy, g + 1, 1, K_TEXT), cv_rect(gx, gy + g, g + 1, 1, K_TEXT);
         cv_rect(gx, gy, 1, g + 1, K_TEXT), cv_rect(gx + g, gy, 1, g + 1, K_TEXT);
@@ -7648,13 +7670,13 @@ static void draw_master(void)
             cv_dash(tx, (float)(gy + g), tx, (float)(gy + g) - (thr + 48.0f) * sc, 2.0f, 2.0f, 0.8f, K_DIM);
             cv_dash(50.0f, 56.0f, tx - 3.0f, (float)(gy + g) - (thr + 48.0f) * sc, 2.0f, 2.0f, 0.8f, K_TEXT);
         }
-        tr_text(gx + g / 2 - 6, gy + g + 3, F_LAB, "IN", K_DIM, 1);
-        tr_text(gx, 0, F_LAB, "OUT", K_DIM, 1);
-        tr_text(208, 0, F_LAB, "GR", K_DIM, 1);
-        cv_rect(gx + g + 4, gy, 3, g + 1, K_PANEL);  /* the reduction now, and the pump's duck, hanging from the top */
-        cv_rect(gx + g + 4, gy, 3, (int32_t)fm_clampf(gr * sc, 0.0f, (float)g), K_REC);
-        cv_rect(gx + g + 9, gy, 3, g + 1, K_PANEL);
-        cv_rect(gx + g + 9, gy, 3, (int32_t)fm_clampf(pump * sc, 0.0f, (float)g), K_REC);
+        tr_text(gx + g / 2 - 6, gy + g + 4, F_LAB, "IN", K_DIM, 1);
+        {   /* the pump's duck now: a column of lamps, lit from the top down by its dB (0 .. 24), and its name */
+            int lit = (int)fm_clampf(pump * (7.0f / 24.0f) + 0.5f, 0.0f, 7.0f);
+            for (int i = 0; i < 7; i++)
+                cv_frame(196, gy + i * 6, 12, 5, 0, K_TEXT, i < lit ? K_TEXT : K_CARD);
+            tr_text(194, gy + g + 4, F_LAB, "PUMP", K_DIM, 0);
+        }
     }
     cv_blit(0, MAIN_Y);
 }
