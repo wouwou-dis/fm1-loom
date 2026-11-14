@@ -988,15 +988,18 @@ static void ellipse_arc(float cx, float cy, float rx, float ry, float t0, float 
 }
 
 /* ---------------------------------------------------------- alerts --- */
-/* a message or a question over the header: a card with an ink hairline (a question inked: paper on ink), a circled
- * mark at the left (i, ?, !, a tick, undo's arrows), the text from AL_X; the double rule stays under it */
+/* a message or a question over the header: a slip of the manual laid over it, as the help card is (its corner
+ * turned, a hard shadow; a question inked: paper on ink), a circled mark at the left (i, ?, !, a tick, undo's arrows),
+ * the text from AL_X; the double rule stays under it */
 #define AL_X 26
+static void p2_card(int32_t x, int32_t y, int32_t w, int32_t h, int32_t cut, uint16_t fill);
 static void alert_box(int kind)
 {
     int ask = kind == AL_ASK;
     uint16_t fill = ask ? K_TEXT : K_CARD, ink = ask ? K_BG : K_TEXT;
     int32_t cx = 14, cy = 11;
-    cv_frame(4, 2, 232, 19, 2, K_TEXT, fill);
+    cv_rect(236, 5, 3, 16, K_TEXT);                  /* (its shadow: the right only, the rules close under it) */
+    p2_card(4, 2, 232, 19, 6, fill);
     if (kind == AL_NO)
         cv_disc((float)cx, (float)cy, 6.6f, K_TEXT);
     else
@@ -2560,7 +2563,6 @@ static void cards_audit(void)                  /* every card on every page it is
 }
 #endif
 static void card_paint(int i);
-static void p2_card(int32_t x, int32_t y, int32_t w, int32_t h, int32_t cut, uint16_t fill);
 static void draw_card(void)
 {
     int i = card_find(ui.card - 1);
