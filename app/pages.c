@@ -6247,7 +6247,9 @@ static void ef_pt(curve_t *c, float x, float y)
 /* the figure's name large, what it plots in tracked capitals at the right, a detail under that */
 static void ef_head(const char *name, const char *cap, const char *det)
 {
-    int32_t e = cv_text(8, 0, &FONT_L, name, K_TEXT) + 10, w = tr_w(F_LAB, cap, 1);
+    int32_t w = tr_w(F_LAB, cap, 1), dw = text_w(&FONT_XS, det), room = 214 - (dw > w ? dw : w), e;
+    const felucca_font_t *f = text_w(&FONT_L, name) <= room ? &FONT_L : text_w(F_VAL, name) <= room ? F_VAL : &FONT_B;
+    e = cv_text(8, f == &FONT_L ? 0 : f == F_VAL ? 6 : 10, f, name, K_TEXT) + 10;   /* (a long name smaller) */
     tr_text(232 - w, 3, F_LAB, cap, K_DIM, 1);
     if (text_w(&FONT_XS, det) <= 232 - e)
         text_r(232, 16, &FONT_XS, det, K_TEXT);
@@ -6371,7 +6373,7 @@ static void draw_key_env(void)
             ef_pt(&c, x3 + (x4 - x3) * u, EF_BASE - (EF_BASE - EF_TOP) * ease_exp(u));
         }
     }
-    ef_head(DL_SOUND_NAME[key], "KEY ENVELOPE", open ? "decay off: it runs to its own end" : "amplitude over time");
+    ef_head(DL_SOUND_NAME[key], "KEY ENVELOPE", open ? "decay off: runs to its end" : "amplitude over time");
     ef_curve(&c);
     if (open) {
         float bx = (x3 + x4) * 0.5f;
