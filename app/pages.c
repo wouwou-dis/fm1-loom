@@ -7533,8 +7533,9 @@ static void draw_master_color(void)
     }
     cv_blit(0, MAIN_Y);
 }
-/* Master, EQ: the response over 20 Hz .. 20 kHz on graph paper (+-12 dB), the bands' callouts on the curve at their
- * frequencies (120 Hz shelf, 1 kHz peak, 6 kHz shelf), the area off flat hatched */
+/* Master, EQ: a rack equaliser. Its paper screen plots the response over 20 Hz .. 20 kHz (+-12 dB), the area off flat
+ * hatched, a dot on the curve at each band's frequency; under it the three bands' big knobs at their values (1-3, flat
+ * at 12 o'clock), each named by its frequency (120 Hz shelf, 1 kHz peak, 6 kHz shelf) */
 static float mst_eq_db(float oct, const uint8_t *m)  /* oct: octaves over 20 Hz */
 {
     float lo = ((float)m[MS_EQ_LO] - 64.0f) * (12.0f / 64.0f), mid = ((float)m[MS_EQ_MID] - 64.0f) * (12.0f / 64.0f);
@@ -7556,20 +7557,27 @@ static void draw_master(void)
     h = hash_u(h, (uint32_t)(gr * 4.0f) | (uint32_t)(pump * 4.0f) << 12 | (uint32_t)p2_touch() << 28);
     if (!begin_main(h))
         return;
-    if (pg == 0) {
-        int32_t x0 = 12, w = 192, y0 = 6, hh = 72, cy = y0 + hh / 2;
-        float poly[2 * 52], ppd = 2.5f;              /* pixels a dB */
+    if (pg == 0) {   /* a rack equaliser: its ears, its paper screen with the response, its three big knobs */
+        int32_t x0 = 28, w = 116, y0 = 9, hh = 46, cy = y0 + hh / 2;
+        float poly[2 * 52], ppd = 1.5f;              /* pixels a dB */
         pen_t pn = {0};
         int n = 0;
         static const float BF[3] = {2.58f, 5.64f, 8.23f};
         static const char *const BN[3] = {"120", "1K", "6K"};
+        p2_panel(20, 2, 200, 98, K_PANEL2);          /* the unit, its rack ears and their slots */
+        for (int e = 0; e < 2; e++) {
+            int32_t ex = e ? 219 : 8;
+            p2_panel(ex, 2, 13, 98, K_PANEL);
+            cv_frame(ex + 3, 10, 7, 12, 3, K_TEXT, K_BG), cv_frame(ex + 3, 80, 7, 12, 3, K_TEXT, K_BG);
+        }
+        p2_panel(x0 - 2, y0 - 2, w + 5, hh + 5, K_CARD);   /* the screen: graph paper, flat ruled, the curve */
         cv_grid(x0, y0, w + 1, hh + 1, 8, MAIN_Y, K_GRID);
-        cv_rect(x0, cy, w + 1, 1, K_TEXT);
+        cv_rect(x0, cy, w + 1, 1, K_DIM);
         for (int i = 0; i < 3; i++) {                /* the scale: +12, 0, -12 dB */
             static const char *const DB[3] = {"+12", "0", "-12"};
             int32_t y = cy - (int32_t)(ppd * 12.0f) * (1 - i);
-            cv_rect(x0 + w + 2, y, 4, 1, K_DIM);
-            text_r(234, cap_y(y - 6, 13, F_LAB), F_LAB, DB[i], K_DIM);
+            cv_rect(x0 + w + 3, y, 4, 1, K_TEXT);
+            cv_text(x0 + w + 10, cap_y(y - 6, 13, F_LAB), F_LAB, DB[i], K_DIM);
         }
         for (int i = 0; i <= 48; i++) {
             float oct = 10.0f * (float)i / 48.0f, y = (float)cy - mst_eq_db(oct, m) * ppd;
@@ -7581,18 +7589,20 @@ static void draw_master(void)
         pn.w = 2.0f;
         for (int i = 0; i < n - 2; i++)
             pen_to(&pn, poly[2 * i], poly[2 * i + 1], K_TEXT);
-        for (int b = 0; b < 3; b++) {                /* the bands: a callout on the curve, its frequency under the graph */
-            float db = mst_eq_db(BF[b], m);
-            int32_t x = x0 + (int32_t)((float)w * BF[b] / 10.0f), y = cy - (int32_t)(db * ppd);
-            int32_t c = db >= 0.0f ? y - 12 : y + 12;
-            char d[2] = {(char)('1' + b), 0};
-            cv_disc((float)x, (float)y, 2.4f, K_TEXT);
-            cv_linef((float)x, (float)y, (float)x, (float)(db >= 0.0f ? c + 6 : c - 6), K_TEXT, 0.8f);
-            circ_num(x, c < y0 + 6 ? y0 + 6 : c > y0 + hh - 6 ? y0 + hh - 6 : c, d, K_TEXT, K_BG);
-            text_c(x + 1, y0 + hh + 4, F_LAB, BN[b], K_DIM);
+        cv_disc(205.0f, 17.0f, 3.2f, K_TEXT);         /* its lamp and its bypass toggle, quiet */
+        cv_ring(205.0f, 17.0f, 5.0f, 0.9f, K_TEXT);
+        cv_frame(200, 34, 11, 18, 2, K_TEXT, K_CARD);
+        cv_rect(203, 37, 5, 6, K_TEXT);
+        for (int b = 0; b < 3; b++) {                /* the bands: a big knob each (12 o'clock: flat), its frequency */
+            float kx = (float)(56 + b * 64), db = mst_eq_db(BF[b], m);
+            int32_t bx = x0 + (int32_t)((float)w * BF[b] / 10.0f);
+            fxm_ticks(kx, 78.0f, 14.0f, 16.5f, 9);
+            cv_linef(kx, 59.0f, kx, 63.0f, K_TEXT, 1.6f);
+            p2_knob(kx, 78.0f, 11.0f, (float)m[MS_EQ_LO + b] / 127.0f, b + 1, -18, -14);
+            cv_text((int32_t)kx + 19, 72, F_LAB, BN[b], K_TEXT);
+            cv_disc((float)bx, (float)cy - db * ppd, 2.4f, K_TEXT);   /* (its place on the curve) */
         }
-        tr_text(x0, y0 + hh + 4, F_LAB, "HZ", K_DIM, 1);
-        text_r(x0 + w, y0 + hh + 21, &FONT_XS, "64 on a knob: flat", K_DIM);
+        text_r(232, 104, &FONT_XS, "64 on a knob: flat", K_DIM);
     } else {
         int32_t gx = 140, gy = 16, g = 80;          /* the transfer graph: in -48 .. 0 dB across, out up */
         int v = m[MS_COMP], ri = v ? 1 + (int)((float)v * (4.0f / 127.0f) + 0.5f) : 0;
