@@ -7020,12 +7020,26 @@ static void draw_players(void)
             e = note_name(pr->chord[i], e);
         }
     } else {
-        for (int i = 0; i < pr->nheld && i < 8 && text_w(&FONT_XS, t) < 66; i++) {
+        /* the notes held: the keys down, except under the pedal, where the notes ringing are the ones held (the keys are
+         * up). As many as fit the 88 px slot with a "+N" for the rest: "held: C3 E3 G3 +2" */
+        const uint8_t *hn = pl == PL_HOLD && pr->nsounding ? pr->sounding : pr->held;
+        int nh = pl == PL_HOLD && pr->nsounding ? pr->nsounding : pr->nheld, i;
+        if (nh > 16)
+            nh = 16;
+        for (i = 0; i < nh; i++) {
+            char tr[48], *te = s_cat(tr, t);
             if (i)
-                e = s_cat(e, " ");
-            e = note_name(pr->held[i], e);
+                te = s_cat(te, " ");
+            te = note_name(hn[i], te);
+            if (i + 1 < nh)                          /* (room left for the "+N" that would follow) */
+                num_s((uint32_t)(nh - i - 1), s_cat(te, " +"));
+            if (text_w(&FONT_XS, tr) > 88 && i)
+                break;
+            e = note_name(hn[i], i ? s_cat(e, " ") : e);
         }
-        if (!pr->nheld)
+        if (i < nh)
+            num_s((uint32_t)(nh - i), s_cat(e, " +"));
+        if (!nh)
             e = s_cat(e, "-");
     }
     if (pl == PL_ARP || pl == PL_HOLD ? !pr->nheld && !(pl == PL_HOLD && pr->nsounding) : pl == PL_STRUM && !pr->nchord)   /* nothing yet: what to do */
