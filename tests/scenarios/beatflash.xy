@@ -5,7 +5,7 @@ expect page Steps
 expect flash 0
 tap PLAY
 wait 5
-# the first sixteenth is the bar's downbeat: coral at once, 50 % at the peak (decaying: 31 % a step on)
+# the first sixteenth is the bar's downbeat: coral at once, 50 % at the peak (32 of 64; 20 a step on)
 expect flash >0
 expect flashes 1
 wait 250
@@ -15,7 +15,7 @@ shot beatflash_rest.png
 wait 220
 # the second beat (500 ms): 30 % at the peak, less as it fades
 expect flash >0
-expect flash <31
+expect flash <20
 expect flashes 2
 wait 300
 expect flash 0

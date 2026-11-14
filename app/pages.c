@@ -48,8 +48,7 @@ static const theme_t *const theme = &PAPER;
 #define CC_IN_ENDLESS 1u                               /* proj.rsv[3]: CCs in from endless encoders, each a turn
                                                         * (midicc.c cc_delta; absolute by default) */
 #define BEAT_FLASH_OFF 2u                             /* proj.rsv[3]: no beat flash on Steps and Bar (on by default) */
-static uint16_t k_bg = RGB(236, 232, 220);            /* the paper now: PAPER.bg, a little coral on a beat (beat_flash) */
-#define K_BG k_bg
+#define K_BG theme->bg
 #define K_PANEL theme->panel
 #define K_PANEL2 theme->panel2
 #define K_LINE theme->line
@@ -68,7 +67,7 @@ static uint16_t k_now, k_tint, k_mid;
 static uint16_t trk_ink(int t) { return t >= 0 && t < NTRK ? theme->ink[t] : theme->aux; }
 static uint16_t ink_mix(uint16_t ink, uint32_t a)    /* the ink at a/16 over the background */
 {
-    uint32_t pr = theme->bg >> 11, pg = theme->bg >> 5 & 63u, pb = theme->bg & 31u;   /* (the plain paper) */
+    uint32_t pr = K_BG >> 11, pg = K_BG >> 5 & 63u, pb = K_BG & 31u;
     uint32_t r = ink >> 11, g = ink >> 5 & 63u, b = ink & 31u;
     return (uint16_t)(((r * a + pr * (16u - a)) / 16u) << 11 | ((g * a + pg * (16u - a)) / 16u) << 5 |
                       (b * a + pb * (16u - a)) / 16u);
@@ -80,6 +79,41 @@ static uint16_t col_mix(uint16_t a, uint16_t b, uint32_t s)   /* a moved s/16 of
     return (uint16_t)(((ar * (16u - s) + br * s) / 16u) << 11 | ((ag * (16u - s) + bg * s) / 16u) << 5 |
                       (ab * (16u - s) + bb * s) / 16u);
 }
+
+/* The beat flash (the owner's one animation: Steps and Bar only, while playing): the screen is seen through a coral
+ * filter on every beat, the bar's downbeat stronger, and falls back to plain in three steps. Every band is drawn as
+ * always, then loom_blit multiplies its pixels by what the paper would become (the paper turns the tint, the ink stays
+ * dark, the vermilion and the blue stay themselves), so no drawing code knows of it. The beat comes from the sequencer's
+ * sixteenth counter (seq.step_tick, bar16: what the metronome follows, so an external clock, groove, tempo changes and a
+ * pattern's step scale are all right); the decay is in time (each step is one redraw of the whole screen). The colour and
+ * strengths are these constants, in 64ths of the way from the paper to the coral. Above FLASH_MAX_BPM only every
+ * second beat flashes (at most three a second). */
+#define FLASH_CORAL RGB(255, 111, 82)                /* coral #FF6F52: lighter and pinker than the vermilion */
+#define FLASH_BEAT 19                                 /* 64ths of coral over the paper at a beat's peak: 30 % */
+#define FLASH_DOWN 32                                 /* ... at the bar's downbeat: 50 % */
+#define FLASH_STEP_SHIFT 6                            /* each step of the decay is 64 ms (three: 192 ms) */
+#define FLASH_MAX_BPM 180
+static const uint8_t FLASH_DECAY[3] = {8, 5, 2};      /* 8ths of the peak by step, then the plain paper */
+static uint32_t fl_t0;                                /* when the pulse began (ms) */
+static uint8_t fl_six, fl_pk, fl_pct;                 /* the sixteenth counter last seen, the pulse's peak, the level now */
+#ifdef PLAT_HOST
+static uint32_t fl_count;                             /* (the simulator: pulses begun, expect flashes) */
+#endif
+static void loom_blit(uint32_t x, uint32_t y)         /* cv_blit, through the flash's filter (pages.c's blits are this) */
+{
+    if (fl_pct) {
+        uint32_t p = K_BG, c = FLASH_CORAL, q = fl_pct, n = cv_w * cv_h, pr = p >> 11, pg = p >> 5 & 63u, pb = p & 31u;
+        uint32_t fr = (((pr * (64u - q) + (c >> 11) * q) >> 6 << 8) + pr - 1u) / pr,   /* paper channel x f = the tint */
+                 fg = (((pg * (64u - q) + (c >> 5 & 63u) * q) >> 6 << 8) + pg - 1u) / pg,
+                 fb = (((pb * (64u - q) + (c & 31u) * q) >> 6 << 8) + pb - 1u) / pb;
+        for (uint16_t *s = cv_px; n; n--, s++) {
+            uint32_t v = swap16(*s), r = (v >> 11) * fr >> 8, g = (v >> 5 & 63u) * fg >> 8, b = (v & 31u) * fb >> 8;
+            *s = swap16((r > 31u ? 31u : r) << 11 | (g > 63u ? 63u : g) << 5 | (b > 31u ? 31u : b));
+        }
+    }
+    cv_blit(x, y);
+}
+#define cv_blit(x, y) loom_blit(x, y)
 
 /* the pages (the spec's Buttons table): a button opens its first page; SELECT turns them. EDIT: the engine
  * (a drum track: the shown key's knobs) and Play (a drum track: the key's model, random, pan, volume); ENV: the
@@ -7647,51 +7681,26 @@ static void ink_follow(void)                         /* another track: its ink, 
     for (uint32_t i = 0; i < sizeof ui.sig / sizeof ui.sig[0]; i++)
         ui.sig[i] ^= 0x5A5A5A5Au;
 }
-/* The beat flash (the owner's one animation: Steps and Bar only, while playing): the paper tints toward coral on every
- * beat, the bar's downbeat more, and falls back in three steps. The beat comes from the sequencer's sixteenth counter
- * (seq.step_tick, bar16: what the metronome follows, so an external clock, groove, tempo changes and a pattern's step
- * scale are all right); the decay is in time (each step is one redraw of the whole screen). The colours and strengths
- * are these constants. Above FLASH_MAX_BPM only every second beat flashes (at most three a second). */
-#define FLASH_CORAL RGB(255, 111, 82)                /* coral #FF6F52: lighter and pinker than the vermilion */
-#define FLASH_BEAT 30                                 /* % of coral over the paper at a beat's peak */
-#define FLASH_DOWN 50                                 /* ... at the bar's downbeat */
-#define FLASH_STEP_MS 55                              /* each step of the decay (three: about 165 ms) */
-#define FLASH_MAX_BPM 180
-#define FLASH_GAP_MS 250                              /* never closer than this (a torn read of the counters) */
-static const uint8_t FLASH_DECAY[3] = {100, 62, 28};  /* % of the peak by step, then the plain paper */
-static uint32_t fl_t0;                                /* when the pulse began (ms) */
-static uint8_t fl_six, fl_pk, fl_pct;                 /* the sixteenth counter last seen, the pulse's peak, the % now */
-#ifdef PLAT_HOST
-static uint32_t fl_count;                             /* (the simulator: pulses begun, expect flashes) */
-#endif
-static uint16_t flash_mix(uint32_t pct)
-{
-    uint32_t a = theme->bg, c = FLASH_CORAL, q = 100u - pct;
-    return (uint16_t)((((a >> 11) * q + (c >> 11) * pct + 50u) / 100u) << 11 |
-                      (((a >> 5 & 63u) * q + (c >> 5 & 63u) * pct + 50u) / 100u) << 5 |
-                      ((a & 31u) * q + (c & 31u) * pct + 50u) / 100u);
-}
 static void beat_flash(void)
 {
-    uint32_t now = plat_ms(), t = seq.step_tick, b = seq.bar16 & 15u, d = (uint8_t)(t - fl_six), pct = 0;
+    uint32_t now = plat_ms(), t = seq.step_tick, b = seq.bar16 & 15u, d = (uint8_t)(t - fl_six), q = 0, i = (now - fl_t0) >> FLASH_STEP_SHIFT;
     fl_six = (uint8_t)t;
     if (playing() && !(proj.rsv[3] & BEAT_FLASH_OFF) && (ui.page == P_STEPS || ui.page == P_BAR) && !ui.card && !lst.open &&
         !ui.ask) {
-        if (d > (b & 3u) && (!fl_pk || now - fl_t0 >= FLASH_GAP_MS) &&
-            (!((b & 4u) && (seq.ext ? seq.ext_bpm : seq.bpm) > (float)FLASH_MAX_BPM))) {   /* a beat came by */
-            fl_t0 = now;
-            fl_pk = (uint8_t)((b & ~3u) ? FLASH_BEAT : FLASH_DOWN);
+        if (d > (b & 3u) && (!fl_pk || i >= 4u) && !((b & 4u) && (seq.ext ? seq.ext_bpm : seq.bpm) > (float)FLASH_MAX_BPM)) {
+            fl_t0 = now;                             /* a beat came by (not within 256 ms of the last: a torn read) */
+            fl_pk = (uint8_t)(b & 12u ? FLASH_BEAT : FLASH_DOWN);
+            i = 0;
 #ifdef PLAT_HOST
             fl_count++;
 #endif
         }
-        if (fl_pk && (now - fl_t0) / FLASH_STEP_MS < 3u)
-            pct = (uint32_t)fl_pk * FLASH_DECAY[(now - fl_t0) / FLASH_STEP_MS] / 100u;
+        if (fl_pk && i < 3u)
+            q = fl_pk * FLASH_DECAY[i] >> 3;
     } else
         fl_pk = 0;
-    if (pct != fl_pct) {                             /* a new level: every band is drawn again with the paper's */
-        fl_pct = (uint8_t)pct;
-        k_bg = pct ? flash_mix(pct) : theme->bg;
+    if (q != fl_pct) {                               /* a new level: every band is drawn again, through the filter */
+        fl_pct = (uint8_t)q;
         ui_redraw();
     }
 }
