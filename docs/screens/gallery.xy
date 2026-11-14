@@ -1,0 +1,183 @@
+# The gallery: the pages the README and CHANGES show, taken from a new project (docs/make_screens.sh runs this in the
+# host simulator and makes docs/img/paper-NAME.png, the hero strip and the composites from the shots). Every shot is
+# taken a fixed number of simulated milliseconds after what it shows (the simulator keeps its own time, so a rerun
+# makes the same pictures). A new project's sounds are LOOM-8's own defaults, not random ones.
+wait 200
+splash
+shot splash.png
+bpm 120
+projnew
+wait 300
+# ---- a beat on T1, playing
+tapkey w0
+tapkey w4
+tapkey w8
+tapkey w12
+tapkey b1
+tapkey w4
+tapkey w12
+tapkey b2
+tapkey w2
+tapkey w6
+tapkey w10
+tapkey w14
+tapkey b0
+wait 400
+tap PLAY
+wait 1250
+shot steps_playing.png
+tap PLAY
+wait 400
+# ---- a bass line on T2: the piano-roll strip
+turn ALGO 1
+press SEQ
+tapkey 2
+release SEQ
+tapkey w0
+tapkey w3
+tapkey w6
+press SEQ
+tapkey 5
+release SEQ
+tapkey w10
+press SEQ
+tapkey 0
+release SEQ
+tapkey w13
+wait 400
+shot steps_synth.png
+# ---- Arrange, Song, Mix with a beat and a bass
+tap HOME
+wait 60
+tapkey w1
+tapkey w2
+tap PLAY
+wait 1250
+shot arrange.png
+tap PLAY
+turn SELECT 1
+tapkey w0
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w0
+wait 2600
+shot song.png
+tap GLO
+tap PLAY
+wait 1250
+shot mix.png
+tap PLAY
+wait 400
+# ---- the engines' machines, on T3, a note held
+turn ALGO 1
+tap EDIT
+wait 300
+knob 3 engine knit
+wait 600
+play 3 60 on 110
+wait 250
+shot engine_knit.png
+play 3 60 off
+knob 3 engine rayon
+wait 600
+shot engine_rayon.png
+knob 3 engine jacquard
+wait 600
+shot engine_jacquard.png
+knob 3 engine bellows
+wait 600
+shot engine_bellows.png
+knob 3 engine voile
+wait 600
+shot engine_voile.png
+knob 3 engine acid
+wait 600
+shot engine_acid.png
+knob 3 engine sequin
+wait 600
+shot engine_sequin.png
+knob 3 engine sample
+wait 600
+shot engine_sample.png
+knob 3 engine slice
+wait 600
+shot engine_slice.png
+knob 3 engine kit
+wait 600
+shot engine_kit.png
+knob 3 engine midi
+wait 600
+shot engine_midi.png
+knob 3 engine knit
+wait 300
+# ---- the send effects' machines, on FX II (track 12), with sends up so the picture shows what it sends
+knob 3 send1 127
+knob 3 send2 127
+tap FX
+wait 200
+turn SELECT 3
+wait 300
+knob 12 engine chorus
+wait 600
+shot fx_chorus.png
+knob 12 engine delay
+wait 600
+shot fx_delay.png
+knob 12 engine lofi
+wait 600
+shot fx_lofi.png
+knob 12 engine phaser
+wait 600
+shot fx_phaser.png
+knob 12 engine plate
+wait 600
+shot fx_plate.png
+knob 12 engine lush
+wait 600
+shot fx_lush.png
+knob 12 engine room
+wait 600
+shot fx_room.png
+knob 12 engine studio
+wait 600
+shot fx_studio.png
+knob 12 engine hall
+wait 600
+shot fx_hall.png
+knob 12 engine one_echo
+wait 1100
+shot echo_one.png
+knob 12 engine half_echo
+wait 1100
+shot echo_half.png
+knob 12 engine space_echo
+wait 1100
+shot echo_space.png
+knob 12 engine chaos_echo
+wait 1100
+shot echo_chaos.png
+# ---- the character types, on T3's Character page
+turn SELECT -3
+wait 300
+knob 3 ctype drive
+wait 300
+shot char_drive.png
+knob 3 ctype fold
+wait 300
+shot char_fold.png
+knob 3 ctype crush
+wait 300
+shot char_crush.png
+knob 3 ctype ring
+wait 300
+shot char_ring.png
+knob 3 ctype tilt
+wait 300
+shot char_tilt.png
+knob 3 ctype tape
+wait 300
+shot char_tape.png
+knob 3 ctype sampler
+wait 300
+shot char_sampler.png
