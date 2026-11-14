@@ -6326,7 +6326,29 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
             tr_text(9, 37, F_LAB, desc, K_DIM, 1);
         else
             text_fit(9, 37, F_LAB, desc, 92, K_DIM);
-        p2_panel(8, 52, 94, 64, face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2);
+        {   /* the box's silhouette: the 24 dB on feet, the ladder chamfered, the 12 dB rounded, the high-pass with its
+             * foot raked away; the others square */
+            uint16_t fill = face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2;
+            static const int8_t OCT[8][2] = {{7, 0}, {86, 0}, {93, 7}, {93, 56}, {86, 63}, {7, 63}, {0, 56}, {0, 7}};
+            static const int8_t RAKE[5][2] = {{0, 0}, {93, 0}, {93, 63}, {16, 63}, {0, 47}};
+            if (face == 1 || face == 3) {
+                float pg[16];
+                pen_t po = {0};
+                int np = face == 1 ? 8 : 5;
+                for (int k = 0; k < np; k++)
+                    pg[2 * k] = 8.5f + (float)(face == 1 ? OCT[k][0] : RAKE[k][0]),
+                    pg[2 * k + 1] = 52.5f + (float)(face == 1 ? OCT[k][1] : RAKE[k][1]);
+                cv_poly(pg, np, fill, 256u, 0);
+                po.w = 1.2f;
+                for (int k = 0; k <= np; k++)
+                    pen_to(&po, pg[2 * (k % np)], pg[2 * (k % np) + 1], K_TEXT);
+            } else if (face == 2)
+                cv_frame(8, 52, 94, 64, 9, K_TEXT, fill);
+            else
+                p2_panel(8, 52, 94, 64, fill);
+            if (face == 0)
+                cv_rect(16, 116, 12, 3, K_TEXT), cv_rect(82, 116, 12, 3, K_TEXT);
+        }
         if (face == 1)                               /* the ladder */
             for (int k = 0; k < 9; k++)
                 cv_rect(k ? 52 : 50, 56 + k * 7, k ? 8 : 2, k ? 1 : 56, K_TEXT), cv_rect(60, 56, 2, 56, K_TEXT);
@@ -6334,7 +6356,7 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
             cv_rect(9, face == 3 ? 53 : 82, 92, 4, K_TEXT);
         if (face == 6)
             cv_rect(9, 53, 3, 62, K_TEXT), cv_rect(98, 53, 3, 62, K_TEXT);
-        p2_screw(13.0f, 57.0f), p2_screw(13.0f, 111.0f);
+        p2_screw(13.0f, 57.0f), p2_screw(13.0f, face == 3 ? 96.0f : 111.0f);
         for (int k = 0; k < 4; k++) {
             const tp_info_t *in = tps[k] >= 0 ? tp_info_par(tps[k], par) : 0;
             float u = in ? p2_u(par, tps[k]) : 0.0f;
@@ -6346,7 +6368,10 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
                 p2_knob(76.0f, (float)(44 + k * 20), 6.5f, u, off ? 0 : k + 1, 15, 0);
         }
     }
-    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, 7, K_TEXT);   /* the screen in its bezel */
+    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, face == 1 ? 14 : face == 2 ? 2 : 7, K_TEXT);   /* the screen in its
+                                                      * bezel: the ladder's a round-cornered tube, the 12 dB's square */
+    if (face == 3)                                   /* (the high-pass's: a hood over it) */
+        cv_rect(FG_X - 6, FG_Y - 7, FG_W + 12, 4, K_TEXT);
     cv_rect(FG_X, FG_Y, FG_W, FG_H, off ? K_PANEL2 : K_PANEL);
     if (!off)
         cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_LINE);
