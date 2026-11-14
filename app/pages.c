@@ -6115,7 +6115,7 @@ static void draw_sub(void)
  * area hatched in the track's ink, the curve in ink with its corners circled, the pen at its end; under it a
  * dimension line for each stage, broken by its knob's circled number. A stage at its least is still drawn EF_MIN
  * wide, so each callout has room: a schematic, not to scale */
-#define EF_X0 108.0f
+#define EF_X0 112.0f
 #define EF_TOP 40.0f
 #define EF_BASE 84.0f
 #define EF_DIM 100
@@ -6141,7 +6141,7 @@ static void ef_curve(const curve_t *c)
     poly[2 * n] = c->x[c->n - 1], poly[2 * n + 1] = EF_BASE, n++;
     poly[2 * n] = c->x[0], poly[2 * n + 1] = EF_BASE, n++;
     cv_poly(poly, n, K_NOW, 150u, 6);                /* the area under it, hatched in the track's ink */
-    cv_rect(102, (int32_t)EF_BASE, 124, 1, K_TEXT);
+    cv_rect(108, (int32_t)EF_BASE, 115, 1, K_TEXT);
     pn.w = 2.0f;
     for (int i = 0; i < c->n; i++) {
         if (c->dash && i > c->dash && (i & 1))       /* (dashed: every other step left out) */
@@ -6162,9 +6162,9 @@ static void ef_dim(float a, float b, int knob)        /* a stage's dimension, it
     cv_rect(m - 7, EF_DIM - 6, 15, 13, K_BG);
     circ_num(m, EF_DIM + 1, n, K_TEXT, K_BG);
 }
-/* the stages of a figure whose curve spans its full width (EF_X0 .. 222): each EF_MIN wide at least (room for its
+/* the stages of a figure whose curve spans its full width (EF_X0 .. EF_X0 + EF_SPAN): each EF_MIN wide at least (room for its
  * callout), the rest shared by weight e[i] (the knobs' values, each stage a little even at 0) */
-#define EF_SPAN 110.0f
+#define EF_SPAN 96.0f
 static void ef_stages(float *w, const float *e, int n)
 {
     float sum = 0.0f, rest = EF_SPAN - (float)n * EF_MIN;
@@ -6180,21 +6180,40 @@ static void ef_break(float x, float y)
     cv_linef(x - 2.5f, y + 4.0f, x + 0.5f, y - 4.0f, K_TEXT, 1.3f);
     cv_linef(x + 0.5f, y + 4.0f, x + 3.5f, y - 4.0f, K_TEXT, 1.3f);
 }
-/* the module: its panel, the four sliders at v (0..127, knob k's at v[k]), the recorder's window, its paper and its
- * sprocket holes, the pen's carriage on its rail at the plot's end (the end of the release, or the break) */
+/* the module: a wedge console of four sliders at v (0..127, knob k's at v[k]), cabled to its chart recorder: a cabinet
+ * whose paper runs right to left, fresh off the thin supply roll at the right, under the pen, and wound written onto
+ * the fat take-up roll at the left; sprocket holes along its top edge, the pen's carriage on its rail over the paper
+ * and the stylus down on it at the plot's end (pen, py), blank paper still to come after it */
 static void ef_module(int v0, int v1, int v2, int v3, float pen, float py)
 {
     int v[4] = {v0, v1, v2, v3};
-    p2_panel(8, 18, 224, 98, K_PANEL2);
+    float wedge[8] = {8.0f, 24.0f, 86.0f, 17.0f, 86.0f, 116.0f, 8.0f, 116.0f};
+    cv_poly(wedge, 4, K_PANEL2, 256u, 0);
+    p2_outline(8.5f, 116.5f, 86.5f, 116.5f, K_TEXT, 1.2f);
+    cv_linef(8.5f, 24.0f, 86.5f, 17.0f, K_TEXT, 1.6f);
+    cv_linef(8.5f, 24.0f, 8.5f, 116.5f, K_TEXT, 1.2f), cv_linef(86.5f, 17.0f, 86.5f, 116.5f, K_TEXT, 1.2f);
+    cv_rect(10, 112, 75, 1, K_LINE);                 /* (its foot) */
     for (int k = 0; k < 4; k++)
-        p2_vslider(22 + k * 20, 40, 66, (float)v[k] / 127.0f, k + 1);
-    p2_panel(100, 22, 128, 90, K_CARD);
-    cv_grid(102, 32, 124, 60, 8, MAIN_Y, K_GRID);
-    for (int k = 0; k < 15; k++)
-        cv_rect(104 + k * 8, 25, 3, 3, K_LINE), cv_rect(104 + k * 8, 107, 3, 3, K_LINE);
-    cv_rect(100, 30, 128, 2, K_TEXT);                /* the rail, the carriage, the pen down on the paper */
-    cv_rect((int32_t)pen - 4, 26, 9, 8, K_TEXT);
-    cv_linef(pen, 34.0f, pen, py - 8.0f, K_TEXT, 0.8f);
+        p2_vslider(22 + k * 18, 42, 64, (float)v[k] / 127.0f, k + 1);
+    cv_rect(87, 98, 8, 1, K_TEXT), cv_rect(87, 101, 8, 1, K_TEXT);   /* the lead to the recorder */
+    cv_round(95, 16, 138, 102, 5, K_TEXT);           /* the recorder's cabinet */
+    cv_rect(97, 18, 134, 98, K_PANEL2);
+    cv_rect(106, 24, 118, 88, K_CARD);               /* the paper, its grid, its sprocket holes */
+    cv_grid(110, 32, 112, 60, 8, MAIN_Y, K_GRID);
+    cv_rect(106, 24, 118, 1, K_TEXT), cv_rect(106, 111, 118, 1, K_TEXT);
+    for (int k = 0; k < 14; k++)
+        cv_rect(110 + k * 8, 27, 3, 3, K_LINE);
+    cv_round(98, 19, 11, 97, 5, K_TEXT);             /* the take-up roll (left), wound fat; the supply roll (right) */
+    cv_rect(100, 24, 7, 87, K_CARD);
+    for (int k = 0; k < 3; k++)
+        cv_rect(101 + k * 2, 24, 1, 87, K_LINE);
+    cv_round(223, 21, 7, 93, 3, K_TEXT);
+    cv_rect(224, 24, 5, 87, K_CARD);
+    cv_disc(103.5f, 17.0f, 2.4f, K_TEXT), cv_disc(226.5f, 19.0f, 2.0f, K_TEXT);
+    cv_rect(109, 19, 112, 2, K_TEXT);                /* the rail, the carriage, the stylus down on the paper */
+    cv_round((int32_t)pen - 5, 16, 11, 8, 2, K_TEXT);
+    cv_rect((int32_t)pen - 2, 18, 5, 2, K_CARD);
+    cv_linef(pen, 24.0f, pen, py - 8.0f, K_TEXT, 1.3f);
     cv_tri(pen - 2.5f, py - 9.0f, pen + 2.5f, py - 9.0f, pen, py - 3.0f, K_TEXT);
 }
 /* a kit key's envelope: lag (4), attack (1), hold (2), decay (3); decay off: the sound's own length, dashed */
@@ -6234,7 +6253,11 @@ static void draw_key_env(void)
         cv_linef(bx + 5.0f, EF_TOP, x4, EF_TOP, K_TEXT, 2.0f);   /* (the line past the break, nothing under it) */
         ef_break(bx, EF_TOP);
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP);
-        text_c((int32_t)((bx + x4) * 0.5f), (int32_t)EF_TOP + 10, &FONT_XS, "plays on", K_TEXT);
+        {   /* (on a slip of its own over the hatching) */
+            int32_t tw = text_w(&FONT_XS, "plays on"), tx = (int32_t)x4 + 2 - tw;
+            cv_rect(tx - 2, (int32_t)EF_TOP + 9, tw + 4, 15, K_CARD);
+            cv_text(tx, (int32_t)EF_TOP + 10, &FONT_XS, "plays on", K_TEXT);
+        }
         ef_dim(EF_X0, x1, 4), ef_dim(x1, x2, 1), ef_dim(x2, x4, 3);
     } else {
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP), ef_node(x3, EF_TOP), ef_node(x4, EF_BASE);
@@ -6463,8 +6486,8 @@ static void draw_env(int filter)
         return;
     }
     {   /* attack (1), decay (2) to the sustain's level (3, its height), the note held, release (4) */
-        float a = EF_MIN + (float)p[b] * 16.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 16.0f / 127.0f;
-        float r = EF_MIN + (float)p[b + 3] * 16.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
+        float a = EF_MIN + (float)p[b] * 14.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 14.0f / 127.0f;
+        float r = EF_MIN + (float)p[b + 3] * 14.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
         float x1 = EF_X0 + a, x2 = x1 + d, x4 = EF_X0 + EF_SPAN, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
         curve_t c = {{0}, {0}, 0, 0};
         ef_module(p[b], p[b + 1], p[b + 2], p[b + 3], x4, EF_BASE);
