@@ -5432,43 +5432,166 @@ __attribute__((noinline)) static void fxm_lush(const uint8_t *q, int snd)
     p2_panel(202, 90, 10, 12, K_TEXT);              /* the power switch */
     cv_rect(204, 92, 6, 4, K_PANEL);
 }
-/* the echo modes: an old grey console, a cartridge in its slot; a lamp an echo (one, two, three; five for chaos);
- * half echo's cartridge half out, space echo an expansion bolted on its side, chaos echo with its lid off (the board
- * and its chips) and the lid leant beside it; size, decay, tone and damp its four knobs */
+/* the echo modes: four derelict Cold War signal stations, each its own object, something that sends out and hears
+ * back. one echo a radar scope in an abandoned desk: one blip, as far out as the size (1), its afterglow as long as
+ * the decay (2); half echo a concrete sound mirror facing a horn on a pole, as far off as the size, a few short
+ * returns (the decay); space echo a dish on its lattice mount aimed at a satellite as far as the size, the returns
+ * coming home from it; chaos echo a search radar toppled off its cabin, cables hanging, returns tangled across the
+ * sky. Tone and damp (3, 4): two dials on the desk, the pole's box, the hut, the cabin. A return sounding now:
+ * vermilion; the rest fade as they go */
+static void ec_grass(float x, float y, int n)        /* tufts at a footing */
+{
+    for (int k = 0; k < n; k++, x += 5.0f) {
+        cv_linef(x, y, x - 2.0f, y - 5.0f, K_TEXT, 0.8f);
+        cv_linef(x, y, x + 1.0f, y - 6.0f, K_TEXT, 0.8f);
+        cv_linef(x, y, x + 3.0f, y - 4.0f, K_TEXT, 0.8f);
+    }
+}
+/* n returns about (cx, cy), radii r1 (the first, home now) down to r0, facing turn t, span turns either side */
+static void ec_returns(float cx, float cy, float r0, float r1, int n, float t, float span, int snd)
+{
+    for (int k = n - 1; k >= 0; k--) {
+        float r = n > 1 ? r1 + (r0 - r1) * (float)k / (float)(n - 1) : r1;
+        ellipse_arc(cx, cy, r, r, t - span, t + span, k ? 1.0f : 1.6f,
+                    k ? col_mix(K_TEXT, K_CARD, (uint32_t)(3 + k * 10 / n)) : snd ? K_REC : K_TEXT);
+    }
+}
+static void ec_dials(float x, float y, float sx, const uint8_t *q, int32_t dy)   /* tone and damp (3, 4) */
+{
+    p2_knob(x, y, 6.0f, FXU(q[2]), 3, 0, dy);
+    p2_knob(x + sx, y, 6.0f, FXU(q[3]), 4, 0, dy);
+}
 __attribute__((noinline)) static void fxm_console(const uint8_t *q, int mode, int snd)
 {
-    int ne = mode == RV_ECHO_ONE ? 1 : mode == RV_HALF_ECHO ? 2 : mode == RV_SPACE_ECHO ? 3 : 5;
-    int chaos = mode == RV_CHAOS_ECHO, half = mode == RV_HALF_ECHO;
-    if (mode == RV_SPACE_ECHO) {                     /* the expansion */
-        p2_panel(8, 66, 20, 48, K_PANEL);
-        for (int k = 0; k < 4; k++)
-            cv_rect(12, 72 + k * 6, 12, 2, K_DIM);
-        p2_screw(18.0f, 104.0f);
+    float sz = FXU(q[0]), dc = FXU(q[1]);
+    int k;
+    if (mode != RV_ECHO_ONE)
+        cv_rect(8, 116, 224, 1, K_TEXT);             /* the ground */
+    if (mode == RV_ECHO_ONE) {                       /* the desk, its dead lamps, the scope */
+        static const float D[8] = {20.0f, 40.0f, 220.0f, 40.0f, 230.0f, 116.0f, 10.0f, 116.0f};
+        float cx = 120.0f, cy = 78.0f, rb = 6.0f + 24.0f * sz, a = 0.04f;
+        int ng = 2 + (int)(dc * 14.0f);
+        cv_poly(D, 4, K_PANEL2, 256u, 0);
+        for (k = 0; k < 4; k++)
+            fxm_ln(D[2 * k], D[2 * k + 1], D[(2 * k + 2) & 7], D[(2 * k + 3) & 7], 1.2f);
+        for (k = 0; k < 10; k++) {
+            int32_t x = k < 5 ? 26 + k * 10 : 128 + k * 10;
+            if (k == 7)
+                cv_ring((float)x + 3.0f, 50.0f, 2.5f, 0.8f, K_TEXT);   /* (one gone) */
+            else
+                fxm_lamp(x, 48, 7, K_LINE);
+        }
+        cv_disc(cx, cy, 36.0f, K_PANEL);
+        cv_ring(cx, cy, 36.0f, 1.2f, K_TEXT);
+        cv_disc(cx, cy, 31.0f, K_TEXT);
+        for (k = 1; k <= 3; k++)
+            cv_ring(cx, cy, 8.0f * (float)k, 0.7f, col_mix(K_TEXT, K_CARD, 5));
+        for (k = ng; k >= 0; k--) {                  /* the sweep and its afterglow */
+            float t = a + 0.03f - 0.012f * (float)k;
+            cv_linef(cx, cy, cx + 30.0f * fm_sin_turns(t + 0.25f), cy + 30.0f * fm_sin_turns(t), k ? col_mix(K_TEXT, K_CARD, (uint32_t)(10 - k * 9 / (ng + 1))) : K_CARD, k ? 0.9f : 1.4f);
+        }
+        cv_disc(cx + rb * fm_sin_turns(a + 0.25f), cy + rb * fm_sin_turns(a), 2.6f, snd ? K_REC : K_CARD);
+        p2_callout(166, 84, 1, 0, K_TEXT);
+        p2_callout(162, 58, 2, 0, K_TEXT);
+        p2_knob(40.0f, 94.0f, 9.0f, FXU(q[2]), 3, 0, -20);
+        p2_knob(200.0f, 94.0f, 9.0f, FXU(q[3]), 4, 0, -20);
+    } else if (mode == RV_HALF_ECHO) {               /* the horn on its pole; the sound mirror, as far as the size */
+        static const float H[8] = {32.0f, 64.0f, 32.0f, 70.0f, 54.0f, 80.0f, 54.0f, 54.0f};
+        float m = 112.0f + 70.0f * sz, f[18];
+        int n = 1 + (int)(dc * 3.99f);
+        cv_rect(35, 70, 2, 46, K_TEXT);
+        cv_rect(28, 62, 4, 10, K_TEXT);
+        cv_poly(H, 4, K_CARD, 256u, 0);
+        for (k = 0; k < 4; k++)
+            fxm_ln(H[2 * k], H[2 * k + 1], H[(2 * k + 2) & 7], H[(2 * k + 3) & 7], 1.2f);
+        ellipse_arc(54.0f, 67.0f, 3.0f, 13.0f, 0.0f, 1.0f, 1.2f, K_TEXT);
+        p2_panel(22, 82, 28, 16, K_PANEL2);
+        for (k = 0; k < 7; k++) {                    /* the mirror: a concave face, a straight back */
+            float y = 46.0f + 11.0f * (float)k, v = (y - 79.0f) / 33.0f;
+            f[2 * k] = m + 9.0f * (1.0f - v * v), f[2 * k + 1] = y;
+        }
+        f[14] = m + 24.0f, f[15] = 112.0f, f[16] = m + 20.0f, f[17] = 46.0f;
+        cv_poly(f, 9, K_PANEL, 256u, 0);
+        cv_poly(f, 9, K_LINE, 256u, 5);
+        for (k = 0; k < 9; k++)
+            fxm_ln(f[2 * k], f[2 * k + 1], f[(2 * k + 2) % 18], f[(2 * k + 3) % 18], 1.2f);
+        fxm_ln(m + 14.0f, 52.0f, m + 18.0f, 60.0f, 0.8f), fxm_ln(m + 18.0f, 60.0f, m + 13.0f, 66.0f, 0.8f);   /* a crack */
+        cv_rect((int32_t)m - 4, 112, 32, 4, K_TEXT);
+        ec_grass(m - 6.0f, 116.0f, 2), ec_grass(m + 26.0f, 116.0f, 2), ec_grass(26.0f, 116.0f, 2);
+        ec_returns(m + 6.0f, 79.0f, 12.0f, 12.0f + (m - 66.0f) * 0.7f, n, 0.5f, 0.07f, snd);
+        dim_line(56.0f, 108.0f, m - 2.0f, 108.0f, 3.0f, 3.0f, K_TEXT);
+        p2_callout((int32_t)(56.0f + m) / 2, 100, 1, 0, K_TEXT);
+        p2_callout((int32_t)m - 8, 50, 2, 0, K_TEXT);
+        ec_dials(29.0f, 90.0f, 14.0f, q, 16);
+    } else if (mode == RV_SPACE_ECHO) {              /* the dish on its lattice, the satellite, the returns home */
+        static const float AX = 0.92f, AY = -0.39f;
+        float vx = 44.0f, vy = 86.0f, dd = 72.0f + 64.0f * sz, tx = vx + AX * dd, ty = vy + AY * dd, f[20];
+        int n = 2 + (int)(dc * 5.99f);
+        for (k = 0; k < 9; k++) {                    /* the dish: a parabola about its axis */
+            float s = (float)(k - 4) / 4.0f;
+            f[2 * k] = vx - AY * 24.0f * s + AX * 10.0f * s * s, f[2 * k + 1] = vy + AX * 24.0f * s + AY * 10.0f * s * s;
+        }
+        for (k = 0; k < 3; k++) {                    /* the lattice: legs, braces */
+            float y0 = 116.0f - 8.0f * (float)k, y1 = y0 - 8.0f, i0 = 4.0f * (float)k, i1 = i0 + 4.0f;
+            fxm_ln(28.0f + i0, y0, 28.0f + i1, y1, 1.2f), fxm_ln(56.0f - i0, y0, 56.0f - i1, y1, 1.2f);
+            fxm_ln(28.0f + i0, y0, 56.0f - i1, y1, 0.8f), fxm_ln(56.0f - i0, y0, 28.0f + i1, y1, 0.8f);
+        }
+        f[18] = vx + AX * 10.0f, f[19] = vy;
+        cv_poly(f, 10, K_PANEL, 256u, 0);
+        for (k = 0; k < 8; k++)
+            fxm_ln(f[2 * k], f[2 * k + 1], f[2 * k + 2], f[2 * k + 3], 1.6f);
+        fxm_ln(f[0], f[1], vx + AX * 22.0f, vy + AY * 22.0f, 0.8f);
+        fxm_ln(f[16], f[17], vx + AX * 22.0f, vy + AY * 22.0f, 0.8f);
+        cv_disc(vx + AX * 22.0f, vy + AY * 22.0f, 2.2f, K_TEXT);
+        cv_disc(tx, ty, 2.5f, K_TEXT);               /* the satellite, its panels */
+        cv_rect((int32_t)tx - 10, (int32_t)ty - 2, 7, 4, K_TEXT), cv_rect((int32_t)tx + 4, (int32_t)ty - 2, 7, 4, K_TEXT);
+        ec_returns(tx, ty, dd * 0.18f, dd * 0.8f, n, 0.436f, 0.05f, snd);
+        p2_callout((int32_t)tx + 4, (int32_t)ty + 12, 1, 0, K_TEXT);
+        p2_callout((int32_t)(tx - AX * dd * 0.5f) - 4, (int32_t)(ty - AY * dd * 0.5f) + 20, 2, 0, K_TEXT);
+        p2_panel(170, 96, 52, 20, K_PANEL2);         /* the hut */
+        cv_rect(166, 94, 60, 3, K_TEXT);
+        cv_rect(212, 102, 6, 14, K_TEXT);
+        ec_dials(182.0f, 106.0f, 18.0f, q, -18);
+        ec_grass(26.0f, 116.0f, 2), ec_grass(56.0f, 116.0f, 2);
+    } else {                                         /* chaos: the search radar fallen off its cabin */
+        float ax = 14.0f, ay = 112.0f, bx = 146.0f, by = 62.0f, nx = 0.36f, ny = 0.93f, top[22];
+        int n = 4 + (int)(dc * 9.99f);
+        uint32_t r = 0x2545F491u;
+        for (k = 0; k < n; k++) {                    /* the returns, tangled */
+            float cx, cy, rr, t;
+            r = r * 1664525u + 1013904223u, cx = 30.0f + (float)(r >> 24) * (0.3f + 0.3f * sz);
+            r = r * 1664525u + 1013904223u, cy = 52.0f + (float)(r >> 27) * 1.2f;
+            r = r * 1664525u + 1013904223u, rr = (6.0f + (float)(r >> 28) * 1.5f) * (0.6f + 0.8f * sz), t = (float)(r >> 20 & 255u) / 256.0f;
+            ellipse_arc(cx, cy, rr, rr, t, t + 0.3f, k ? 1.0f : 1.6f, k ? col_mix(K_TEXT, K_CARD, (uint32_t)(1 + k * 8 / n)) : snd ? K_REC : K_TEXT);
+        }
+        p2_panel(150, 90, 60, 26, K_PANEL2);         /* the cabin, its door, a window out */
+        cv_rect(194, 98, 8, 18, K_TEXT);
+        fxm_ln(160.0f, 90.0f, 152.0f, 60.0f, 1.2f), fxm_ln(172.0f, 90.0f, 158.0f, 64.0f, 1.2f);   /* the mast, broken */
+        for (k = 0; k < 3; k++)
+            fxm_ln(160.0f - 2.7f * (float)k, 90.0f - 10.0f * (float)k, 167.5f - 3.5f * (float)k, 80.0f - 10.0f * (float)k, 0.8f);
+        for (k = 0; k < 11; k++) {                   /* the reflector: a bowed mesh band, a panel gone */
+            float s = (float)k / 10.0f, bw = 8.0f * fm_sin_turns(s * 0.5f);
+            top[2 * k] = ax + (bx - ax) * s - nx * bw, top[2 * k + 1] = ay + (by - ay) * s - ny * bw;
+            if (k && k != 8) {
+                float qd[8] = {top[2 * k - 2], top[2 * k - 1], top[2 * k], top[2 * k + 1], top[2 * k] + nx * 12.0f,
+                               top[2 * k + 1] + ny * 12.0f, top[2 * k - 2] + nx * 12.0f, top[2 * k - 1] + ny * 12.0f};
+                cv_poly(qd, 4, K_PANEL, 256u, 0);
+                cv_poly(qd, 4, K_DIM, 256u, 5);
+            }
+            if (k && k != 8)
+                fxm_ln(top[2 * k - 2], top[2 * k - 1], top[2 * k], top[2 * k + 1], 1.2f),
+                fxm_ln(top[2 * k - 2] + nx * 12.0f, top[2 * k - 1] + ny * 12.0f, top[2 * k] + nx * 12.0f, top[2 * k + 1] + ny * 12.0f, 1.2f);
+            if (k != 7 && k != 8)
+                fxm_ln(top[2 * k], top[2 * k + 1], top[2 * k] + nx * 12.0f, top[2 * k + 1] + ny * 12.0f, k == 0 || k == 10 ? 1.2f : 0.8f);
+        }
+        p2_cable(bx + 2.0f, by + 8.0f, 156.0f, 92.0f, 8.0f, K_TEXT);
+        p2_cable(top[12] + 5.0f, top[13] + 11.0f, 122.0f, 116.0f, 4.0f, K_TEXT);
+        dim_line(30.0f, 42.0f, 30.0f + 255.0f * (0.3f + 0.3f * sz), 42.0f, 3.0f, 3.0f, K_TEXT);
+        p2_callout(16, 43, 1, 0, K_TEXT);
+        p2_callout(16, 62, 2, 0, K_TEXT);
+        ec_dials(166.0f, 104.0f, 18.0f, q, -20);
+        ec_grass(30.0f, 116.0f, 3), ec_grass(132.0f, 116.0f, 2);
     }
-    p2_panel(28, 58, 184, 56, K_PANEL2);
-    if (chaos) {                                     /* the lid off: the board, its chips; the lid leant at the side */
-        static const float L[8] = {214.0f, 56.0f, 222.0f, 52.0f, 232.0f, 112.0f, 224.0f, 116.0f};
-        cv_poly(L, 4, K_PANEL2, 256u, 0);
-        for (int k = 0; k < 4; k++)
-            fxm_ln(L[2 * k], L[2 * k + 1], L[(2 * k + 2) & 7], L[(2 * k + 3) & 7], 1.2f);
-        p2_panel(40, 44, 160, 15, K_TINT);
-        for (int k = 0; k < 5; k++)
-            cv_rect(48 + k * 30, 48, k == 2 ? 20 : 12, 7, K_TEXT);
-        cv_dash(44.0f, 56.5f, 196.0f, 56.5f, 2.0f, 2.0f, 0.8f, K_TEXT);
-    } else
-        p2_panel(40, 46, 160, 13, K_PANEL);
-    cv_rect(92, 49, 56, 4, K_TEXT);                  /* the slot, the cartridge in it */
-    p2_panel(98, half ? 30 : 36, 44, half ? 21 : 15, K_CARD);
-    cv_rect(104, half ? 34 : 39, 32, 6, K_LINE);
-    for (int k = 0; k < ne; k++)                     /* the lamps: an echo each */
-        fxm_lamp(38 + k * 13, 66, 10, k == 0 && snd ? K_REC : K_NOW);
-    for (int k = 0; k < 2; k++) {                    /* power and reset; the two ports */
-        p2_panel(38 + k * 24, 82, 18, 8, K_CARD);
-        cv_round(40 + k * 24, 98, 14, 9, 3, K_TEXT);
-        cv_rect(43 + k * 24, 101, 8, 3, K_PANEL2);
-    }
-    for (int k = 0; k < 4; k++)
-        p2_knob((float)(118 + k * 26), 94.0f, 7.0f, FXU(q[k]), k + 1, 0, -16);
 }
 
 /* the rooms (room, the studios, the hall): an isometric room whose size follows knob 1 (its floor dimensioned),
