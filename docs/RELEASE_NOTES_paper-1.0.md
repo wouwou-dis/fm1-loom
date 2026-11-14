@@ -4,9 +4,10 @@
      release text (gh release create ... --notes-file docs/RELEASE_NOTES_paper-1.0.md). Nothing here was built or
      published by the person who wrote it. -->
 
-> **To be filled in by whoever builds the release:**
-> **Source commit:** `PLACEHOLDER-COMMIT-HASH` (the commit the tag points at)
-> **SHA-256 of the .fwsc:** `PLACEHOLDER-SHA256` (and of the `-res.bin`: `PLACEHOLDER-SHA256-RES`)
+> **Source commit:** `e274f2db502f241a270cccb4be7d3eba34b241e3` (the firmware in the attached files was built from this commit; the commits after it only touch these notes)
+> **Files:** `loom-1.0-paper.fwsc` (identity `FM-1_10010000`, version text `1.0-PAPER` on the device) and `loom-1.0-paper-res.bin`
+> **SHA-256 of the .fwsc:** `2e5925e13fc6938c992ea9e10db173d85003d0cc26869aa9fa1f6ed414e50ed0`
+> **SHA-256 of the -res.bin:** `22ed9d1562690b1c5700b18766830e6774059b90da9a05ea2dc5b812fc181473`
 
 ## What this is
 
@@ -75,6 +76,6 @@ written to work.
 
 ## Source
 
-The source of this release is the tagged commit named above, in
+The source of this release is the commit named above, in
 <https://github.com/wouwou-dis/fm1-loom>. Read the [manual](https://github.com/wouwou-dis/fm1-loom/blob/paper/docs/MANUAL.md) and
 the [tutorial](https://github.com/wouwou-dis/fm1-loom/blob/paper/docs/tutorial/TUTORIAL.md).
