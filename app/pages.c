@@ -988,15 +988,18 @@ static void ellipse_arc(float cx, float cy, float rx, float ry, float t0, float 
 }
 
 /* ---------------------------------------------------------- alerts --- */
-/* a message or a question over the header: a card with an ink hairline (a question inked: paper on ink), a circled
- * mark at the left (i, ?, !, a tick, undo's arrows), the text from AL_X; the double rule stays under it */
+/* a message or a question over the header: a slip of the manual laid over it, as the help card is (its corner
+ * turned, a hard shadow; a question inked: paper on ink), a circled mark at the left (i, ?, !, a tick, undo's arrows),
+ * the text from AL_X; the double rule stays under it */
 #define AL_X 26
+static void p2_card(int32_t x, int32_t y, int32_t w, int32_t h, int32_t cut, uint16_t fill);
 static void alert_box(int kind)
 {
     int ask = kind == AL_ASK;
     uint16_t fill = ask ? K_TEXT : K_CARD, ink = ask ? K_BG : K_TEXT;
     int32_t cx = 14, cy = 11;
-    cv_frame(4, 2, 232, 19, 2, K_TEXT, fill);
+    cv_rect(236, 5, 3, 16, K_TEXT);                  /* (its shadow: the right only, the rules close under it) */
+    p2_card(4, 2, 232, 19, 6, fill);
     if (kind == AL_NO)
         cv_disc((float)cx, (float)cy, 6.6f, K_TEXT);
     else
@@ -2560,7 +2563,6 @@ static void cards_audit(void)                  /* every card on every page it is
 }
 #endif
 static void card_paint(int i);
-static void p2_card(int32_t x, int32_t y, int32_t w, int32_t h, int32_t cut, uint16_t fill);
 static void draw_card(void)
 {
     int i = card_find(ui.card - 1);
@@ -4870,6 +4872,102 @@ static void m_acid(const uint8_t *p)
 }
 /* kit: a drum machine. A display (the key's model), four knobs (the key's), eleven pads named by their sound (the
  * selected one blue), and sixteen step buttons: the selected sound's steps in the bar shown, the playhead vermilion */
+/* the kit's pads: a pictogram of the key's model on each (one ink line, about 24 x 13): a bass drum's head, a
+ * snare's shell, a hat closed (or open: the key's length long), a cymbal, two palms clapping, a shaker, a tambourine,
+ * strings, a conga, a tom, two operators, a waveform, a stick on a rim, noise, a bell, a voice; the drums' size by
+ * their pitch knob */
+enum { KG_KICK, KG_SNARE, KG_HAT, KG_OPEN, KG_CLAP, KG_SHAKER, KG_TAMB, KG_STRING, KG_CONGA, KG_TOM, KG_FM, KG_SAMPLE,
+       KG_RIM, KG_NOISE, KG_CLANG, KG_VOICE, KG_CYMBAL };
+static const uint8_t KIT_GLYPH[NDM] = {KG_KICK, KG_SNARE, KG_HAT, KG_CLAP, KG_SHAKER, KG_TAMB, KG_STRING, KG_CONGA, KG_TOM,
+                                       KG_FM, KG_SAMPLE, KG_KICK, KG_SNARE, KG_HAT, KG_CLAP, KG_TOM, KG_RIM, KG_FM, KG_NOISE,
+                                       KG_CLANG, KG_VOICE, KG_KICK, KG_SNARE, KG_TOM, KG_RIM, KG_CLAP, KG_HAT, KG_OPEN,
+                                       KG_CYMBAL, KG_CYMBAL};
+static void kit_glyph(int g, float x, float y, float sc, uint16_t c)   /* (x, y: its centre) */
+{
+    switch (g) {
+    case KG_KICK:
+        cv_ring(x, y, 6.0f * sc, 1.2f, c), cv_ring(x, y, 2.6f * sc, 1.0f, c);
+        cv_linef(x - 4.0f, y + 5.0f, x - 6.0f, y + 7.0f, c, 1.0f), cv_linef(x + 4.0f, y + 5.0f, x + 6.0f, y + 7.0f, c, 1.0f);
+        break;
+    case KG_SNARE: case KG_TOM: case KG_CONGA: {   /* a shell: its head an ellipse, its sides, its foot */
+        float rx = (g == KG_CONGA ? 4.5f : 8.0f) * sc, h = g == KG_SNARE ? 6.0f : g == KG_CONGA ? 11.0f : 8.0f * sc;
+        float ty = y - h * 0.5f - 1.0f, bx = g == KG_CONGA ? rx * 0.6f : rx;
+        ellipse_arc(x, ty, rx, 2.2f, 0.0f, 1.0f, 1.0f, c);
+        cv_linef(x - rx, ty, x - bx, ty + h, c, 1.1f), cv_linef(x + rx, ty, x + bx, ty + h, c, 1.1f);
+        ellipse_arc(x, ty + h, bx, 2.0f, 0.0f, 0.5f, 1.0f, c);
+        if (g == KG_SNARE)
+            for (int k = 0; k < 3; k++)
+                cv_linef(x - 6.0f + 4.0f * (float)k, ty + 2.0f, x - 4.0f + 4.0f * (float)k, ty + h, c, 0.8f);
+        break;
+    }
+    case KG_HAT: case KG_OPEN: case KG_CYMBAL: {
+        float gap = g == KG_OPEN ? 4.0f : 1.5f;
+        cv_linef(x, y - 6.0f, x, y + 7.0f, c, 1.0f);
+        ellipse_arc(x, y - 3.0f, g == KG_CYMBAL ? 11.0f : 8.0f, 1.8f, 0.5f, 1.0f, 1.3f, c);
+        if (g != KG_CYMBAL)
+            ellipse_arc(x, y - 3.0f + gap, 8.0f, 1.8f, 0.0f, 0.5f, 1.3f, c);
+        cv_linef(x - 3.0f, y + 7.0f, x + 3.0f, y + 7.0f, c, 1.0f);
+        break;
+    }
+    case KG_CLAP:
+        ellipse_arc(x - 2.0f, y + 1.0f, 3.5f, 6.0f, 0.25f, 0.75f, 1.2f, c);
+        ellipse_arc(x + 2.0f, y + 1.0f, 3.5f, 6.0f, 0.75f, 1.25f, 1.2f, c);
+        for (int k = -1; k <= 1; k++)
+            cv_linef(x + 4.0f * (float)k, y - 6.0f, x + 6.0f * (float)k, y - 8.0f, c, 0.9f);
+        break;
+    case KG_SHAKER:
+        cv_ring(x - 1.0f, y + 1.0f, 4.5f, 1.2f, c);
+        cv_linef(x + 2.0f, y - 2.0f, x + 7.0f, y - 7.0f, c, 1.6f);
+        ellipse_arc(x - 1.0f, y + 1.0f, 8.0f, 7.0f, 0.55f, 0.7f, 0.9f, c);
+        break;
+    case KG_TAMB:
+        cv_ring(x, y, 6.0f, 1.2f, c);
+        for (int k = 0; k < 4; k++)
+            cv_rect((int32_t)(x + 6.0f * fm_sin_turns(0.125f + 0.25f * (float)k + 0.25f)) - 1,
+                    (int32_t)(y + 6.0f * fm_sin_turns(0.125f + 0.25f * (float)k)) - 1, 3, 3, c);
+        break;
+    case KG_STRING:
+        ellipse_arc(x, y + 6.0f, 9.0f, 12.0f, 0.5f, 0.75f, 1.2f, c);
+        for (int k = 0; k < 4; k++)
+            cv_linef(x - 6.0f + 4.0f * (float)k, y - 2.0f - (float)k * 1.5f, x - 6.0f + 4.0f * (float)k, y + 6.0f, c, 0.8f);
+        cv_linef(x - 9.0f, y + 6.0f, x + 7.0f, y + 6.0f, c, 1.2f);
+        break;
+    case KG_FM:
+        cv_ring(x - 6.0f, y, 3.2f, 1.1f, c), cv_ring(x + 6.0f, y, 3.2f, 1.1f, c);
+        cv_linef(x - 2.8f, y, x + 2.8f, y, c, 1.1f);
+        ellipse_arc(x - 6.0f, y - 3.0f, 3.0f, 3.5f, 0.5f, 1.0f, 0.9f, c);
+        break;
+    case KG_SAMPLE:
+        for (int k = 0; k < 8; k++) {
+            float hh = 6.0f * (float)(8 - k) / 8.0f * (k & 1 ? 0.6f : 1.0f);
+            cv_linef(x - 9.0f + 2.6f * (float)k, y - hh, x - 9.0f + 2.6f * (float)k, y + hh, c, 1.0f);
+        }
+        break;
+    case KG_RIM:
+        ellipse_arc(x, y + 2.0f, 8.0f, 2.5f, 0.0f, 1.0f, 1.1f, c);
+        cv_linef(x - 7.0f, y - 6.0f, x + 6.0f, y + 3.0f, c, 1.6f);
+        break;
+    case KG_NOISE: {
+        pen_t pn = {0};
+        static const int8_t NZ[9] = {1, -5, 3, -2, 6, -4, 2, -6, 0};
+        pn.w = 1.1f;
+        for (int k = 0; k < 9; k++)
+            pen_to(&pn, x - 10.0f + 2.5f * (float)k, y + (float)NZ[k], c);
+        break;
+    }
+    case KG_CLANG: {
+        float b[8] = {x - 3.0f, y - 6.0f, x + 3.0f, y - 6.0f, x + 7.0f, y + 4.0f, x - 7.0f, y + 4.0f};
+        cv_poly(b, 4, c, 256u, 0);
+        cv_disc(x, y + 6.5f, 1.6f, c);
+        break;
+    }
+    default:                                         /* a voice: a mouth, its sound going out */
+        cv_ring(x - 5.0f, y, 3.0f, 1.2f, c);
+        ellipse_arc(x - 2.0f, y, 5.0f, 5.0f, 0.875f, 1.125f, 1.0f, c);
+        ellipse_arc(x - 2.0f, y, 9.0f, 8.0f, 0.875f, 1.125f, 1.0f, c);
+        break;
+    }
+}
 static void m_kit(const uint8_t *p, int trk)
 {
     int sel = ui.dsound % DL_NSOUND, sm = p[TP_DRUM(sel, DP_MODEL)] % NDM;
@@ -4892,10 +4990,13 @@ static void m_kit(const uint8_t *p, int trk)
             cv_frame(x, y, 33, 18, 3, K_SEL, K_SEL);
         else
             cv_frame(x, y, 33, 18, 3, K_TEXT, K_BG);
-        if (text_w(&FONT_XS, DL_SOUND_NAME[k]) <= 29)
-            text_c(x + 17, y + 1, &FONT_XS, DL_SOUND_NAME[k], k == sel ? K_BG : K_TEXT);
-        else
-            tr_text(x + 17 - tr_w(&FONT_XS, DL_SOUND_NAME[k], -1) / 2, y + 1, &FONT_XS, DL_SOUND_NAME[k], k == sel ? K_BG : K_TEXT, -1);
+        {   /* its pictogram (the selected key's name: the header's KEY) */
+            const uint8_t *kp = p + TP_DRUM(k, 0);
+            int m = kp[DP_MODEL] % NDM, gl = KIT_GLYPH[m];
+            if (gl == KG_HAT && kp[DP_K2] > 50)
+                gl = KG_OPEN;
+            kit_glyph(gl, (float)x + 16.5f, (float)y + 9.0f, 0.8f + 0.4f * (float)(127 - kp[DP_K1]) / 127.0f, k == sel ? K_BG : K_TEXT);
+        }
     }
     for (int i = 0; i < 16; i++) {                   /* the step buttons */
         int s = ui.bar * 16 + i, on = s < tp->len && kit_has(&tp->st[s], sel + 1);
@@ -6125,15 +6226,17 @@ static void draw_sub(void)
 }
 /* a drum key's own envelope: its lag (flat), the attack's rise, the hold, the decay's fall (or, off, the level
  * held to the right edge: the sound's own length rules), the key's colour under it */
-/* the envelope figures: an envelope generator, a module of four sliders (the page's four knobs, numbered, their caps
- * at the live values) beside the window of its chart recorder, which plots the shape on its paper roll: the curve's
- * area hatched in the track's ink, the curve in ink with its corners circled, the pen at its end; under it a
- * dimension line for each stage, broken by its knob's circled number. A stage at its least is still drawn EF_MIN
- * wide, so each callout has room: a schematic, not to scale */
-#define EF_X0 112.0f
-#define EF_TOP 40.0f
-#define EF_BASE 84.0f
-#define EF_DIM 100
+/* the envelope figures: a chart recorder, drawn in elevation. Its paper comes off the supply roll at the right, runs
+ * over the deck past the pen and leaves at the left, hanging over the front in a curl; the pen arm swings from its
+ * pivot on a turret to the end of the trace, blank paper still to come ahead of it. The trace: the curve's area
+ * hatched in the track's ink, the curve in ink with its corners circled, under it a dimension line for each stage
+ * broken by its knob's circled number. The recorder's own four sliders on its front are the page's four knobs
+ * (numbered, at the live values). A stage at its least is still drawn EF_MIN wide, so each callout has room: a
+ * schematic, not to scale */
+#define EF_X0 26.0f
+#define EF_TOP 42.0f
+#define EF_BASE 64.0f
+#define EF_DIM 71
 #define EF_MIN 15.0f
 typedef struct { float x[64], y[64]; int n, dash; } curve_t;   /* (dash: the points from there on dashed) */
 static void ef_pt(curve_t *c, float x, float y)
@@ -6141,10 +6244,17 @@ static void ef_pt(curve_t *c, float x, float y)
     if (c->n < 64)
         c->x[c->n] = x, c->y[c->n++] = y;
 }
-static void ef_head(const char *tag, const char *what)   /* "KICK  amplitude over time" */
+/* the figure's name large, what it plots in tracked capitals at the right, a detail under that */
+static void ef_head(const char *name, const char *cap, const char *det)
 {
-    int32_t e = tr_text(8, 3, F_LAB, tag, K_DIM, 1);
-    cv_text(e + 7, 0, &FONT_XS, what, K_TEXT);
+    int32_t w = tr_w(F_LAB, cap, 1), dw = text_w(&FONT_XS, det), room = 214 - (dw > w ? dw : w), e;
+    const felucca_font_t *f = text_w(&FONT_L, name) <= room ? &FONT_L : text_w(F_VAL, name) <= room ? F_VAL : &FONT_B;
+    e = cv_text(8, f == &FONT_L ? 0 : f == F_VAL ? 6 : 10, f, name, K_TEXT) + 10;   /* (a long name smaller) */
+    tr_text(232 - w, 3, F_LAB, cap, K_DIM, 1);
+    if (text_w(&FONT_XS, det) <= 232 - e)
+        text_r(232, 16, &FONT_XS, det, K_TEXT);
+    else
+        text_fit(e, 16, &FONT_XS, det, 232 - e, K_TEXT);
 }
 static void ef_curve(const curve_t *c)
 {
@@ -6156,7 +6266,7 @@ static void ef_curve(const curve_t *c)
     poly[2 * n] = c->x[c->n - 1], poly[2 * n + 1] = EF_BASE, n++;
     poly[2 * n] = c->x[0], poly[2 * n + 1] = EF_BASE, n++;
     cv_poly(poly, n, K_NOW, 150u, 6);                /* the area under it, hatched in the track's ink */
-    cv_rect(108, (int32_t)EF_BASE, 115, 1, K_TEXT);
+    cv_rect(10, (int32_t)EF_BASE, (int32_t)c->x[c->n - 1] - 9, 1, K_TEXT);   /* (the line written so far) */
     pn.w = 2.0f;
     for (int i = 0; i < c->n; i++) {
         if (c->dash && i > c->dash && (i & 1))       /* (dashed: every other step left out) */
@@ -6179,7 +6289,7 @@ static void ef_dim(float a, float b, int knob)        /* a stage's dimension, it
 }
 /* the stages of a figure whose curve spans its full width (EF_X0 .. EF_X0 + EF_SPAN): each EF_MIN wide at least (room for its
  * callout), the rest shared by weight e[i] (the knobs' values, each stage a little even at 0) */
-#define EF_SPAN 96.0f
+#define EF_SPAN 120.0f
 static void ef_stages(float *w, const float *e, int n)
 {
     float sum = 0.0f, rest = EF_SPAN - (float)n * EF_MIN;
@@ -6195,41 +6305,43 @@ static void ef_break(float x, float y)
     cv_linef(x - 2.5f, y + 4.0f, x + 0.5f, y - 4.0f, K_TEXT, 1.3f);
     cv_linef(x + 0.5f, y + 4.0f, x + 3.5f, y - 4.0f, K_TEXT, 1.3f);
 }
-/* the module: a wedge console of four sliders at v (0..127, knob k's at v[k]), cabled to its chart recorder: a cabinet
- * whose paper runs right to left, fresh off the thin supply roll at the right, under the pen, and wound written onto
- * the fat take-up roll at the left; sprocket holes along its top edge, the pen's carriage on its rail over the paper
- * and the stylus down on it at the plot's end (pen, py), blank paper still to come after it */
+/* the recorder (see above): v the four sliders (0..127, knob k's at v[k]); the pen at (pen, py) */
 static void ef_module(int v0, int v1, int v2, int v3, float pen, float py)
 {
     int v[4] = {v0, v1, v2, v3};
-    float wedge[8] = {8.0f, 24.0f, 86.0f, 17.0f, 86.0f, 116.0f, 8.0f, 116.0f};
-    cv_poly(wedge, 4, K_PANEL2, 256u, 0);
-    p2_outline(8.5f, 116.5f, 86.5f, 116.5f, K_TEXT, 1.2f);
-    cv_linef(8.5f, 24.0f, 86.5f, 17.0f, K_TEXT, 1.6f);
-    cv_linef(8.5f, 24.0f, 8.5f, 116.5f, K_TEXT, 1.2f), cv_linef(86.5f, 17.0f, 86.5f, 116.5f, K_TEXT, 1.2f);
-    cv_rect(10, 112, 75, 1, K_LINE);                 /* (its foot) */
-    for (int k = 0; k < 4; k++)
-        p2_vslider(22 + k * 18, 42, 64, (float)v[k] / 127.0f, k + 1);
-    cv_rect(87, 98, 8, 1, K_TEXT), cv_rect(87, 101, 8, 1, K_TEXT);   /* the lead to the recorder */
-    cv_round(95, 16, 138, 102, 5, K_TEXT);           /* the recorder's cabinet */
-    cv_rect(97, 18, 134, 98, K_PANEL2);
-    cv_rect(106, 24, 118, 88, K_CARD);               /* the paper, its grid, its sprocket holes */
-    cv_grid(110, 32, 112, 60, 8, MAIN_Y, K_GRID);
-    cv_rect(106, 24, 118, 1, K_TEXT), cv_rect(106, 111, 118, 1, K_TEXT);
-    for (int k = 0; k < 14; k++)
-        cv_rect(110 + k * 8, 27, 3, 3, K_LINE);
-    cv_round(98, 19, 11, 97, 5, K_TEXT);             /* the take-up roll (left), wound fat; the supply roll (right) */
-    cv_rect(100, 24, 7, 87, K_CARD);
+    float px = 207.0f, pyv = 60.0f, tx = pen + 3.0f, ty = py - 7.0f;
+    p2_panel(8, 81, 225, 36, K_PANEL2);              /* the body: its front, its deck, its feet */
+    cv_rect(8, 77, 225, 5, K_PANEL);
+    p2_outline(8.5f, 77.5f, 232.5f, 81.5f, K_TEXT, 1.2f);
+    cv_rect(16, 117, 14, 2, K_TEXT), cv_rect(210, 117, 14, 2, K_TEXT);
+    fxm_ticks(46.0f, 100.0f, 9.0f, 11.0f, 7);        /* the front's quiet parts: chart speed, three switches, a lamp */
+    p2_knob(46.0f, 100.0f, 6.5f, 0.5f, 0, 0, 0);
     for (int k = 0; k < 3; k++)
-        cv_rect(101 + k * 2, 24, 1, 87, K_LINE);
-    cv_round(223, 21, 7, 93, 3, K_TEXT);
-    cv_rect(224, 24, 5, 87, K_CARD);
-    cv_disc(103.5f, 17.0f, 2.4f, K_TEXT), cv_disc(226.5f, 19.0f, 2.0f, K_TEXT);
-    cv_rect(109, 19, 112, 2, K_TEXT);                /* the rail, the carriage, the stylus down on the paper */
-    cv_round((int32_t)pen - 5, 16, 11, 8, 2, K_TEXT);
-    cv_rect((int32_t)pen - 2, 18, 5, 2, K_CARD);
-    cv_linef(pen, 24.0f, pen, py - 8.0f, K_TEXT, 1.3f);
-    cv_tri(pen - 2.5f, py - 9.0f, pen + 2.5f, py - 9.0f, pen, py - 3.0f, K_TEXT);
+        cv_frame(66 + k * 10, 93, 6, 14, 1, K_TEXT, K_CARD), cv_rect(67 + k * 10, k == 1 ? 100 : 94, 4, 6, K_TEXT);
+    cv_ring(110.0f, 100.0f, 4.5f, 1.0f, K_TEXT), cv_disc(110.0f, 100.0f, 2.2f, K_TEXT);
+    for (int k = 0; k < 4; k++)                      /* its sliders: the page's knobs */
+        p2_vslider(146 + k * 23, 95, 20, (float)v[k] / 127.0f, k + 1);
+    cv_rect(10, 35, 162, 43, K_CARD);                /* the paper on the deck: its grid, its sprocket holes */
+    cv_grid(12, 41, 158, 34, 8, MAIN_Y, K_GRID);
+    cv_rect(10, 35, 162, 1, K_TEXT);
+    for (int k = 0; k < 20; k++)
+        cv_rect(14 + k * 8, 37, 3, 2, K_LINE);
+    cv_rect(12, 78, 15, 24, K_CARD);                 /* its written end hanging over the front, curling up */
+    cv_rect(12, 78, 1, 24, K_TEXT), cv_rect(26, 78, 1, 24, K_TEXT);
+    for (int k = 0; k < 3; k++)
+        cv_rect(15, 83 + k * 6, 2, 3, K_LINE);
+    cv_disc(20.0f, 106.0f, 8.0f, K_CARD);
+    cv_ring(20.0f, 106.0f, 8.0f, 1.2f, K_TEXT);
+    ellipse_arc(21.0f, 106.5f, 4.5f, 4.0f, 0.25f, 1.1f, 1.0f, K_TEXT);
+    cv_round(171, 34, 12, 45, 4, K_TEXT);            /* the supply roll */
+    cv_rect(173, 37, 8, 39, K_CARD);
+    cv_rect(175, 37, 1, 39, K_LINE), cv_rect(178, 37, 1, 39, K_LINE);
+    cv_frame(188, 48, 40, 31, 8, K_TEXT, K_PANEL2);  /* the pen's turret, its arm, its counterweight, the pen down */
+    cv_linef(px + (px - tx) * 0.2f, pyv + (pyv - ty) * 0.2f, tx, ty, K_TEXT, 3.0f);
+    cv_disc(px + (px - tx) * 0.2f, pyv + (pyv - ty) * 0.2f, 4.5f, K_TEXT);
+    cv_disc(px, pyv, 4.5f, K_CARD), cv_ring(px, pyv, 4.5f, 1.3f, K_TEXT), cv_disc(px, pyv, 1.5f, K_TEXT);
+    cv_disc(tx, ty, 3.0f, K_TEXT);
+    cv_linef(tx, ty, pen, py - 1.0f, K_TEXT, 1.6f);
 }
 /* a kit key's envelope: lag (4), attack (1), hold (2), decay (3); decay off: the sound's own length, dashed */
 static void draw_key_env(void)
@@ -6261,7 +6373,7 @@ static void draw_key_env(void)
             ef_pt(&c, x3 + (x4 - x3) * u, EF_BASE - (EF_BASE - EF_TOP) * ease_exp(u));
         }
     }
-    ef_head(DL_SOUND_NAME[key], open ? "decay off: it runs to its own end" : "amplitude over time");
+    ef_head(DL_SOUND_NAME[key], "KEY ENVELOPE", open ? "decay off: runs to its end" : "amplitude over time");
     ef_curve(&c);
     if (open) {
         float bx = (x3 + x4) * 0.5f;
@@ -6270,8 +6382,8 @@ static void draw_key_env(void)
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP);
         {   /* (on a slip of its own over the hatching) */
             int32_t tw = text_w(&FONT_XS, "plays on"), tx = (int32_t)x4 + 2 - tw;
-            cv_rect(tx - 2, (int32_t)EF_TOP + 9, tw + 4, 15, K_CARD);
-            cv_text(tx, (int32_t)EF_TOP + 10, &FONT_XS, "plays on", K_TEXT);
+            cv_rect(tx - 2, (int32_t)EF_TOP + 2, tw + 4, 15, K_CARD);
+            cv_text(tx, (int32_t)EF_TOP + 3, &FONT_XS, "plays on", K_TEXT);
         }
         ef_dim(EF_X0, x1, 4), ef_dim(x1, x2, 1), ef_dim(x2, x4, 3);
     } else {
@@ -6301,154 +6413,194 @@ static float filt_y(float db, int32_t y0, int32_t hh)
         return (float)y0 + 22.0f - 22.0f * (1.0f - fm_exp2f(-db * s * (1.0f / 22.0f) * 1.4427f));
     return (float)y0 + 22.0f - db * s;
 }
-/* the filter figures: a filter box. At the left its faceplate, a different one for each type (the 24 dB a plain grey
- * plate, the ladder's with its ladder, the 12 dB a lighter one, the high-pass striped at the top, the band-pass across
- * the middle, the bus filter at the foot; off: blank, its knobs unnumbered): the cutoff a big dial (1), resonance,
- * envelope and the fourth knob small (2-4), at the live values. At the right its screen in a dark bezel shows the
- * response (frequency across, level up; an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a
- * dotted line (1), the resonance the peak's height (2), the envelope's reach an arrow with the curve it moves dimmed
- * (3). Off: the screen dead, a flat line, the way to turn it on */
-#define FG_X 110
-#define FG_W 116
-#define FG_Y 10
-#define FG_H 78
+/* the filter figures: each type a machine of its own, its cutoff a big dial (1), resonance, envelope and the fourth
+ * knob small (2-4), at the live values, and a screen in a dark bezel showing the response (frequency across, level up;
+ * an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a dotted line (1), the resonance the peak's
+ * height (2), the envelope's reach an arrow with the curve it moves dimmed (3). The 24 dB: a desk console with its
+ * monitor on a stand; the ladder: a tall cabinet with three valves on top; the 12 dB (and the kit's low-pass and bus
+ * filter): a slim rack strip over a blanking plate; the high-pass: a pedal; the band-pass: a round-faced unit on a
+ * foot; no filter: an empty rack, a blanking plate where it would go, the screen dead */
+typedef struct { int16_t sx, sy, sw, sh, dx, dy, dr, cx, cy, kx[3], ky[3], kr, nx, ny; } fgeo_t;
+static const fgeo_t FGEO[7] = {
+    {112, 9, 114, 40, 44, 90, 16, 22, -20, {100, 140, 180}, {86, 86, 86}, 8, 0, -15},
+    {14, 62, 124, 46, 193, 68, 14, -30, -18, {171, 193, 215}, {97, 97, 97}, 7, 0, 13},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0},
+    {14, 62, 124, 46, 189, 30, 12, -26, -14, {166, 189, 212}, {62, 62, 62}, 7, 0, 13},
+    {14, 62, 124, 46, 189, 62, 12, 28, 0, {164, 214, 164}, {40, 40, 86}, 7, 0, -14},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0}};
+static void fg_rack(int32_t y, int32_t h)             /* a rack unit across the page, its ears and their slots */
+{
+    p2_panel(8, y, 225, h, K_PANEL2);
+    for (int e = 0; e < 2; e++) {
+        int32_t ex = e ? 220 : 8;
+        p2_outline((float)ex + 0.5f, (float)y + 0.5f, (float)ex + 12.5f, (float)(y + h - 1) + 0.5f, K_TEXT, 1.2f);
+        cv_frame(ex + 3, y + h / 2 - 6, 7, 12, 3, K_TEXT, K_BG);
+    }
+}
 static void filt_fig(const char *title, const char *desc, const uint8_t *par, const int *tps, int cut, int res, int hp, int bp,
                      int steep, int env, int off, const char *offmsg, int band, int hi)
 {
-    float q = 0.7f + (float)res * 6.0f / 127.0f, ys[FG_W + 1], ye[FG_W + 1];
-    int32_t fc = FG_X + 10 + cut * (FG_W - 20) / 127, y0 = FG_Y + 22, i;
-    float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
     int face = band ? 6 : off ? 5 : hp ? 3 : bp ? 4 : steep == 2 ? 1 : steep ? 0 : 2;
-    {   /* the left: the title, what it is; the faceplate, its knobs */
+    const fgeo_t *g = &FGEO[face];
+    int32_t fx = g->sx, fy = g->sy, fw = g->sw, fh = g->sh, i;
+    float q = 0.7f + (float)res * 6.0f / 127.0f, ys[125], ye[125];
+    int32_t fc = fx + 10 + cut * (fw - 20) / 127, y0 = fy + 22;
+    float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
+    {   /* the title, what it is */
         const felucca_font_t *f = text_w(&FONT_L, title) <= 96 ? &FONT_L : text_w(F_VAL, title) <= 96 ? F_VAL : &FONT_B;
         cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, title, K_TEXT);
-        if (tr_w(F_LAB, desc, 1) <= 92)
-            tr_text(9, 37, F_LAB, desc, K_DIM, 1);
+        if (tr_w(F_LAB, desc, 1) <= 94)
+            tr_text(9, 39, F_LAB, desc, K_DIM, 1);
         else
-            text_fit(9, 37, F_LAB, desc, 92, K_DIM);
-        {   /* the box's silhouette: the 24 dB on feet, the ladder chamfered, the 12 dB rounded, the high-pass with its
-             * foot raked away; the others square */
-            uint16_t fill = face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2;
-            static const int8_t OCT[8][2] = {{7, 0}, {86, 0}, {93, 7}, {93, 56}, {86, 63}, {7, 63}, {0, 56}, {0, 7}};
-            static const int8_t RAKE[5][2] = {{0, 0}, {93, 0}, {93, 63}, {16, 63}, {0, 47}};
-            if (face == 1 || face == 3) {
-                float pg[16];
-                pen_t po = {0};
-                int np = face == 1 ? 8 : 5;
-                for (int k = 0; k < np; k++)
-                    pg[2 * k] = 8.5f + (float)(face == 1 ? OCT[k][0] : RAKE[k][0]),
-                    pg[2 * k + 1] = 52.5f + (float)(face == 1 ? OCT[k][1] : RAKE[k][1]);
-                cv_poly(pg, np, fill, 256u, 0);
-                po.w = 1.2f;
-                for (int k = 0; k <= np; k++)
-                    pen_to(&po, pg[2 * (k % np)], pg[2 * (k % np) + 1], K_TEXT);
-            } else if (face == 2)
-                cv_frame(8, 52, 94, 64, 9, K_TEXT, fill);
-            else
-                p2_panel(8, 52, 94, 64, fill);
-            if (face == 0)
-                cv_rect(16, 116, 12, 3, K_TEXT), cv_rect(82, 116, 12, 3, K_TEXT);
+            text_fit(9, 39, F_LAB, desc, 94, K_DIM);
+    }
+    switch (face) {                                  /* the machine */
+    case 0:                                          /* the console, its monitor's stand, its feet, its jacks */
+        cv_rect(166, 54, 8, 6, K_TEXT);
+        p2_panel(8, 60, 225, 56, K_PANEL2);
+        cv_rect(8, 60, 225, 4, K_TEXT);
+        cv_rect(16, 116, 14, 3, K_TEXT), cv_rect(210, 116, 14, 3, K_TEXT);
+        for (int k = 0; k < 3; k++)
+            fxm_jack((float)(204 + k * 9), 106.0f);
+        cv_ring(212.0f, 80.0f, 4.0f, 1.0f, K_TEXT), cv_disc(212.0f, 80.0f, 2.0f, K_TEXT);
+        break;
+    case 1:                                          /* the cabinet, its chassis, three valves on it */
+        for (int k = 0; k < 3; k++) {
+            int32_t vx = 160 + k * 22;
+            cv_frame(vx, 4, 16, 30, 7, K_TEXT, K_CARD);
+            cv_rect(vx + 5, 14, 1, 16, K_DIM), cv_rect(vx + 10, 14, 1, 16, K_DIM);
+            cv_rect(vx + 5, 14, 6, 1, K_DIM);
+            cv_rect(vx + 2, 32, 12, 4, K_TEXT);
         }
-        if (face == 1)                               /* the ladder */
-            for (int k = 0; k < 9; k++)
-                cv_rect(k ? 52 : 50, 56 + k * 7, k ? 8 : 2, k ? 1 : 56, K_TEXT), cv_rect(60, 56, 2, 56, K_TEXT);
-        if (face == 3 || face == 4)                  /* the stripe: high at the top, the band across; the bus's ears */
-            cv_rect(9, face == 3 ? 53 : 82, 92, 4, K_TEXT);
-        if (face == 6)
-            cv_rect(9, 53, 3, 62, K_TEXT), cv_rect(98, 53, 3, 62, K_TEXT);
-        p2_screw(13.0f, 57.0f), p2_screw(13.0f, face == 3 ? 96.0f : 111.0f);
+        p2_panel(154, 36, 79, 82, K_PANEL2);
+        cv_rect(154, 36, 79, 3, K_TEXT);
+        p2_screw(159.0f, 43.0f), p2_screw(227.0f, 43.0f), p2_screw(159.0f, 112.0f), p2_screw(227.0f, 112.0f);
+        break;
+    case 3:                                          /* the pedal: its body, its LED, its footswitch, its jacks */
+        cv_frame(152, 4, 75, 113, 6, K_TEXT, K_PANEL);
+        cv_rect(153, 78, 73, 1, K_TEXT);
+        cv_ring(189.0f, 86.0f, 3.0f, 1.0f, K_TEXT);
+        fxm_foot(189.0f, 102.0f);
+        fxm_jack(152.0f, 26.0f), fxm_jack(226.0f, 26.0f);
+        fxm_lead(229.0f, 26.0f, 240.0f, 44.0f);
+        break;
+    case 4:                                          /* the round unit: its face, its rings, its foot */
+        {
+            float ft[8] = {176.0f, 100.0f, 202.0f, 100.0f, 210.0f, 117.0f, 168.0f, 117.0f};
+            cv_poly(ft, 4, K_PANEL2, 256u, 0);
+            p2_outline(168.0f, 117.0f, 210.0f, 117.0f, K_TEXT, 1.2f);
+            cv_linef(176.0f, 100.0f, 168.0f, 117.0f, K_TEXT, 1.2f), cv_linef(202.0f, 100.0f, 210.0f, 117.0f, K_TEXT, 1.2f);
+        }
+        cv_disc(189.0f, 62.0f, 41.0f, K_PANEL2);
+        cv_ring(189.0f, 62.0f, 41.0f, 1.6f, K_TEXT);
+        cv_ring(189.0f, 62.0f, 36.0f, 0.8f, K_LINE);
+        break;
+    case 5:                                          /* the empty rack: a blanking plate, its vents */
+        fg_rack(60, 34);
+        for (int k = 0; k < 8; k++)
+            cv_round(60 + k * 16, 70, 10, 14, 4, K_TEXT);
+        fg_rack(96, 20);
+        break;
+    default:                                         /* the rack strip over a blanking plate; its lamps */
+        fg_rack(60, 32);
+        cv_rect(184, 68, 30, 16, K_TEXT);
+        for (int k = 0; k < 4; k++)
+            cv_rect(188 + k * 6, 74, 3, 4, k < 1 + cut / 43 ? K_CARD : K_DIM);
+        fg_rack(96, 20);
+        for (int k = 0; k < 6; k++)
+            cv_rect(80 + k * 14, 102, 8, 8, K_PANEL);
+        break;
+    }
+    if (face != 5)                                   /* the four controls */
         for (int k = 0; k < 4; k++) {
             const tp_info_t *in = tps[k] >= 0 ? tp_info_par(tps[k], par) : 0;
             float u = in ? p2_u(par, tps[k]) : 0.0f;
             if (!in || !in->name || !in->name[0])
                 continue;
-            if (k == 0)
-                fxm_ticks(34.0f, 84.0f, 15.0f, 18.0f, 11), p2_knob(34.0f, 84.0f, 12.5f, u, off ? 0 : 1, 0, -26);
-            else
-                p2_knob(76.0f, (float)(44 + k * 20), 6.5f, u, off ? 0 : k + 1, 15, 0);
+            if (k == 0) {
+                fxm_ticks((float)g->dx, (float)g->dy, (float)g->dr + 2.5f, (float)g->dr + 5.5f, 11);
+                p2_knob((float)g->dx, (float)g->dy, (float)g->dr, u, off ? 0 : 1, g->cx, g->cy);
+            } else
+                p2_knob((float)g->kx[k - 1], (float)g->ky[k - 1], (float)g->kr - 0.5f, u, off ? 0 : k + 1, g->nx, g->ny);
         }
-    }
-    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, face == 1 ? 14 : face == 2 ? 2 : 7, K_TEXT);   /* the screen in its
-                                                      * bezel: the ladder's a round-cornered tube, the 12 dB's square */
-    if (face == 3)                                   /* (the high-pass's: a hood over it) */
-        cv_rect(FG_X - 6, FG_Y - 7, FG_W + 12, 4, K_TEXT);
-    cv_rect(FG_X, FG_Y, FG_W, FG_H, off ? K_PANEL2 : K_PANEL);
+    cv_round(fx - 5, fy - 5, fw + 10, fh + 10, face == 1 ? 12 : face == 2 || face == 6 ? 2 : 6, K_TEXT);   /* the screen */
+    cv_rect(fx, fy, fw, fh, off ? K_PANEL2 : K_PANEL);
     if (!off)
-        cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_LINE);
-    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
-    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 8, F_LAB, "FREQ", K_DIM, 1);
+        cv_grid(fx, fy, fw, fh, 8, MAIN_Y, K_LINE);
+    cv_dash((float)fx, (float)y0, (float)(fx + fw), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
     if (off) {
-        cv_rect(FG_X, y0, FG_W, 2, K_DIM);
-        text_c(FG_X + FG_W / 2, y0 + 12, &FONT_XS, offmsg, K_DIM);
+        cv_rect(fx, y0, fw, 2, K_DIM);
+        text_c(fx + fw / 2, fh >= 46 ? y0 + 12 : fy + 4, &FONT_XS, offmsg, K_DIM);
         return;
     }
     if (band) {   /* a bus filter: the band that passes, its low cut (1) and its high cut (4) */
-        int32_t lo = fc, hh = FG_X + 10 + hi * (FG_W - 20) / 127 + 12;
+        int32_t lo = fc, hh = fx + 10 + hi * (fw - 20) / 127 + 12;
         if (hh < lo + 6)
             hh = lo + 6;
-        if (hh > FG_X + FG_W - 10)
-            hh = FG_X + FG_W - 10;
-        cv_rect(lo, y0, hh - lo, FG_H - 22, K_TINT);
+        if (hh > fx + fw - 10)
+            hh = fx + fw - 10;
+        cv_rect(lo, y0, hh - lo, fh - 22, K_TINT);
         cv_rect(lo, y0, hh - lo, 2, K_NOW);
-        cv_rect(lo, y0, 2, FG_H - 22, K_NOW);
-        cv_rect(hh - 2, y0, 2, FG_H - 22, K_NOW);
-        circ_num(lo, FG_Y + 9, "1", K_TEXT, K_BG);
-        circ_num(hh, FG_Y + 9, "4", K_TEXT, K_BG);
-        dot_line((float)lo, (float)FG_Y + 15.0f, (float)lo, (float)y0 - 2.0f, 3.0f, K_TEXT);
-        dot_line((float)hh, (float)FG_Y + 15.0f, (float)hh, (float)y0 - 2.0f, 3.0f, K_TEXT);
+        cv_rect(lo, y0, 2, fh - 22, K_NOW);
+        cv_rect(hh - 2, y0, 2, fh - 22, K_NOW);
+        circ_num(lo, fy + 9, "1", K_TEXT, K_BG);
+        circ_num(hh, fy + 9, "4", K_TEXT, K_BG);
+        dot_line((float)lo, (float)fy + 15.0f, (float)lo, (float)y0 - 2.0f, 3.0f, K_TEXT);
+        dot_line((float)hh, (float)fy + 15.0f, (float)hh, (float)y0 - 2.0f, 3.0f, K_TEXT);
         return;
     }
-    for (i = 0; i <= FG_W; i++) {
-        float y = filt_y(filt_db((float)(FG_X + i - fc), q, hp, bp, steep), FG_Y, FG_H);
-        float z = filt_y(filt_db((float)(FG_X + i - fc) - reach, q, hp, bp, steep), FG_Y, FG_H);
-        ys[i] = y < (float)FG_Y + 2.0f ? (float)FG_Y + 2.0f : y > (float)(FG_Y + FG_H - 1) ? (float)(FG_Y + FG_H - 1) : y;
-        ye[i] = z < (float)FG_Y + 2.0f ? (float)FG_Y + 2.0f : z > (float)(FG_Y + FG_H - 1) ? (float)(FG_Y + FG_H - 1) : z;
+    for (i = 0; i <= fw; i++) {
+        float y = filt_y(filt_db((float)(fx + i - fc), q, hp, bp, steep), fy, fh);
+        float z = filt_y(filt_db((float)(fx + i - fc) - reach, q, hp, bp, steep), fy, fh);
+        ys[i] = y < (float)fy + 2.0f ? (float)fy + 2.0f : y > (float)(fy + fh - 1) ? (float)(fy + fh - 1) : y;
+        ye[i] = z < (float)fy + 2.0f ? (float)fy + 2.0f : z > (float)(fy + fh - 1) ? (float)(fy + fh - 1) : z;
     }
-    for (i = 0; i < FG_W; i++) {
+    for (i = 0; i < fw; i++) {
         int32_t yt = f_floor(ys[i] + 1.5f);
-        if (yt < FG_Y + FG_H)
-            cv_rect(FG_X + i, yt, 1, FG_Y + FG_H - yt, K_TINT);
+        if (yt < fy + fh)
+            cv_rect(fx + i, yt, 1, fy + fh - yt, K_TINT);
     }
     if (env != 64) {
         pen_t pe = {0};
-        for (i = 0; i <= FG_W; i += 2)
-            pen_to(&pe, (float)(FG_X + i), ye[i], K_DIM), (i & 2) ? pen_up(&pe) : (void)0;
+        for (i = 0; i <= fw; i += 2)
+            pen_to(&pe, (float)(fx + i), ye[i], K_DIM), (i & 2) ? pen_up(&pe) : (void)0;
     }
     {
         pen_t pn = {0};
         pn.w = 2.0f;
-        for (i = 0; i <= FG_W; i++)
-            pen_to(&pn, (float)(FG_X + i), ys[i], K_NOW);
+        for (i = 0; i <= fw; i++)
+            pen_to(&pn, (float)(fx + i), ys[i], K_NOW);
     }
     {   /* 1: the cutoff */
-        int32_t cx = fc - FG_X < 0 ? 0 : fc - FG_X > FG_W ? FG_W : fc - FG_X;
-        int32_t nx = fc < FG_X + 8 ? FG_X + 8 : fc > FG_X + FG_W - 8 ? FG_X + FG_W - 8 : fc;
-        dot_line((float)fc, (float)FG_Y + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
-        circ_num(nx, FG_Y + 9, "1", K_TEXT, K_BG);
+        int32_t cx = fc - fx < 0 ? 0 : fc - fx > fw ? fw : fc - fx;
+        int32_t nx = fc < fx + 8 ? fx + 8 : fc > fx + fw - 8 ? fx + fw - 8 : fc;
+        dot_line((float)fc, (float)fy + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
+        circ_num(nx, fy + 9, "1", K_TEXT, K_BG);
     }
     {   /* 2: the resonance: the peak's height over 0 dB */
         float top = (float)y0;
         int32_t px = fc;
-        for (i = 0; i <= FG_W; i++)
+        for (i = 0; i <= fw; i++)
             if (ys[i] < top)
-                top = ys[i], px = FG_X + i;
+                top = ys[i], px = fx + i;
         if ((float)y0 - top >= 8.0f) {
             int32_t dx = hp ? px + 14 : px - 14;
-            dx = dx < FG_X + 16 ? FG_X + 16 : dx > FG_X + FG_W - 16 ? FG_X + FG_W - 16 : dx;
+            dx = dx < fx + 16 ? fx + 16 : dx > fx + fw - 16 ? fx + fw - 16 : dx;
             dim_line((float)dx, (float)y0, (float)dx, top, 3.0f, 3.0f, K_TEXT);
             circ_num(dx + (hp ? 9 : -9), (int32_t)((float)y0 + top) / 2 + 1, "2", K_TEXT, K_BG);
         } else
         {   /* (pushed in from the screen's edge; under the 0 dB line when that would sit it on 1) */
             int32_t nx = fc + (hp ? 12 : -12), ny = y0 - 10;
-            if (nx < FG_X + 8 || nx > FG_X + FG_W - 8)
-                nx = clampi(nx, FG_X + 8, FG_X + FG_W - 8), ny = y0 + 6;
+            if (nx < fx + 8 || nx > fx + fw - 8)
+                nx = clampi(nx, fx + 8, fx + fw - 8), ny = y0 + 6;
             circ_num(nx, ny, "2", K_TEXT, K_BG);
         }
     }
     if (env != 64 && (reach > 5.0f || reach < -5.0f)) {   /* 3: the envelope's reach */
-        float ay = (float)(FG_Y + FG_H - 12), xa = (float)fc, xb = (float)fc + reach;
-        if (xb < (float)FG_X + 4.0f) xb = (float)FG_X + 4.0f;
-        if (xb > (float)(FG_X + FG_W) - 4.0f) xb = (float)(FG_X + FG_W) - 4.0f;
+        float ay = (float)(fy + fh - 12), xa = (float)fc, xb = (float)fc + reach;
+        if (xb < (float)fx + 4.0f) xb = (float)fx + 4.0f;
+        if (xb > (float)(fx + fw) - 4.0f) xb = (float)(fx + fw) - 4.0f;
         dim_line(xa, ay, xb, ay, 3.0f, 3.0f, K_TEXT);
         circ_num((int32_t)((xa + xb) * 0.5f), (int32_t)ay - 9, "3", K_TEXT, K_BG);
     }
@@ -6486,7 +6638,7 @@ static void draw_env(int filter)
         if (!begin_main(hash_u(h, 0xAC1Du)))
             return;
         ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], EF_X0 + EF_SPAN, base);
-        ef_head("ACID", "filter; dim: accented; line: level");
+        ef_head("acid", "FILTER OPENING", "dim: accented; line: level");
         for (int32_t xi = 0; xi <= (int32_t)EF_SPAN; xi++) {
             float ms = (float)xi * (3000.0f / EF_SPAN);
             float rise = 1.0f - fm_expf(-ms / ta), fl = rise * fm_expf(-ms / td), ac = fm_expf(-ms / tc);
@@ -6518,7 +6670,7 @@ static void draw_env(int filter)
             float t = (float)i / 32.0f;
             ef_pt(&c, x2 + (x3 - x2) * t, EF_BASE - (EF_BASE - EF_TOP) * ease_exp(t));
         }
-        ef_head("KIT", "every key: lag, attack, length");
+        ef_head("kit", "EVERY KEY", "lag, attack, length");
         ef_curve(&c);
         ef_node(x1, EF_BASE), ef_node(x2, EF_TOP), ef_node(x3, EF_BASE);
         ef_dim(EF_X0, x1, 1), ef_dim(x1, x2, 2), ef_dim(x2, x3, 4);
@@ -6526,8 +6678,8 @@ static void draw_env(int filter)
         return;
     }
     {   /* attack (1), decay (2) to the sustain's level (3, its height), the note held, release (4) */
-        float a = EF_MIN + (float)p[b] * 14.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 14.0f / 127.0f;
-        float r = EF_MIN + (float)p[b + 3] * 14.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
+        float a = EF_MIN + (float)p[b] * 20.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 20.0f / 127.0f;
+        float r = EF_MIN + (float)p[b + 3] * 20.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
         float x1 = EF_X0 + a, x2 = x1 + d, x4 = EF_X0 + EF_SPAN, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
         curve_t c = {{0}, {0}, 0, 0};
         ef_module(p[b], p[b + 1], p[b + 2], p[b + 3], x4, EF_BASE);
@@ -6544,7 +6696,7 @@ static void draw_env(int filter)
             float t = (float)i / 16.0f;
             ef_pt(&c, x3 + r * t, EF_BASE - (EF_BASE - ys) * ease_exp(t));
         }
-        ef_head(filter ? "FILTER" : "AMP", filter ? "cutoff over time" : "amplitude over time");
+        ef_head(filter ? "filter" : "amp", filter ? "CUTOFF" : "AMPLITUDE", "over time");
         ef_curve(&c);
         ef_node(x1, EF_TOP), ef_node(x2, ys), ef_node(x3, ys), ef_node(x4, EF_BASE);
         ef_dim(EF_X0, x1, 1), ef_dim(x1, x2, 2), ef_dim(x3, x4, 4);
@@ -7510,11 +7662,15 @@ static void draw_mix(void)
             cv_rect(x - 5, cy - 3, 10, 1, grip), cv_rect(x - 5, cy + 2, 10, 1, grip);
             cv_rect(x - 6, cy, 12, 1, t == sel ? K_BG : quiet ? K_LINE : K_TEXT);
         }
-        text_c(x + 1, MIX_TOP + MIX_H + 4, F_XB, SHORT_NM[t], t == sel ? K_SEL : quiet ? K_LINE : K_TEXT);
+        if (quiet)                               /* its tag: a block of the track's ink, the number in paper */
+            cv_frame(x - 7, MIX_TOP + MIX_H + 2, 16, 16, 2, K_LINE, K_BG);
+        else
+            cv_round(x - 7, MIX_TOP + MIX_H + 2, 16, 16, 2, t < NTRK ? trk_ink(t) : K_TEXT);
+        text_c(x + 1, MIX_TOP + MIX_H + 4, F_XB, SHORT_NM[t], quiet ? K_LINE : K_BG);
         if (t == sel)
-            cv_rect(x - 6, MIX_TOP + MIX_H + 18, 13, 2, K_SEL);
+            cv_rect(x - 7, MIX_TOP + MIX_H + 19, 16, 2, K_SEL);
         if (solo || marked)                      /* soloed: an inked S; muted: an M */
-            key_cap(x - 5, MIX_TOP + MIX_H + 21, solo ? "S" : "M", solo);
+            key_cap(x - 5, MIX_TOP + MIX_H + 22, solo ? "S" : "M", solo);
     }
     if (ui.solo_lat)                             /* a solo that stays (two taps) */
         tr_text(8, 0, F_LAB, "SOLO STAYS", K_TEXT, 1);
@@ -7776,39 +7932,61 @@ static void setup_row(int32_t y, const char *name, const char *val)
     cv_text(12, y, &FONT_S, name, K_DIM);
     text_r(228, y, &FONT_S, val, K_TEXT);
 }
-/* the shared LFO (the sheet's "LFO" for the whole instrument): its shape's name large, what it moves, the wave over
- * a cycle on graph paper with a dot where it is now (vermilion while it plays), its rate dimensioned (2), its amount
- * a height (3); the tracks it moves under it, in their inks. Off: said so, and how to start it */
+/* the shared LFO: a modulation box of its own. Its paper window plots the shape over a cycle with a dot where it is
+ * now (vermilion while it plays); its four controls in a row under the window (1 the shape, a rotary switch with a
+ * click for each; 2 the rate; 3 the amount, from 12 o'clock either way; 4 what it moves, a switch), at the live values;
+ * eight jacks along its foot, and from each track it moves a patch lead in that track's ink down to its tag (the
+ * black keys 1-8). Off: the window blank, no leads, how to start it */
 static void draw_glfo(void)
 {
     const uint8_t *g = proj.trk[AUX_BRAIN].par;
     int sh = g[TP_LTYPE] % (NGS + 1), now = (int)(engine_glfo_now() * 24.0f), route = (int)glfo_route();
     uint32_t h = hash_u(hash_u(2166136261u, 0x6F1u), (uint32_t)sh | (uint32_t)route << 4 | (uint32_t)g[TP_LDEST] << 12 |
                                            (uint32_t)(now + 32) << 16 | (uint32_t)g[TP_LAMT] << 24);
-    int32_t x0 = 118, w = 104, cy = 40;
-    float amp = 6.0f + 18.0f * (float)(g[TP_LAMT] > 64 ? g[TP_LAMT] - 64 : 64 - g[TP_LAMT]) / 64.0f;
+    int32_t x0 = 124, w = 92, cy = 21;
+    float amp = 3.0f + 9.0f * (float)(g[TP_LAMT] > 64 ? g[TP_LAMT] - 64 : 64 - g[TP_LAMT]) / 64.0f;
+    float u[4] = {(float)sh / (float)NGS, (float)g[TP_LSPEED] / 127.0f, (float)g[TP_LAMT] / 127.0f,
+                  (float)(g[TP_LDEST] % NGD) / (float)(NGD - 1)};
     pen_t pn = {0};
     char t[32];
     h = hash_u(h, g[TP_P1] | (uint32_t)g[TP_LSPEED] << 8 | (uint32_t)playing() << 16 | (uint32_t)p2_touch() << 20);
     if (!begin_main(h))
         return;
+    p2_panel(116, 1, 117, 66, K_PANEL2);             /* the box, its window */
+    cv_rect(116, 1, 117, 3, K_TEXT);
+    cv_rect(121, 7, 106, 30, sh ? K_CARD : K_PANEL);
+    p2_outline(121.0f, 7.0f, 227.0f, 37.0f, K_TEXT, 1.0f);
+    for (int k = 0; k < 4; k++) {                    /* its controls */
+        float kx = 131.0f + 29.0f * (float)k;
+        if (k == 0)
+            for (int j = 0; j <= NGS; j++) {
+                float a = 0.375f + 0.75f * (float)j / (float)NGS;
+                cv_disc(kx + 9.5f * fm_sin_turns(a + 0.25f), 55.0f + 9.5f * fm_sin_turns(a), 0.9f, K_TEXT);
+            }
+        else if (k == 2)
+            cv_rect((int32_t)kx, 44, 1, 3, K_TEXT);
+        p2_knob(kx, 55.0f, 6.5f, u[k], sh || !k ? k + 1 : 0, 0, -13);
+    }
+    for (int i = 0; i < NTRK; i++)                   /* its jacks; the leads to the tracks it moves */
+        cv_ring(125.0f + 13.5f * (float)i, 71.0f, 2.6f, 1.0f, K_TEXT);
+    p2_outline(116.0f, 67.0f, 232.0f, 75.0f, K_TEXT, 1.0f);
     if (!sh) {
-        p2_title("off", "THE SHARED LFO", 104);
-        cv_text(9, 56, &FONT_XS, "KNOB 1: a shape starts it", K_DIM);
-        cv_rect(x0, cy, w, 1, K_FAINT);
+        p2_title("off", "THE SHARED LFO", 100);
+        wrap(9, 52, 100, &FONT_XS, "KNOB 1: a shape starts it", K_DIM);
+        cv_rect(125, cy, 98, 1, K_FAINT);
     } else {
         up_copy(t, GLFO_DEST[g[TP_LDEST] % NGD], 16);
         {
             char d[28];
             s_cat(s_cat(d, "MOVES "), t);
-            p2_title(GLFO_SHAPE[sh], d, 104);
+            p2_title(GLFO_SHAPE[sh], d, 100);
         }
         {                                         /* (on a kit: the sound it moves) */
             int ks = g[TP_P1];
             s_cat(s_cat(t, "kits: "), ks >= 1 && ks <= NDRUM ? DL_SOUND_NAME[ks - 1] : "every sound");
-            text_fit(9, 52, &FONT_XS, t, 104, K_DIM);
+            text_fit(9, 52, &FONT_XS, t, 100, K_DIM);
         }
-        cv_grid(x0, cy - 28, w + 1, 57, 8, MAIN_Y, K_GRID);
+        cv_grid(x0, 9, w + 1, 27, 8, MAIN_Y, K_GRID);
         cv_rect(x0, cy, w + 1, 1, K_DIM);
         pn.w = 2.0f;
         for (int i = 0; i <= 52; i++) {           /* (the random shape: a few steps, as it holds a value a cycle) */
@@ -7823,12 +8001,10 @@ static void draw_glfo(void)
             }
             pen_to(&pn, (float)x0 + ph * (float)w, (float)cy - v * amp * (g[TP_LAMT] < 64 ? -1.0f : 1.0f), K_TEXT);
         }
-        cv_disc((float)(x0 + w + 7), (float)cy - (float)now * amp / 24.0f, 3.0f, playing() ? K_REC : K_TEXT);   /* now */
-        dim_line((float)x0, (float)(cy + 34), (float)(x0 + w), (float)(cy + 34), 3.0f, 3.0f, K_TEXT);   /* the rate */
-        cv_rect(x0 + w / 2 - 7, cy + 28, 15, 13, K_BG);
-        circ_num(x0 + w / 2, cy + 35, "2", K_TEXT, K_BG);
-        dim_line((float)(x0 - 6), (float)cy, (float)(x0 - 6), (float)cy - amp, 0.0f, 0.0f, K_TEXT);   /* the amount */
-        circ_num(x0 + 8, cy - (int32_t)amp - 9 < 6 ? 6 : cy - (int32_t)amp - 9, "3", K_TEXT, K_BG);
+        cv_disc((float)(x0 + w + 5), (float)cy - (float)now * amp / 24.0f, 2.6f, playing() ? K_REC : K_TEXT);   /* now */
+        for (int i = 0; i < NTRK; i++)
+            if (route >> i & 1)
+                p2_cable(125.0f + 13.5f * (float)i, 71.0f, 20.0f + 28.0f * (float)i, 96.0f, 5.0f, trk_ink(i));
     }
     for (int i = 0; i < NTRK; i++) {             /* the tracks it moves: black keys 1-8 */
         int32_t x = 8 + i * 28, on = route >> i & 1;
