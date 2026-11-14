@@ -7825,39 +7825,61 @@ static void setup_row(int32_t y, const char *name, const char *val)
     cv_text(12, y, &FONT_S, name, K_DIM);
     text_r(228, y, &FONT_S, val, K_TEXT);
 }
-/* the shared LFO (the sheet's "LFO" for the whole instrument): its shape's name large, what it moves, the wave over
- * a cycle on graph paper with a dot where it is now (vermilion while it plays), its rate dimensioned (2), its amount
- * a height (3); the tracks it moves under it, in their inks. Off: said so, and how to start it */
+/* the shared LFO: a modulation box of its own. Its paper window plots the shape over a cycle with a dot where it is
+ * now (vermilion while it plays); its four controls in a row under the window (1 the shape, a rotary switch with a
+ * click for each; 2 the rate; 3 the amount, from 12 o'clock either way; 4 what it moves, a switch), at the live values;
+ * eight jacks along its foot, and from each track it moves a patch lead in that track's ink down to its tag (the
+ * black keys 1-8). Off: the window blank, no leads, how to start it */
 static void draw_glfo(void)
 {
     const uint8_t *g = proj.trk[AUX_BRAIN].par;
     int sh = g[TP_LTYPE] % (NGS + 1), now = (int)(engine_glfo_now() * 24.0f), route = (int)glfo_route();
     uint32_t h = hash_u(hash_u(2166136261u, 0x6F1u), (uint32_t)sh | (uint32_t)route << 4 | (uint32_t)g[TP_LDEST] << 12 |
                                            (uint32_t)(now + 32) << 16 | (uint32_t)g[TP_LAMT] << 24);
-    int32_t x0 = 118, w = 104, cy = 40;
-    float amp = 6.0f + 18.0f * (float)(g[TP_LAMT] > 64 ? g[TP_LAMT] - 64 : 64 - g[TP_LAMT]) / 64.0f;
+    int32_t x0 = 124, w = 92, cy = 21;
+    float amp = 3.0f + 9.0f * (float)(g[TP_LAMT] > 64 ? g[TP_LAMT] - 64 : 64 - g[TP_LAMT]) / 64.0f;
+    float u[4] = {(float)sh / (float)NGS, (float)g[TP_LSPEED] / 127.0f, (float)g[TP_LAMT] / 127.0f,
+                  (float)(g[TP_LDEST] % NGD) / (float)(NGD - 1)};
     pen_t pn = {0};
     char t[32];
     h = hash_u(h, g[TP_P1] | (uint32_t)g[TP_LSPEED] << 8 | (uint32_t)playing() << 16 | (uint32_t)p2_touch() << 20);
     if (!begin_main(h))
         return;
+    p2_panel(116, 1, 117, 66, K_PANEL2);             /* the box, its window */
+    cv_rect(116, 1, 117, 3, K_TEXT);
+    cv_rect(121, 7, 106, 30, sh ? K_CARD : K_PANEL);
+    p2_outline(121.0f, 7.0f, 227.0f, 37.0f, K_TEXT, 1.0f);
+    for (int k = 0; k < 4; k++) {                    /* its controls */
+        float kx = 131.0f + 29.0f * (float)k;
+        if (k == 0)
+            for (int j = 0; j <= NGS; j++) {
+                float a = 0.375f + 0.75f * (float)j / (float)NGS;
+                cv_disc(kx + 9.5f * fm_sin_turns(a + 0.25f), 55.0f + 9.5f * fm_sin_turns(a), 0.9f, K_TEXT);
+            }
+        else if (k == 2)
+            cv_rect((int32_t)kx, 44, 1, 3, K_TEXT);
+        p2_knob(kx, 55.0f, 6.5f, u[k], sh || !k ? k + 1 : 0, 0, -13);
+    }
+    for (int i = 0; i < NTRK; i++)                   /* its jacks; the leads to the tracks it moves */
+        cv_ring(125.0f + 13.5f * (float)i, 71.0f, 2.6f, 1.0f, K_TEXT);
+    p2_outline(116.0f, 67.0f, 232.0f, 75.0f, K_TEXT, 1.0f);
     if (!sh) {
-        p2_title("off", "THE SHARED LFO", 104);
-        cv_text(9, 56, &FONT_XS, "KNOB 1: a shape starts it", K_DIM);
-        cv_rect(x0, cy, w, 1, K_FAINT);
+        p2_title("off", "THE SHARED LFO", 100);
+        wrap(9, 52, 100, &FONT_XS, "KNOB 1: a shape starts it", K_DIM);
+        cv_rect(125, cy, 98, 1, K_FAINT);
     } else {
         up_copy(t, GLFO_DEST[g[TP_LDEST] % NGD], 16);
         {
             char d[28];
             s_cat(s_cat(d, "MOVES "), t);
-            p2_title(GLFO_SHAPE[sh], d, 104);
+            p2_title(GLFO_SHAPE[sh], d, 100);
         }
         {                                         /* (on a kit: the sound it moves) */
             int ks = g[TP_P1];
             s_cat(s_cat(t, "kits: "), ks >= 1 && ks <= NDRUM ? DL_SOUND_NAME[ks - 1] : "every sound");
-            text_fit(9, 52, &FONT_XS, t, 104, K_DIM);
+            text_fit(9, 52, &FONT_XS, t, 100, K_DIM);
         }
-        cv_grid(x0, cy - 28, w + 1, 57, 8, MAIN_Y, K_GRID);
+        cv_grid(x0, 9, w + 1, 27, 8, MAIN_Y, K_GRID);
         cv_rect(x0, cy, w + 1, 1, K_DIM);
         pn.w = 2.0f;
         for (int i = 0; i <= 52; i++) {           /* (the random shape: a few steps, as it holds a value a cycle) */
@@ -7872,12 +7894,10 @@ static void draw_glfo(void)
             }
             pen_to(&pn, (float)x0 + ph * (float)w, (float)cy - v * amp * (g[TP_LAMT] < 64 ? -1.0f : 1.0f), K_TEXT);
         }
-        cv_disc((float)(x0 + w + 7), (float)cy - (float)now * amp / 24.0f, 3.0f, playing() ? K_REC : K_TEXT);   /* now */
-        dim_line((float)x0, (float)(cy + 34), (float)(x0 + w), (float)(cy + 34), 3.0f, 3.0f, K_TEXT);   /* the rate */
-        cv_rect(x0 + w / 2 - 7, cy + 28, 15, 13, K_BG);
-        circ_num(x0 + w / 2, cy + 35, "2", K_TEXT, K_BG);
-        dim_line((float)(x0 - 6), (float)cy, (float)(x0 - 6), (float)cy - amp, 0.0f, 0.0f, K_TEXT);   /* the amount */
-        circ_num(x0 + 8, cy - (int32_t)amp - 9 < 6 ? 6 : cy - (int32_t)amp - 9, "3", K_TEXT, K_BG);
+        cv_disc((float)(x0 + w + 5), (float)cy - (float)now * amp / 24.0f, 2.6f, playing() ? K_REC : K_TEXT);   /* now */
+        for (int i = 0; i < NTRK; i++)
+            if (route >> i & 1)
+                p2_cable(125.0f + 13.5f * (float)i, 71.0f, 20.0f + 28.0f * (float)i, 96.0f, 5.0f, trk_ink(i));
     }
     for (int i = 0; i < NTRK; i++) {             /* the tracks it moves: black keys 1-8 */
         int32_t x = 8 + i * 28, on = route >> i & 1;
