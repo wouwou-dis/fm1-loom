@@ -173,7 +173,7 @@ static void drum_cases(void)
 }
 
 /* ---- the effects and the master ---- */
-static int16_t dly_l[FX_DLY_LEN], dly_r[FX_DLY_LEN], rv[FX_RV_LEN];
+static int16_t dly_l[FX_DLY_LEN], dly_r[FX_DLY_LEN], rv[FX_RV_LEN] __attribute__((aligned(4)));
 /* the acid engine (dsp/bass303.c) on its own: each knob at its ends with the rest at their defaults, both waves,
  * the drives, the overload guard's lite mode, the pitch multiplier; a phrase of notes with accents and slides, a
  * rest long enough to go idle, a note after it */

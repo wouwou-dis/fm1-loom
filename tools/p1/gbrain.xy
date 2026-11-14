@@ -1,0 +1,86 @@
+bpm 120
+wait 300
+step 2 1 1 48 100
+step 2 1 5 52 100
+step 2 1 9 55 100
+turn ALGO 8
+expect trk 9
+tap EDIT
+wait 300
+shot 40_Conductor.png
+turn K1 3
+turn K2 1
+wait 200
+shot 41_Conductor-key.png
+turn SELECT 1
+wait 300
+shot 42_Conductor-routing.png
+turn SELECT 1
+wait 300
+shot 43_Conductor-follow.png
+turn SELECT -2
+turn K1 6
+turn K2 7
+tap PLAY
+wait 300
+shot g_brain_00.png
+wait 80
+shot g_brain_01.png
+wait 80
+shot g_brain_02.png
+wait 80
+shot g_brain_03.png
+wait 80
+shot g_brain_04.png
+wait 80
+shot g_brain_05.png
+wait 80
+shot g_brain_06.png
+wait 80
+shot g_brain_07.png
+wait 80
+shot g_brain_08.png
+wait 80
+shot g_brain_09.png
+wait 80
+shot g_brain_10.png
+wait 80
+shot g_brain_11.png
+wait 80
+shot g_brain_12.png
+wait 80
+shot g_brain_13.png
+wait 80
+shot g_brain_14.png
+wait 80
+shot g_brain_15.png
+wait 80
+shot g_brain_16.png
+wait 80
+shot g_brain_17.png
+wait 80
+shot g_brain_18.png
+wait 80
+shot g_brain_19.png
+wait 80
+shot g_brain_20.png
+wait 80
+shot g_brain_21.png
+wait 80
+shot g_brain_22.png
+wait 80
+shot g_brain_23.png
+wait 80
+shot g_brain_24.png
+wait 80
+shot g_brain_25.png
+wait 80
+shot g_brain_26.png
+wait 80
+shot g_brain_27.png
+wait 80
+shot g_brain_28.png
+wait 80
+shot g_brain_29.png
+wait 80
+tap PLAY

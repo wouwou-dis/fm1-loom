@@ -1,0 +1,25 @@
+bpm 120
+wait 300
+tap EDIT
+wait 200
+tap FX
+wait 200
+turn SELECT 1
+wait 300
+shot 01_sends_kit.png
+knob 1 send1 60
+knob 1 send2 127
+wait 300
+shot 02_sends_kit_on.png
+turn ALGO 1
+wait 300
+shot 03_sends_t2.png
+knob 2 send1 127
+knob 2 send2 0
+knob 2 pan 0
+knob 2 level 127
+wait 300
+shot 04_sends_t2_ext.png
+turn K3 3
+wait 200
+shot 05_sends_touch.png

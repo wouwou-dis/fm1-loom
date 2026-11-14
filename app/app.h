@@ -85,6 +85,9 @@ void app_ui_init(void);
 void app_frame(void);
 void app_input_only(void);
 void app_say(const char *a, const char *b);
+#define LOOM_BT_AUDIO 0                 /* 1: Bluetooth audio out (fm1.toml bt_audio = true; BT AUDIO and AUDIO DEVICE on Setup, the
+                                         * host simulator's stand-in). This fork removed it to make room for the song and effects:
+                                         * 0 compiles it out (FM1B_BT_AUDIO can't say: the host always builds without it) */
 #define APP_BTDEV                       /* Bluetooth MIDI devices (fm1-base lib/btdev.h): GLO's BT DEVICE list (bt.c) */
 #define APP_SPLASH                      /* the name over the eight tracks' inks woven as threads */
 void app_splash(void);
@@ -174,7 +177,7 @@ typedef struct {
     uint8_t scene;                      /* the scene to start on */
     uint8_t trk_sel;                    /* the track selected */
     uint8_t rsv[10];                    /* (format 4 had 14: its last four are master[0..3] now); rsv[0] the count-in,
-                                         * [1] the theme, [2] bits (pages.c): 1 REC's mode, 2 SCENES SWITCH
+                                         * [1] unused (was the theme and large type: ignored), [2] bits (pages.c): 1 REC's mode, 2 SCENES SWITCH
                                          * (SCENES_AT_END), 4 AUTOSAVE_OFF, 8 LOOP_FREE, 16 CC_OUT_OFF, 32 SCENES_OUT, 64 BT_AUDIO_ON, 128 BT_MIDI_OFF (bt.c);
                                          * [3] bits: 1 CC_IN_ENDLESS;
                                          * [4..7] the save count (project.c: the slot saved or loaded last opens at
@@ -210,7 +213,7 @@ int kit_save(int slot, const uint8_t *img);   /* 0 = saved (the user presets wit
 extern uint8_t proj_slot;               /* the slot loaded */
 
 void project_defaults(void);
-void project_device_get(void);         /* the FM-1's own settings (Setup's, the theme) noted, and put back */
+void project_device_get(void);         /* the FM-1's own settings (Setup's) noted, and put back */
 void project_device_put(void);         /* into proj: a project loaded keeps them */
 void project_random_sounds(uint32_t seed);   /* T2-T8: a random preset each of a part (bass, poly, pad, lead, keys, fx, pluck) */
 int project_mem_pct(void);              /* how full the patterns' room in flash is, % (the last save or load) */

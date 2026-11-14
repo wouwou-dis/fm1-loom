@@ -89,7 +89,7 @@ static void dl_drop(int t)
  * the SPU modes at the console's size) does not fit beside the canvas and the patterns; fx_has() tells the
  * UI which effects a slot can do. */
 static int16_t dly1_l[FX_DLY_LEN] POOL, dly1_r[FX_DLY_LEN] POOL;
-static int16_t rv2_line[FX_RV_LEN] POOL;
+static int16_t rv2_line[FX_RV_LEN] POOL __attribute__((aligned(4)));   /* (the plate keeps floats on it) */
 
 /* the engine's parameter copy (drumlines, FX read it; locks override it) and the project's
  * contiguous array (app.h proj_par: the synth and the sequencer read that one) */

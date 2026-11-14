@@ -1,0 +1,34 @@
+bpm 120
+wait 300
+tapkey w0
+tapkey w4
+tap SEL
+row COPY BAR, ALL TRACKS
+tap SEL
+wait 200
+tap SEL
+row COPY BAR, ALL TRACKS
+wait 300
+shot 30_Steps-list-bar.png
+tap SEL
+wait 200
+tap OCT+
+tap SEL
+row PASTE BAR, ALL TRACKS
+wait 300
+shot 31_Steps-list-paste-all.png
+tap SEL
+tap HOME
+wait 200
+tap SEL
+wait 300
+shot 32_Arrange-list.png
+tap HOME
+tap HOME
+wait 200
+tapkey w0
+tapkey w1
+tap SEL
+row MOVE SLOT
+wait 300
+shot 33_Song-list.png

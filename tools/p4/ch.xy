@@ -1,0 +1,224 @@
+bpm 120
+wait 300
+turn ALGO 1
+wait 200
+tap EDIT
+wait 200
+tap FX
+wait 300
+knob 2 ctype off
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 01_off_default.png
+knob 2 camt 0
+wait 1100
+shot 02_off_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 03_off_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 04_off_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 05_off_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 06_off_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 07_off_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype drive
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 08_drive_default.png
+knob 2 camt 0
+wait 1100
+shot 09_drive_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 10_drive_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 11_drive_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 12_drive_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 13_drive_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 14_drive_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype fold
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 15_fold_default.png
+knob 2 camt 0
+wait 1100
+shot 16_fold_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 17_fold_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 18_fold_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 19_fold_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 20_fold_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 21_fold_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype crush
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 22_crush_default.png
+knob 2 camt 0
+wait 1100
+shot 23_crush_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 24_crush_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 25_crush_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 26_crush_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 27_crush_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 28_crush_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype ring
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 29_ring_default.png
+knob 2 camt 0
+wait 1100
+shot 30_ring_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 31_ring_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 32_ring_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 33_ring_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 34_ring_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 35_ring_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype tilt
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 36_tilt_default.png
+knob 2 camt 0
+wait 1100
+shot 37_tilt_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 38_tilt_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 39_tilt_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 40_tilt_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 41_tilt_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 42_tilt_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype tape
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 43_tape_default.png
+knob 2 camt 0
+wait 1100
+shot 44_tape_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 45_tape_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 46_tape_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 47_tape_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 48_tape_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 49_tape_cmix_127.png
+knob 2 cmix 127
+knob 2 ctype sampler
+knob 2 camt 64
+knob 2 ctone 64
+knob 2 cmix 127
+wait 1100
+shot 50_sampler_default.png
+knob 2 camt 0
+wait 1100
+shot 51_sampler_camt_0.png
+knob 2 camt 127
+wait 1100
+shot 52_sampler_camt_127.png
+knob 2 camt 64
+knob 2 ctone 0
+wait 1100
+shot 53_sampler_ctone_0.png
+knob 2 ctone 127
+wait 1100
+shot 54_sampler_ctone_127.png
+knob 2 ctone 64
+knob 2 cmix 0
+wait 1100
+shot 55_sampler_cmix_0.png
+knob 2 cmix 127
+wait 1100
+shot 56_sampler_cmix_127.png
+knob 2 cmix 127

@@ -1,0 +1,18 @@
+bpm 120
+wait 300
+tap EDIT
+wait 200
+tap FX
+wait 300
+knob 1 ctype tape
+wait 300
+turn K2 3
+wait 100
+shot 01_tape_touch2.png
+turn SELECT 1
+turn SELECT 1
+wait 300
+knob 11 engine phaser
+turn K1 3
+wait 100
+shot 02_phaser_touch1.png

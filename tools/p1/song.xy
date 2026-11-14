@@ -1,0 +1,61 @@
+bpm 120
+wait 300
+projnew
+tap HOME
+tap HOME
+wait 200
+shot 10_Song-empty.png
+tap HOME
+tapkey w1
+tapkey w2
+tap HOME
+wait 100
+tapkey w0
+tapkey w1
+tapkey w0
+tapkey w2
+wait 300
+shot 11_Song-four-stops.png
+turn K1 -2
+wait 100
+shot 12_Song-slot-selected.png
+tap PLAY
+wait 2700
+shot 13_Song-playing.png
+wait 3000
+shot 14_Song-playing-later.png
+tap PLAY
+turn K4 -1
+wait 100
+shot 15_Song-ends.png
+turn K4 1
+turn K1 10
+wait 100
+shot 16_Song-end-selected.png
+turn K1 -1
+turn K3 -3
+tapkey w1
+tapkey w0
+tapkey w2
+tapkey w1
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w0
+wait 100
+shot 17_Song-one-bar-sections.png
+turn K1 -12
+wait 100
+shot 18_Song-scrolled.png
+turn K3 40
+wait 100
+shot 19_Song-long-slot.png

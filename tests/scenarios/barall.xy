@@ -1,0 +1,89 @@
+# COPY BAR, ALL TRACKS / PASTE BAR, ALL TRACKS (Steps' SEL, the bar's section): the bar shown on every track at once, with its
+# locks; a pattern too short is made long enough; a track with no notes is left as it is; one undo puts each track's
+# bar back (its length too), the redo pastes again
+wait 300
+projnew
+pat 1 1 32
+step 1 1 1 1 100
+step 1 1 17 1 100
+step 2 1 3 60 100
+lock 2 1 3 e1 30
+step 3 1 2 48 100
+step 3 1 20 50 100
+step 4 1 1 62 100
+pat 4 1 32
+expect trk 1
+tap SEQ
+listen
+tap SEL
+row COPY BAR, ALL TRACKS
+wait 200
+said COPY BAR, ALL TRACKS
+tap SEL
+wait 100
+said COPIED bar 1, all tracks
+expect listopen 0
+# bar 2 (T1 is 32 steps): T2 and T3 are lengthened to 32, T3's bar 2 replaced, T4's too
+tap OCT+
+tap SEL
+row PASTE BAR, ALL TRACKS
+wait 200
+said PASTE BAR, ALL TRACKS bar 1
+tap SEL
+wait 100
+said PASTED BAR 4 tracks
+expect note 1 1 17 1
+expect note 2 1 19 60
+expect locks2.1.19 1
+expect locks2.1.3 1
+expect note 3 1 18 48
+expect note 3 1 20 0
+expect note 4 1 17 62
+expect plen1.1 32
+expect plen2.1 32
+expect plen3.1 32
+expect plen5.1 16
+# one undo: every track's bar 2 as it was, T2 and T3 16 steps again, the lock gone from bar 2
+listen
+press HOME
+tap REC
+release HOME
+wait 50
+said UNDO bar 2, all tracks
+expect note 2 1 19 0
+expect locks2.1.19 0
+expect locks2.1.3 1
+expect lane 2 1 e1 1
+expect note 3 1 18 0
+expect note 3 1 20 50
+expect note 4 1 17 0
+expect note 1 1 1 1
+expect plen2.1 16
+expect plen3.1 16
+expect plen4.1 32
+# the redo
+press HOME
+tap PLAY
+release HOME
+wait 50
+expect note 2 1 19 60
+expect locks2.1.19 1
+expect note 3 1 20 0
+expect plen2.1 32
+# from another scene's patterns: a new section, its bar 1 pasted from the copy (scene 1's patterns, read now)
+tap OCT-
+tap HOME
+tap SEL
+row NEW SECTION
+tap SEL
+wait 100
+expect scene 2
+tap SEQ
+step 2 2 3 0
+tap SEL
+row PASTE BAR, ALL TRACKS
+tap SEL
+wait 50
+expect note 2 2 3 60
+expect locks2.2.3 1
+expect note 2 1 3 60

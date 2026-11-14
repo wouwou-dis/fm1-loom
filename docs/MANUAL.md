@@ -136,6 +136,7 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | make a note longer | Hold its step and press a later white key. A bar under the cells shows how far a note reaches. <!-- hint: white 1,5 --> |
 | nudge a step | Hold its step and press **OCT−** or **OCT+**. <!-- hint: press OCT−, OCT+; white 5 --> |
 | copy and paste | On Steps, press **SEL** and pick COPY PATTERN or COPY BAR. Where you want it, pick PASTE PATTERN or PASTE BAR (PASTE LOCKS ONLY pastes just the locks). For one step, hold it, press **SEL** and pick COPY STEP; then hold another step, press **SEL** and pick PASTE STEP. |
+| copy a bar on every track | On Steps, show the bar with **OCT−** or **OCT+**, press **SEL** and pick COPY BAR, ALL TRACKS. Show the bar you want it in and pick PASTE BAR, ALL TRACKS. Every track gets the bar, locks too, and one undo takes it back. |
 | make a pattern twice as long | On Steps, press **SEL** and pick DOUBLE PATTERN. The pattern plays itself twice, so you can vary the second half. |
 | change a step's note | Hold its step and turn **KNOB 4**. This works on a drum step too: its hits play higher or lower. <!-- hint: turn KNOB 4; white 5 --> |
 | put a second sound on a drum step | Hold the step and press the sound's black key. <!-- hint: black 2; white 5 --> |
@@ -174,6 +175,8 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | set the tempo | Press **HOME** and turn **KNOB 1**. Hold **HOME** while you turn it for tenths. On any page, you can also hold **HOME** and turn **SELECT**. |
 | use a throw | Press **FX** and turn **SELECT** to Throws. Hold a key: the lower octave works on the drums and the upper octave on the melodic tracks. Hold **REC** while it plays to record throws into the THROW track. <!-- hint: press FX; turn SELECT; white 1-16 --> |
 | make a new scene | Press **HOME** and press an empty white key. It becomes a copy of the scene that is playing. **OCT+** puts scenes 17 to 32 on the white keys. <!-- hint: press HOME; white 2 --> |
+| make a new section to vary | Press **HOME**, press **SEL** and pick NEW SECTION. You get a new scene with its own copy of each pattern, so what you change there leaves the scene you came from as it was. <!-- hint: press HOME, SEL --> |
+| move a slot in the song | On the Song page, pick the slot with **KNOB 1**, press **SEL** and pick MOVE SLOT. Turn **ALGORITHM** for earlier or later and press **SEL**. Press **SEL** twice to move it again. <!-- hint: press HOME, HOME, SEL --> |
 | switch scenes while playing | On Arrange, press the scene's white key, and it starts at the next bar. Press it again to switch at once. To wait for the end of T1's pattern instead, set SCENES SWITCH in the **SEL** list to "pattern end". <!-- hint: press HOME; white 2 --> |
 | mute a track | On Arrange or Mix, press its black key. On Mix, hold it to solo the track for as long as you hold it. <!-- hint: black 1 --> |
 | mute one drum sound in a scene | On Arrange, hold the kit track's black key and press white keys 1 to 11. <!-- hint: black 1; white 1-11 --> |
@@ -187,7 +190,6 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | save | LOOM-8 saves by itself when it is stopped and quiet. **SAVE** saves at once. Hold **SAVE** and press white key 1 to 3 to save to that slot. <!-- hint: press SAVE --> |
 | keep a sound | On a sound page, hold **SAVE** and press a white key. The sound becomes that user preset. <!-- hint: hold SAVE; white 1 --> |
 | load a project | Press **HOME** and press **SEL**. On LOAD PROJECT, turn **ALGORITHM** to pick the slot, then press **SEL**. NEW PROJECT starts an empty project in a free slot, with its sounds picked at random (new ones, as RANDOMIZE PRESETS gives). <!-- hint: press HOME, SEL; turn ALGORITHM --> |
-| listen on Bluetooth headphones | Put them in pairing mode. Press **GLO**, turn **SELECT** to Setup and press **SEL**. Turn **SELECT** to AUDIO DEVICE and press **SEL**. Turn **SELECT** to the headphones and press **SEL**. |
 
 ### The buttons
 
@@ -414,7 +416,8 @@ knobs. A row with a ▸ is a choice. Turn **ALGORITHM** to pick it, and press **
   row shows which pattern that is, such as P3. The track switches to the copy in the scene playing, and while it
   plays, the copy comes in at the next bar. Use this to make a variation. On **HOME**, press an empty scene key, and
   the new scene plays the same patterns. Then use COPY TO EMPTY on the tracks you want to change. The scene you
-  started from keeps the original. Undo puts the scene back on the original.
+  started from keeps the original. Undo puts the scene back on the original. To do this for every track at once,
+  use NEW SECTION in **HOME**'s **SEL** list.
 - **COPY PATTERN** copies the pattern, and **PASTE** (pattern, or locks only) pastes it where you want it. The copy
   is read when you paste, and a kit's steps paste only onto a kit.
 - **CLEAR** clears the notes, the locks, or both.
@@ -426,6 +429,10 @@ knobs. A row with a ▸ is a choice. Turn **ALGORITHM** to pick it, and press **
   becomes 32, so you can vary its second half.
 - For the bar shown, there are **COPY BAR**, **PASTE** (the bar, or locks only), **CLEAR BAR**, which clears its
   notes and locks, and **DUPLICATE BAR**, which copies it into the next bar.
+- **COPY BAR, ALL TRACKS** copies the bar shown on every track at once, and **PASTE BAR, ALL TRACKS** pastes it into the bar
+  shown on every track, with its locks. A pattern too short is made long enough, as PASTE does. A track that had no
+  notes is left as it is, and a track shorter than the bar you copied gives the bar it was playing. As with COPY,
+  the copy is read when you paste. One undo takes back the whole paste.
 
 Every list opens on the row you used last, until you switch the FM-1 off.
 
@@ -433,8 +440,8 @@ On the Bar page, hold **SEQ** and press black keys 1 to 4, which stand for the p
 jump to that bar at the next bar line and play on from there. This releases any loop you had. Hold two keys to
 loop that range of bars, or tap one key twice to loop that bar. The loop is saved with the pattern, for each track
 and each pattern. Only the loop plays, so a bar you are editing comes round straight away. A bar under the boxes
-marks the loop, and a small bracket marks a jump waiting for its bar line. Arrange draws the loop bright inside the
-pattern's line, with the playhead repeating inside it. While stopped, the keys set the loop immediately. On the
+marks the loop, and a small bracket marks a jump waiting for its bar line. Arrange brackets the loop under the
+track's strip and greys the steps outside it. While stopped, the keys set the loop immediately. On the
 other pages, holding SEQ still picks the notes a step writes.
 
 ### Weave
@@ -509,7 +516,7 @@ melody's notes.
 - To record step by step, tap **REC** while stopped. On Steps, the keys become a keyboard, and a red cursor marks
   the step they write, starting after the pattern's last note. Play a key, or several keys together, to write the
   step, and the cursor moves on when you let go. **OCT+** leaves a rest and **OCT−** goes back a step. On a drum
-  track, the sound is added to the step. A MIDI keyboard (USB, Bluetooth or the jack) writes steps the same way
+  track, the sound is added to the step. A MIDI keyboard (USB or the jack) writes steps the same way
   when it plays the track on the screen, on the track's own channel or on 12 to 16. Notes held together make a
   chord, and the first note's velocity becomes the step's. The notes you hold on it are also what a step tap
   writes next, with no need to hold **SEQ**, and in chord mode they write the held step. Tap **REC** again to
@@ -1127,13 +1134,18 @@ chord from that note, just as a key does. When you change the player, or turn it
 lets go of whatever it was holding.
 ## Arrange, scenes and the song
 
-Press **HOME** to see the whole arrangement. Each row is a track, with its pattern and a playhead. A small meter at
-the left of each row shows what the track plays. For COND and THROW, the meter lights while one of their steps
-plays. Muted tracks are dimmed. The scene number is at the right. When you cue a scene, its number appears beside
-the current one with the beats left until it starts, and its key blinks.
+Press **HOME** to see the whole arrangement. Each row is a track: its number, a chip in its color, its pattern, and a
+strip with the 16 steps of the bar it is playing, its notes punched in its color. The chip fills as a meter while
+the track plays (for COND and THROW, while one of their steps plays). One red playhead runs down all the rows. A
+track whose own step is elsewhere, because its pattern is shorter or runs at another speed, has a small red mark
+under that step. A loop is bracketed under its steps, and the steps outside it are grey. A muted track is struck
+through and grey, with MUTED beside it, and a kit with sounds muted in the scene says how many, such as 2 OFF, with
+those steps grey. The scene number is large at the right. When you cue a scene, NEXT and its number appear under it
+in red with the beats left until it starts, and its key blinks.
 
 The 16 white keys are scenes 1 to 16. Press **OCT+** to put scenes 17 to 32 on them, and **OCT−** to go back. The
-dots at the right show all 32 scenes, with a mark beside the rows the keys hold now. The keys follow the scene
+squares at the right show all 32 scenes: an empty scene is a dot, a scene in use an outline, the one playing filled,
+the one cued red. A mark beside the rows shows the scenes the keys hold now. The keys follow the scene
 that is playing.
 
 - When stopped, press a scene's key and it switches at once.
@@ -1146,7 +1158,14 @@ that is playing.
   make it the same again: its patterns, its mutes, the conductor's key and the weave. While playing, you hear the
   change at the next bar.
 - Turn **PRESETS** to cue the next scene for the next bar in the same way.
-- Press an empty scene's key to turn it into a copy of the scene that is playing.
+- Press an empty scene's key to turn it into a copy of the scene that is playing. It plays the same patterns, so
+  an edit to a pattern there changes both scenes.
+- NEW SECTION in the **SEL** list makes a new scene (the first empty one, shown on the row) and switches to it, as an
+  empty scene's key does. This time each track with notes gets its own copy of its pattern, with its locks, motion
+  and loop, in an empty pattern of the track. Change the new section as you like: the scene you came from stays as
+  it was. A track with no notes keeps sharing its pattern. If a track has no empty pattern left, or there is no
+  room left for its locks, it keeps sharing too, and LOOM-8 says how many tracks still share. One undo takes the
+  whole new section back.
 - Hold a white key for a second to clear that scene. The playing scene keeps going while LOOM-8 asks you to
   confirm. Holding an empty scene's key does nothing.
 
@@ -1174,6 +1193,16 @@ Turn **SELECT** for the Song page. Press a white key to add that scene after the
 scenes 17 to 32. The knobs move to the new slot, which plays as many bars as the one before it. The first slot
 plays four.
 
+The page draws the song as a route map. Each slot is a stop with its section letter, and the line to the next stop
+is as long as the slot's bars, with a tick for each bar and the bar numbers under it. The letters come from the song
+itself: the first scene in the song is A, the next new one B, and so on, and a scene that comes back has its letter
+again. So a song of S1, S1, S2, S1 reads A A B A. The selected slot's stop and its stretch of line are blue, and the
+line under the map says its slot, its scene and the bar it starts on. At the end, the line loops back to A or stops
+at a buffer. The song's length in bars and in minutes at the tempo is at the top right.
+
+A long song wraps onto more rows, with arrows where a row breaks. Two rows show at a time, and they follow the
+selected slot. The map is as fine as it needs to be so that two stops never crowd each other.
+
 - **KNOB 1** picks the slot.
 - **KNOB 2** changes its scene.
 - **KNOB 3** sets how many bars it plays, from 1 to 64. A bar is always 16 sixteenths, whatever the patterns'
@@ -1181,9 +1210,11 @@ plays four.
 - **KNOB 4** sets whether the song loops or stops at the end.
 
 Press **PLAY** on the Song page to play the song from the selected slot. To play it from the top, pick PLAY SONG in
-the **SEL** list. As the song plays, a bar along the bottom of the playing slot fills up over its bars. The **SEL**
+the **SEL** list. As the song plays, a small red train runs along the line. The **SEL**
 list can also insert the scene that is playing (INSERT SLOT), repeat the selected slot right after itself
-(DUPLICATE SLOT), delete a slot or clear the song.
+(DUPLICATE SLOT), move the selected slot (MOVE SLOT), delete a slot or clear the song. On MOVE SLOT, turn
+**ALGORITHM** for earlier or later and press **SEL**: the slot swaps places with its neighbour, and the knobs stay
+on it. Press **SEL** twice to move it again. While the song plays, it goes on from where it was.
 
 ## The aux tracks
 
@@ -1301,10 +1332,10 @@ Turn **SELECT** for more pages:
 On Setup, the knobs set the lights, the MIDI clock, sending MIDI notes and the theme. The clock is internal, receive
 or send (see MIDI, below). Sending notes is on to start with. The theme is b/w to start with, or tape deck or
 blueprint. The page also shows where the tempo comes from (LOOM-8, or a MIDI clock coming in), the USB audio level,
-the autosave, Bluetooth audio and the Bluetooth MIDI device (see Bluetooth, below). The version is on the next page,
+the autosave and Bluetooth MIDI (see Bluetooth, below). The version is on the next page,
 Debug. The **SEL** list on Setup has the FM-1's own settings, in three groups:
 
-- Bluetooth: BT MIDI, MIDI DEVICE, BT AUDIO and AUDIO DEVICE.
+- Bluetooth: BT MIDI.
 - USB and MIDI: the USB audio level, USB PORT, CLOCK, NOTES, CC IN, CC OUT and SCENES OUT.
 - LOOM-8: LIGHTS, THEME, AUTOSAVE and LOOP THROWS.
 
@@ -1363,43 +1394,16 @@ gets out of the kick's way while the rest plays on.
 
 ### Bluetooth
 
-LOOM-8 can play through Bluetooth headphones or a Bluetooth speaker, and it can connect to a Bluetooth MIDI keyboard
-or controller. Setup shows both. **BT audio** says off, the device playing, or what it is doing. **BT MIDI** says
-off, on, or the MIDI device connected. Press **SEL** on Setup and the list opens on BT MIDI. Its Bluetooth rows
-come in two pairs:
+LOOM-8 shows up as a Bluetooth MIDI device to a computer, a phone or a tablet (see MIDI, below). Setup shows
+**BT MIDI**: off, on, or "computer connected". Press **SEL** on Setup and the list opens on BT MIDI.
 
 - **BT MIDI** turns Bluetooth MIDI on or off. Turn **ALGORITHM**, or press **SEL**. When it's off, the FM-1 stops
-  showing up as a Bluetooth MIDI device and lets go of any computer, phone or MIDI device connected. Bluetooth audio
-  keeps working. It is on to start with.
-- **MIDI DEVICE** shows the MIDI device connected, "choose", or "BT MIDI off". Press **SEL** to choose one. If BT
-  MIDI is off, turn it on first.
-- **BT AUDIO** turns Bluetooth audio on or off. Turn **ALGORITHM**, or press **SEL**. Turning it on connects the
-  device you used last.
-- **AUDIO DEVICE** shows the headphones or speaker playing, or "choose". Press **SEL** to choose one.
+  showing up as a Bluetooth MIDI device and lets go of any computer, phone or tablet connected. It is on to start
+  with. LOOM-8 keeps the setting over a restart, and a new project, and every project you load, keeps it as it is.
 
-**Headphones and speakers.** Put the headphones or speaker in pairing mode, then press **SEL** on AUDIO DEVICE. The
-list's first line tells you what to do. It says "looking for devices..." while LOOM-8 looks, "pick a device. SEL
-connects" once it has found some, or "none found. In pairing mode?". The devices you've used before come first,
-marked "remembered". The one in use says "playing" or "connecting". After them come the ones it found, marked
-"new". Turn **SELECT** to one and press **SEL** to connect. A new one is paired and remembered, and LOOM-8 remembers
-four. While Bluetooth audio plays, the FM-1's own speaker and headphone jack are silent. The sound reaches your ears
-150 to 300 ms after you play, so use it for listening, not for playing in time.
-
-- **LOOK AGAIN** looks for devices again. The sound stops for a moment while it looks, because the radio can't look
-  and play at once.
-- **FORGET** forgets a remembered device. Pick it with **ALGORITHM** and press **SEL**. LOOM-8 asks first.
-
-LOOM-8 keeps both settings over a restart. BT MIDI stays off if you switched it off, and when BT AUDIO is on,
-LOOM-8 connects the device you used last again. A new project, and every project you load, keeps them as they are.
-
-**MIDI devices.** Switch the keyboard or controller on, then press **SEL** on MIDI DEVICE. LOOM-8 looks for
-Bluetooth MIDI devices while the list is open, and its first line says so. The ones it finds are marked "found".
-Turn **SELECT** to one and press **SEL** to connect. Its notes and CCs play LOOM-8 as a computer's would, and what
-LOOM-8 sends goes to it too. To let it go, press **SEL** on MIDI DEVICE again, then on DISCONNECT. LOOM-8 has one
-Bluetooth MIDI link at a time, so while a computer or a phone is connected to the FM-1, it can't connect to a
-device.
-
-In both lists, **SAVE** connects the device picked, as **SEL** does, and **HOME** goes back.
+This build of LOOM-8 has no Bluetooth audio (no headphones or speakers) and no Bluetooth MIDI keyboards or
+controllers of its own to connect to. They were removed to make room for the song and the effects. Use
+the headphone jack, USB audio, or a MIDI cable or USB for a keyboard.
 
 **Pairing codes.** When a phone or an app asks for a code to pair with the FM-1, the header shows it on every page
 ("PIN 042613"), and the screen reader says it. Type it on the phone.
@@ -1603,7 +1607,7 @@ user preset.
 | GLO, SELECT | Master color | color | amount | tone | mix | |
 | GLO, SELECT | Master out | drums | melodic | comp | pump | SEL: pump by, release, accent, level |
 | GLO, SELECT | LFO | shape | rate | amount | dest | black: the tracks it moves; white 1-11: a kit's sound, 12 all |
-| GLO, SELECT | Setup | lights | clock | notes | theme | SEL: Bluetooth MIDI and audio, their devices, USB audio, USB port, loop throws, autosave, CC out, scenes out |
+| GLO, SELECT | Setup | lights | clock | notes | theme | SEL: Bluetooth MIDI, USB audio, USB port, loop throws, autosave, CC out, scenes out |
 
 The aux tracks have their own **EDIT** pages:
 
@@ -1676,5 +1680,5 @@ The factory breaks are free loops by u/FCTRYBEATS. The 909 kick, snare and clap 
 athousanddetails, and the hat is ER-99's, by Matthew Cieplak. The recorded instruments come from the Versilian
 Studios Chamber Orchestra 2 Community Edition (CC0).
 
-Bluetooth runs on Optimist's own stack by Henri David (MPL-2.0), with Android's SBC encoder (Apache-2.0), micro-ecc
+Bluetooth MIDI runs on Optimist's own stack by Henri David (MPL-2.0), with micro-ecc
 by Kenneth MacKay (BSD-2-Clause), and the radio's set-up after JieLi's AC79 SDK (Apache-2.0).

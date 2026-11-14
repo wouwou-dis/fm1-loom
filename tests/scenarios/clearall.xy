@@ -1,0 +1,23 @@
+# CLEAR ALL PATTERNS (HOME's list): every pattern and scene empty, the sounds as they were; it asks first
+bpm 120
+step 1 1 1 1 100
+step 2 1 5 48 100
+scenedef 2 2 2
+param 2 20 77
+expect note 2 1 5 48
+expect par2.20 77
+expect used 3
+tap HOME
+tap SEL
+row CLEAR ALL PATTERNS
+tap SEL
+expect ask 1
+expect note 2 1 5 48
+tap SEL
+wait 200
+expect ask 0
+expect used 1
+expect scene 1
+expect note 1 1 1 0
+expect note 2 1 5 0
+expect par2.20 77

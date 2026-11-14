@@ -57,8 +57,7 @@ static void say_as(const char *a, const char *b, uint32_t flags)
             }
     }
 #if defined(PLAT_HOST) && !defined(PLAT_WEB)
-    if (!LARGE && 8 + text_w(&FONT_B, ui.msg[0]) + 8 + text_w(&FONT_B, ui.msg[1]) > 232) {   /* (large type: the
-                                                     * header's own check, pages.c hdr_cut) */
+    if (8 + text_w(&FONT_B, ui.msg[0]) + 8 + text_w(&FONT_B, ui.msg[1]) > 232) {
         printf("  FAIL message too wide for the header: %s %s\n", ui.msg[0], ui.msg[1]);
         msg_too_wide++;
     }
@@ -486,8 +485,11 @@ static void undo_arr(void)                        /* before a change to the song
     undo.u.a.song = pats.song;
     memcpy(undo.u.a.scene, pats.scene, sizeof pats.scene);
     memcpy(undo.u.a.weave, pats.weave, sizeof pats.weave);
+    undo.u.a.ns = 0;                             /* (NEW SECTION marks its own) */
 }
 static void weave_apply(int t);
+static int pat_copy(int trk, int from, int to);
+static void pat_empty(int trk, int pt);
 static void do_undo(int redo)
 {
     char t[24];
@@ -534,12 +536,54 @@ static void do_undo(int redo)
             engine_master(m, proj.master[m]);
         s_cat(t, "master");
         break;
+    case U_BARS: {                               /* PASTE BAR, ALL TRACKS: each track's bar and length, the bar's lanes */
+        int b = undo.u.b.bar % NBAR;
+        for (int i = 0; i < undo.n && i < NSEQT; i++) {
+            tpat_t *tp = &pats.pat[undo.u.b.trk[i] % NSEQT][undo.u.b.pt[i] % NPATT];
+            swap_bytes(&tp->st[b * 16], undo.u.b.st[i], sizeof undo.u.b.st[i]);
+            swap_bytes(&tp->len, &undo.u.b.len[i], 1);
+        }
+        for (int j = 0; j < undo.u.b.nl && j < UB_LANES; j++) {
+            int i = undo.u.b.l[j].i % NSEQT, tr = undo.u.b.trk[i] % NSEQT, pt = undo.u.b.pt[i] % NPATT, k, none = 1;
+            k = lane_find(pats.lane, tr, pt, undo.u.b.l[j].param);
+            for (int s = 0; s < 16 && k < 0; s++)
+                none &= undo.u.b.l[j].v[s] == LOCK_NONE;
+            if (k < 0 && !none)
+                k = lane_alloc(pats.lane, tr, pt, undo.u.b.l[j].param);
+            if (k < 0)
+                continue;
+            swap_bytes(&pats.lane[k].val[b * 16], undo.u.b.l[j].v, 16);
+            none = 1;
+            for (int s = 0; s < NSTEP; s++)
+                none &= pats.lane[k].val[s] == LOCK_NONE;
+            if (none)                                /* (a lane the paste made: gone again) */
+                lane_clear(pats.lane, k);
+        }
+        s_cat(num_s((uint32_t)b + 1u, s_cat(t, "bar ")), ", all tracks");
+        break;
+    }
     default: {
         scene_t live = pats.scene[cur_scene()];
+        int ns = undo.u.a.ns;                    /* NEW SECTION: back to the scene it was made from, its copies emptied */
+        if (ns && !redo) {
+            engine_scene(undo.u.a.ns_from % NSCENE, SCENE_NOW);
+            proj.scene = (uint8_t)(undo.u.a.ns_from % NSCENE);
+        }
         swap_bytes(&pats.song, &undo.u.a.song, sizeof pats.song);
         swap_bytes(pats.scene, undo.u.a.scene, sizeof pats.scene);
         swap_bytes(pats.weave, undo.u.a.weave, sizeof pats.weave);
-        {                                        /* the scene playing keeps its patterns and mutes: they are live */
+        for (int tr = 0; ns && tr < NSEQT; tr++)
+            if (undo.u.a.ns_made[tr] < NPATT) {
+                if (redo)
+                    pat_copy(tr, undo.u.a.ns_src[tr] % NPATT, undo.u.a.ns_made[tr]);
+                else
+                    pat_empty(tr, undo.u.a.ns_made[tr]);
+            }
+        if (ns && redo) {
+            engine_scene(undo.u.a.ns_to % NSCENE, playing() ? SCENE_BAR : SCENE_NOW);
+            proj.scene = (uint8_t)(undo.u.a.ns_to % NSCENE);
+        }
+        if (!ns) {                               /* the scene playing keeps its patterns and mutes: they are live */
             scene_t *c = &pats.scene[cur_scene()];
             memcpy(c->pat, live.pat, sizeof c->pat);
             c->mute = live.mute;
@@ -553,7 +597,7 @@ static void do_undo(int redo)
             ui.name_slot = pats.song.len;
         for (int tr = 0; tr < NSEQT; tr++)
             weave_apply(tr);
-        s_cat(t, "song and scenes");
+        s_cat(t, ns ? "new section" : "song and scenes");
         break;
     }
     }
@@ -1824,7 +1868,9 @@ static void key_up(int k)
 
 /* --------------------------------------------------------- buttons --- */
 static void list_open(void);
+#if LOOM_BT_AUDIO
 static void bt_audio_set(int on);
+#endif
 static void bt_midi_set(int on);
 static void list_sel(void);
 static int save_project(int slot);
@@ -2175,7 +2221,7 @@ static void setup_knob(int k, int32_t e)
     else if (k == 2)
         seq.send_notes = proj.send_notes = (uint8_t)(e > 0);
     else
-        theme_step(e > 0 ? 1 : -1);              /* the theme */
+        return;                                  /* (KNOB 4: nothing) */
     mark_dirty();
 }
 static void debug_knob(int k, int32_t e)         /* Debug: KNOB 1 the cores */
@@ -2546,6 +2592,7 @@ static void list_change_do(int32_t e)
             break;
         }
         case A_PASTE: ui.pick_paste = (uint8_t)(d > 0); break;
+        case A_MOVE_SLOT: ui.pick_move = (uint8_t)(d > 0); break;
         case A_EFFECT: {
             int t = ui.pick_fx, trk = fx_page(ui.page) ? (ui.page == P_FX1 ? AUX_FX1 : AUX_FX2) : sel_trk();
             for (int tries = 0; tries < NFXPICK; tries++) {
@@ -2569,14 +2616,17 @@ static void list_change_do(int32_t e)
                 mark_dirty();
             }
             break;
+#if LOOM_BT_AUDIO
         case A_BT_AUDIO:
             if (bt.want != (uint8_t)(d > 0))
                 bt_audio_set(d > 0);
             break;
+#endif
         case A_BT_MIDI:
             if (bt.midi != (uint8_t)(d > 0))
                 bt_midi_set(d > 0);
             break;
+#if LOOM_BT_AUDIO
         case A_BT_FORGET: {
             int n = 0;
             while (n < 4 && BTA(known)(n, 0))
@@ -2584,6 +2634,7 @@ static void list_change_do(int32_t e)
             ui.pick_bt = (uint8_t)(n ? (ui.pick_bt + d + n) % n : 0);
             break;
         }
+#endif
         case A_USB_HOST:                         /* (not saved: every start is the computer's, as the update needs) */
             plat_usb_host(d > 0);
             break;
@@ -2604,14 +2655,6 @@ static void list_change_do(int32_t e)
             break;
         case A_COUNT_IN:
             proj.rsv[0] = (uint8_t)clampi(count_in() + d, 0, NCIN - 1);
-            mark_dirty();
-            break;
-        case A_THEME:
-            theme_step(d);
-            mark_dirty();
-            break;
-        case A_LARGE_TYPE:                       /* (its faces from the resource region: "on: reinstall" without it) */
-            large_type_set(d > 0);
             mark_dirty();
             break;
         case A_PLAYMODE: {
@@ -2742,23 +2785,23 @@ static void act_paste_pat(void)
 /* N steps of the copied pattern from FROM onto this pattern's AT, with their locks (a lane of this pattern the copy
  * has not: those steps unlocked); locks_only: the locks and motion alone (not a kit's tunes: they are notes).
  * Returns 0 when a lock found no lane free */
-static int paste_steps(int trk, int pt, int at, int from, int n, int locks_only)
+static int paste_steps(int trk, int pt, int at, int strk, int spt, int from, int n, int locks_only)
 {
     tpat_t *dst = &pats.pat[trk][pt];
-    const tpat_t *src = &pats.pat[clip_trk][clip_pat];
+    const tpat_t *src = &pats.pat[strk][spt];
     int ok = 1;
     for (int k = 0; k < NLANE; k++) {
         lane_t *l = &pats.lane[k];
         if (l->used && l->trk == trk && l->pat == pt && !lane_is_pool(l->param) &&
             !(locks_only && lane_is_note(l->param)))
             for (int i = 0; i < n && at + i < NSTEP; i++)
-                if (!(clip_trk == trk && clip_pat == pt && at + i >= from && at + i < from + n))
+                if (!(strk == trk && spt == pt && at + i >= from && at + i < from + n))
                     l->val[at + i] = LOCK_NONE;
     }
     for (int k = 0; k < NLANE; k++) {
         const lane_t *l = &pats.lane[k];
         int d;
-        if (!l->used || l->trk != clip_trk || l->pat != clip_pat || lane_is_pool(l->param) ||
+        if (!l->used || l->trk != strk || l->pat != spt || lane_is_pool(l->param) ||
             (locks_only && lane_is_note(l->param)))
             continue;
         d = lane_alloc(pats.lane, trk, pt, l->param);
@@ -2788,15 +2831,15 @@ static void act_paste(int locks_only)
     if (clip_kind == CK_STEP) {
         for (int i = 0; i < 16; i++)
             if (ui.held >> i & 1u)
-                ok &= paste_steps(trk, pt, step_shown(i), clip_from, 1, locks_only);
+                ok &= paste_steps(trk, pt, step_shown(i), clip_trk, clip_pat, clip_from, 1, locks_only);
         ui.held_used = 1;
     } else if (clip_kind == CK_BAR) {
         tpat_t *tp = tpat(trk);
-        ok = paste_steps(trk, pt, ui.bar * 16, clip_from, 16, locks_only);
+        ok = paste_steps(trk, pt, ui.bar * 16, clip_trk, clip_pat, clip_from, 16, locks_only);
         if (!locks_only && tp->len < (ui.bar + 1) * 16)
             tp->len = (uint8_t)((ui.bar + 1) * 16);
     } else
-        ok = paste_steps(trk, pt, 0, 0, NSTEP, 1);
+        ok = paste_steps(trk, pt, 0, clip_trk, clip_pat, 0, NSTEP, 1);
     mark_dirty();
     if (!ok)
         say_no("PASTED, LOCKS FULL", "some locks left out");
@@ -2917,6 +2960,19 @@ static void act_copy_empty(void)
         return;
     }
     undo_arr();
+    full = !pat_copy(trk, from, to);
+    pattern_pick(trk, to);
+    num_s((uint32_t)to + 1u, s_cat(t, "P"));
+    if (full)
+        say_no("COPIED, LOCKS FULL", "some locks left out");
+    else
+        say("COPIED TO", t);
+}
+/* a track's pattern FROM into TO: its steps, locks, motion and loop (TO's own lanes gone first). 0: a lane found no
+ * room (its locks left out) */
+static int pat_copy(int trk, int from, int to)
+{
+    int ok = 1;
     pats.pat[trk][to] = pats.pat[trk][from];
     for (int k = 0; k < NLANE; k++)
         if (pats.lane[k].used && pats.lane[k].trk == trk && pats.lane[k].pat == to)
@@ -2927,14 +2983,214 @@ static void act_copy_empty(void)
             if (d >= 0)
                 memcpy(pats.lane[d].val, pats.lane[k].val, NSTEP);
             else
-                full = 1;
+                ok = 0;
         }
-    pattern_pick(trk, to);
-    num_s((uint32_t)to + 1u, s_cat(t, "P"));
-    if (full)
-        say_no("COPIED, LOCKS FULL", "some locks left out");
+    return ok;
+}
+static void pat_empty(int trk, int pt)            /* a pattern as new, its lanes gone */
+{
+    pattern_init(&pats.pat[trk][pt]);
+    for (int k = 0; k < NLANE; k++)
+        if (pats.lane[k].used && pats.lane[k].trk == trk && pats.lane[k].pat == pt)
+            lane_clear(pats.lane, k);
+}
+static int pat_steps_empty(const tpat_t *p)
+{
+    for (int i = 0; i < NSTEP; i++)
+        if (!step_empty(&p->st[i]))
+            return 0;
+    return 1;
+}
+static int pat_lanes(int trk, int pt)             /* the lanes a pattern has */
+{
+    int n = 0;
+    for (int k = 0; k < NLANE; k++)
+        n += pats.lane[k].used && pats.lane[k].trk == trk && pats.lane[k].pat == pt;
+    return n;
+}
+/* NEW SECTION's pattern for a track: empty, without lanes, and in no scene, weave or cue, so that filling it changes
+ * nothing else; -1 none */
+static int pat_unused(int trk)
+{
+    for (int p = 0; p < NPATT; p++) {
+        int used = p == seq.ppat[trk] % NPATT || p == seq.pcue[trk] || !pat_steps_empty(&pats.pat[trk][p]) ||
+                   pat_lanes(trk, p);
+        for (int s = 0; s < NSCENE && !used; s++)
+            used = pats.scene[s].used && pats.scene[s].pat[trk] == p;
+        for (int t = 0; t < NSEQT && !used; t++)
+            used = wv_from(t) == trk + 1 && wv_pat(t) == p;
+        if (!used)
+            return p;
+    }
+    return -1;
+}
+/* NEW SECTION (HOME's SEL): a new scene, the first empty one, that plays copies of the playing scene's patterns: each
+ * track with notes gets its own copy (locks, motion, loop) in an empty pattern, so editing the new section leaves the
+ * one it came from as it was. A track with no notes shares its pattern; one with no empty pattern or no lanes left for
+ * its locks shares it too (said: how many). Switches as a scene key does; one undo takes it all back */
+static void act_new_section(void)
+{
+    int from = cur_scene(), to = scene_first_empty(), shared = 0, copied = 0;
+    char t[16], d[28];
+    if (to < 0) {
+        say_no("NO EMPTY SCENE", "clear one first");
+        return;
+    }
+    undo.valid = 0;                              /* (an undo stage of its own) */
+    undo_arr();
+    undo.u.a.ns = 1;
+    undo.u.a.ns_from = (uint8_t)from;
+    undo.u.a.ns_to = (uint8_t)to;
+    pats.scene[to] = pats.scene[from];
+    pats.scene[to].used = 1;
+    for (int tr = 0; tr < NSEQT; tr++) {
+        int src = pats.scene[from].pat[tr] % NPATT, dst;
+        undo.u.a.ns_src[tr] = (uint8_t)src;
+        undo.u.a.ns_made[tr] = 0xFF;
+        if (pat_steps_empty(&pats.pat[tr][src]))
+            continue;                            /* (nothing to vary: it shares) */
+        dst = pat_unused(tr);
+        if (dst < 0 || pat_lanes(tr, src) > NLANE - lane_count(pats.lane)) {
+            shared++;                            /* (never half a copy) */
+            continue;
+        }
+        pat_copy(tr, src, dst);
+        pats.scene[to].pat[tr] = (uint8_t)dst;
+        undo.u.a.ns_made[tr] = (uint8_t)dst;
+        copied++;
+    }
+    engine_scene(to, playing() ? (proj.rsv[2] & SCENES_AT_END ? SCENE_END : SCENE_BAR) : SCENE_NOW);
+    proj.scene = (uint8_t)to;
+    mark_dirty();
+    num_s((uint32_t)to + 1u, s_cat(t, "NEW S"));
+    if (shared) {
+        s_cat(num_s((uint32_t)shared, d), shared == 1 ? " track still shared" : " tracks still shared");
+        say_no(t, d);
+    } else
+        say(t, copied ? "its own patterns" : "nothing to copy");
+}
+/* MOVE SLOT: the slot picked swapped with the one before (d -1) or after (1); a song playing goes on from where it
+ * was (the slot playing keeps playing where it now is) */
+static void act_move_slot(int d)
+{
+    song_t *sg = &pats.song;
+    int cur = ui.name_slot, to = cur + d;
+    song_slot_t k;
+    if (cur >= sg->len) {
+        say_no("NO SLOT HERE", "KNOB 1 picks one");
+        return;
+    }
+    if (to < 0 || to >= sg->len) {
+        say_no(d < 0 ? "FIRST SLOT" : "LAST SLOT", "it can't move further");
+        return;
+    }
+    undo_arr();
+    k = sg->slot[cur];
+    sg->slot[cur] = sg->slot[to];
+    sg->slot[to] = k;
+    if (seq.song_on && playing()) {
+        if (seq.song_pos == cur)
+            seq.song_pos = (uint8_t)to;
+        else if (seq.song_pos == to)
+            seq.song_pos = (uint8_t)cur;
+    }
+    ui.name_slot = (uint8_t)to;
+    mark_dirty();
+    {
+        char t[16];
+        num_s((uint32_t)to + 1u, s_cat(t, "to slot "));
+        say("MOVED", t);
+    }
+}
+/* COPY BAR, ALL TRACKS: the bar shown, on every sequenced track (each its pattern now): read at PASTE BAR, ALL TRACKS */
+static void act_copy_all(void)
+{
+    char t[24];
+    clipall_bar = (uint8_t)(ui.bar % NBAR);
+    clipall_kit = 0;
+    for (int tr = 0; tr < NSEQT; tr++) {
+        clipall_pat[tr] = (uint8_t)cur_pat(tr);
+        if (tr < NTRK && is_drum(tr))
+            clipall_kit |= (uint16_t)(1u << tr);
+    }
+    clipall_ok = 1;
+    s_cat(num_s((uint32_t)clipall_bar + 1u, s_cat(t, "bar ")), ", all tracks");
+    say("COPIED", t);
+}
+static int pat_bars(const tpat_t *p) { int n = (p->len + 15) / 16; return n < 1 ? 1 : n > NBAR ? NBAR : n; }
+/* PASTE BAR, ALL TRACKS: the bar copied onto the bar shown, on each track whose pattern then had notes (its own pattern
+ * copied from to its pattern now: a track shorter than the bar copied gives the bar it was playing), locks too; a
+ * pattern too short is made long enough. One undo: each track's bar as it was */
+static void act_paste_all(void)
+{
+    int b = ui.bar % NBAR, n = 0, nl = 0, ok = 1;
+    int8_t sb[NSEQT];
+    char t[24];
+    for (int tr = 0; tr < NSEQT; tr++) {         /* which tracks, and the lanes their undo keeps */
+        int spt = clipall_pat[tr] % NPATT, dpt = cur_pat(tr);
+        const tpat_t *src = &pats.pat[tr][spt];
+        sb[tr] = -1;
+        if (!clipall_ok || pat_steps_empty(src) || (tr < NTRK && is_drum(tr)) != (int)(clipall_kit >> tr & 1u))
+            continue;
+        sb[tr] = (int8_t)(clipall_bar % pat_bars(src));
+        if (spt == dpt && sb[tr] == b) {         /* (onto itself: nothing) */
+            sb[tr] = -1;
+            continue;
+        }
+        n++;
+        for (int k = 0; k < NLANE; k++) {
+            const lane_t *l = &pats.lane[k];
+            if (l->used && l->trk == tr && !lane_is_pool(l->param) &&
+                (l->pat == dpt || (l->pat == spt && lane_find(pats.lane, tr, dpt, l->param) < 0)))
+                nl++;
+        }
+    }
+    if (!n) {
+        say_no("NOTHING TO PASTE", "the tracks had no notes");
+        return;
+    }
+    if (nl > UB_LANES) {
+        say_no("TOO MANY LOCKS", "to undo: paste track by track");
+        return;
+    }
+    undo.valid = 0;
+    undo_run(U_BARS, 0, n, 0, 0);
+    undo.u.b.bar = (uint8_t)b;
+    undo.u.b.nl = 0;
+    n = 0;
+    for (int tr = 0; tr < NSEQT; tr++) {
+        int spt = clipall_pat[tr] % NPATT, dpt = cur_pat(tr);
+        tpat_t *dst = &pats.pat[tr][dpt];
+        if (sb[tr] < 0)
+            continue;
+        undo.u.b.trk[n] = (uint8_t)tr;
+        undo.u.b.pt[n] = (uint8_t)dpt;
+        undo.u.b.len[n] = dst->len;
+        memcpy(undo.u.b.st[n], &dst->st[b * 16], sizeof undo.u.b.st[n]);
+        for (int k = 0; k < NLANE; k++) {
+            const lane_t *l = &pats.lane[k];
+            if (l->used && l->trk == tr && !lane_is_pool(l->param) &&
+                (l->pat == dpt || (l->pat == spt && lane_find(pats.lane, tr, dpt, l->param) < 0))) {
+                int j = undo.u.b.nl++;
+                undo.u.b.l[j].i = (uint8_t)n;
+                undo.u.b.l[j].param = l->param;
+                if (l->pat == dpt)
+                    memcpy(undo.u.b.l[j].v, &l->val[b * 16], 16);
+                else
+                    memset(undo.u.b.l[j].v, LOCK_NONE, 16);
+            }
+        }
+        n++;
+        ok &= paste_steps(tr, dpt, b * 16, tr, spt, sb[tr] * 16, 16, 0);
+        if (dst->len < (b + 1) * 16)
+            dst->len = (uint8_t)((b + 1) * 16);
+    }
+    mark_dirty();
+    s_cat(num_s((uint32_t)n, t), n == 1 ? " track" : " tracks");
+    if (!ok)
+        say_no("PASTED, LOCKS FULL", "some locks left out");
     else
-        say("COPIED TO", t);
+        say("PASTED BAR", t);
 }
 /* CLEAR BAR: the bar shown, its notes and locks (the pattern keeps its length) */
 static void act_clear_bar(void)
@@ -3311,7 +3567,7 @@ static void act_save_slot(int slot)
 }
 static void after_load(void)
 {
-    bt_keep(bt.want);                            /* (Bluetooth stays as it is, whichever project) */
+    bt_keep();                                   /* (Bluetooth stays as it is, whichever project) */
     project_apply();
     apply_brain();
     for (int t = 0; t < NSEQT; t++)
@@ -3331,7 +3587,7 @@ static void do_load_proj(void)
     char t[16];
     engine_transport(0);
     engine_panic();
-    project_device_get();                        /* (Setup's settings and the theme are the FM-1's, not the project's:
+    project_device_get();                        /* (Setup's settings are the FM-1's, not the project's:
                                                   * they stay, and the touch below keeps them in the slot that opens
                                                   * at power-on) */
     if (project_load(slot) != 0) {
@@ -3377,6 +3633,19 @@ static void do_new_proj(void)
     } else
         say("NEW PROJECT", "no free slot");
 }
+/* CLEAR ALL PATTERNS (HOME's list): every pattern, lock, scene, weave and the song empty again, as in a new project;
+ * the sounds, the mix, the tempo and the project's slot stay. No undo (it holds one pattern or the arrangement, not
+ * everything): it asks first */
+static void do_clear_all(void)
+{
+    engine_transport(0);
+    engine_panic();
+    patterns_init(&pats);
+    proj.scene = 0;
+    after_load();
+    ui.dirty = 1;
+    say("CLEARED", "all patterns");
+}
 static void act_remove_note(int row)             /* a step held: the row's note off the step */
 {
     int trk = sel_trk();
@@ -3407,9 +3676,11 @@ static void act_remove_note(int row)             /* a step held: the row's note 
     say("REMOVED", 0);
 }
 /* ---- Bluetooth (bt.c): audio on or off, the lists' rows, and every frame what changed */
+#if LOOM_BT_AUDIO
 static void bt_audio_set(int on)                 /* GLO's BT AUDIO: on connects the last device */
 {
-    bt_keep(on);
+    bt.want = (uint8_t)(on != 0);
+    bt_keep();
     mark_dirty();
     BTA(on)(on);
     if (on && BTA(known)(0, 0) && !bt_linking(BTA(state)()) && BTA(state)() != PLAT_BTA_STREAMING) {
@@ -3417,28 +3688,33 @@ static void bt_audio_set(int on)                 /* GLO's BT AUDIO: on connects 
         BTA(reconnect)(0);
     }
 }
+#endif
 static void bt_midi_set(int on)                  /* GLO's BT MIDI: off ends its links and stops advertising (the audio
                                                   * goes on: the radio stays up for it) */
 {
     bt.midi = (uint8_t)(on != 0);
-    bt_keep(bt.want);
+    bt_keep();
     mark_dirty();
     if (!on && lst.bt == 2)
         lst.open = 0;
     plat_ble_enable(on);
 }
+#if BT_LISTS
 static void bt_list(int which)                   /* GLO's AUDIO DEVICE or MIDI DEVICE, SEL: its list */
 {
+#if FM1B_BLE_CENTRAL
     if (which == 2 && plat_ble_linked() && !btdev_busy()) {   /* (one Bluetooth MIDI link at a time) */
         say_no("NO DEVICE", "computer connected");
         return;
     }
+#endif
     lst.bt = (uint8_t)which;
     lst.sel = lst.top = 0;
     ui.pick_bt = 0;
     bt.t0 = plat_ms();
     list_build();                                /* (on the first row past the note) */
 }
+#if LOOM_BT_AUDIO
 static void do_bt_forget(void)
 {
     int i = ui.ask_arg;
@@ -3451,12 +3727,14 @@ static void do_bt_forget(void)
     bt.cur = (uint8_t)(i < bt.cur ? bt.cur - 1 : i == bt.cur ? 0 : bt.cur);
     say("FORGOTTEN", nm);
 }
+#endif
 static void bt_row(void)                         /* a device's row, SEL (or SAVE): connect it */
 {
     const char *nm = lst.row[lst.sel].name;
     int j = (int)((nm - bt_nm[0]) / (int)sizeof bt_nm[0]);
     if (j < 0 || j >= BT_ROWS)
         return;
+#if FM1B_BLE_CENTRAL
     if (lst.bt == 2) {
         btdev_choose(j);
         if (btdev_save() == BTDEV_CONNECTING)
@@ -3465,7 +3743,10 @@ static void bt_row(void)                         /* a device's row, SEL (or SAVE
             say_no("NO DEVICE", "look again");
         return;
     }
-    bt_keep(1);
+#endif
+#if LOOM_BT_AUDIO
+    bt.want = 1;
+    bt_keep();
     mark_dirty();
     BTA(on)(1);
     if (bt_ix[j] & 0x80) {
@@ -3476,15 +3757,26 @@ static void bt_row(void)                         /* a device's row, SEL (or SAVE
         BTA(pick)(bt_ix[j]);
     }
     say("CONNECTING", bt_nm[j]);
+#endif
 }
+#endif
 static void bt_poll(void)
 {
-    int st, pk, up, ev;
+    int pk;
+#if BT_LISTS
+    int up;
+#endif
+#if LOOM_BT_AUDIO
+    int st;
+#endif
+#if BT_LISTS
     if (!lst.open)
         lst.bt = 0;
     up = lst.open ? lst.bt : 0;
-    if (bt.boot && plat_ble_state() == BLE_READY) {   /* power-on: the last device again, if audio was on */
+#endif
+    if (bt.boot && plat_ble_state() == BLE_READY) {   /* power-on: Bluetooth MIDI off again if it was (and the last audio device) */
         bt.boot = 0;
+#if LOOM_BT_AUDIO
         if (bt.want) {
             BTA(on)(1);
             if (BTA(known)(0, 0)) {
@@ -3492,10 +3784,12 @@ static void bt_poll(void)
                 BTA(reconnect)(0);
             }
         }
+#endif
         if (!bt.midi)                            /* Bluetooth MIDI was off: off again (fm1-base starts it at every
                                                   * power-on; the radio stays up for the audio) */
             plat_ble_enable(0);
     }
+#if LOOM_BT_AUDIO
     if (up == 1 && bt.list != 1) {               /* the audio list opened: look (not while a device is linked) */
         BTA(on)(1);
         st = BTA(state)();
@@ -3521,8 +3815,10 @@ static void bt_poll(void)
             say_no("BT AUDIO", bt.was == PLAT_BTA_STREAMING ? "lost" : "no answer");
         bt.was = (uint8_t)st;
     }
+#endif
+#if FM1B_BLE_CENTRAL
     btdev_page(up == 2);                         /* the MIDI devices: looked for while their list is up */
-    while ((ev = btdev_event()) != BTDEV_NONE)
+    for (int ev; (ev = btdev_event()) != BTDEV_NONE;)
         if (ev == BTDEV_CONNECTED)
             say("CONNECTED", btdev_name());
         else if (ev == BTDEV_NO_ANSWER || ev == BTDEV_LOST)
@@ -3531,6 +3827,7 @@ static void bt_poll(void)
         lst.open = 0;
         say_no("NO DEVICE", "computer connected");
     }
+#endif
     pk = BT_PASSKEY();
     if (pk != bt.pin) {                          /* the pairing code, said digit by digit (the header shows it) */
         bt.pin = pk;
@@ -3608,6 +3905,10 @@ static void action_run(int a)
             act_paste_pat();
         break;
     case A_COPY_EMPTY: act_copy_empty(); break;
+    case A_NEW_SECTION: act_new_section(); break;
+    case A_MOVE_SLOT: act_move_slot(ui.pick_move & 1u ? 1 : -1); break;
+    case A_COPY_ALL: ui.held_used = 1; act_copy_all(); break;
+    case A_PASTE_ALL: ui.held_used = 1; act_paste_all(); break;
     case A_COPY_SOUND: snd_clip = (uint8_t)(sel_trk() + 1); say("COPIED", "sound"); break;
     case A_PASTE_SOUND: act_paste_sound(); break;
     case A_COPY_KEY:
@@ -3684,7 +3985,7 @@ static void action_run(int a)
         mark_dirty();
         say("RESET", EG_NAME[proj.trk[sel_trk()].par[TP_ENGINE] % NENGINE]);
         break;
-    case A_FOLLOW: case A_USB_AUDIO: case A_COUNT_IN: case A_THEME: case A_LARGE_TYPE: case A_PLAYMODE: case A_FTYPE: case A_FX_HP: case A_FX_LP:
+    case A_FOLLOW: case A_USB_AUDIO: case A_COUNT_IN: case A_PLAYMODE: case A_FTYPE: case A_FX_HP: case A_FX_LP:
     case A_FX_SEND: case A_PUMP_BY: case A_PUMP_REL: case A_PUMP_ACC: case A_LEVEL: case A_SCENE_AT: case A_AUTOSAVE:
     case A_MIDI_OUT: case A_LOOP_FREE: case A_CC_OUT: case A_SCENES_OUT: case A_MIDI_CC: case A_USB_HOST: case A_KIT_FILTER:
     case A_CC_IN: case A_FX_WIDTH:
@@ -3738,19 +4039,23 @@ static void action_run(int a)
         }
         return;
     case A_NEW_PROJ: ask("NEW PROJECT?", do_new_proj); return;
+    case A_CLEAR_ALL: ask("CLEAR ALL PATTERNS?", do_clear_all); return;
     case A_RANDOM_SOUNDS: ask("NEW SOUNDS ON T2 TO T8?", do_random_sounds); return;
     case A_SAVE_TO: act_save_slot(ui.pick_save % NPROJ); break;
     case A_CLEAR_SCENE: act_clear_scene_ask(); return;
     case A_PANIC: engine_panic(); say("ALL NOTES OFF", 0); break;
+#if LOOM_BT_AUDIO
     case A_BT_AUDIO:                             /* (ALGORITHM or SEL: on or off) */
         bt_audio_set(!bt.want);
         say("BT AUDIO", bt.want ? "on" : "off");
         return;
     case A_BT_ADEV: bt_list(1); return;
+#endif
     case A_BT_MIDI:                              /* (ALGORITHM or SEL: on or off) */
         bt_midi_set(!bt.midi);
         say("BT MIDI", bt.midi ? "on" : "off");
         return;
+#if FM1B_BLE_CENTRAL
     case A_BT_DEVICE:
         if (!bt.midi) {
             say_no("BT MIDI OFF", "turn it on first");
@@ -3758,7 +4063,11 @@ static void action_run(int a)
         }
         bt_list(2);
         return;
+#endif
+#if BT_LISTS
     case A_BT_DEV: bt_row(); break;
+#endif
+#if LOOM_BT_AUDIO
     case A_BT_LOOK:
         if (bt_linking(BTA(state)()) || BTA(state)() == PLAT_BTA_STREAMING)
             BTA(hangup)();                       /* (looking ends the link: the radio does one or the other) */
@@ -3775,10 +4084,13 @@ static void action_run(int a)
         ask(q, do_bt_forget);
         return;
     }
+#endif
+#if FM1B_BLE_CENTRAL
     case A_BT_DISCONNECT:
         if (btdev_save() == BTDEV_LET_GO)
             say("DISCONNECTED", btdev_name());
         break;
+#endif
     default: break;
     }
     lst.open = 0;
@@ -4273,12 +4585,7 @@ static void sp_main(void)
         sp_cat(EG_NAME[proj.trk[trk].par[TP_ENGINE] % NENGINE]);
     } else if (ui.page == P_SETUP) {
         char t[24];
-        bt_audio_text(t);
-        sp_text("BT audio");
-        sp_cat(" ");
-        sp_text(t);
         bt_dev_text(t, "on", "off");
-        sp_cat(", ");
         sp_text("BT MIDI");
         sp_cat(" ");
         sp_text(t);
@@ -4572,15 +4879,15 @@ static void speak_dump(void)
         {"STOP FIRST", "to change slots"}, {"THREE SLOTS", "white keys 1 to 3"}, {"ENGINE", "jacquard"}, {"LIST", "nothing here"},
         {"DELETED", "slot"}, {"REMOVED", 0}, {"NO EFFECT YET", "play a key on EDIT"}, {"NO SEGMENT YET", "play a key on EDIT"},
         {"snare", "on the step"}, {"snare", "off the step"}, {"T2", "follows"}, {"T2", "on its own"},
-        {"BT AUDIO", "refused"}, {"BT AUDIO", "lost"}, {"BT AUDIO", "no answer"}, {"CONNECTING", "Speaker"},
-        {"CONNECTED", 0}, {"NO ANSWER", 0}, {"DEVICE LOST", 0}, {"DISCONNECTED", 0}, {"FORGOTTEN", "Speaker"},
-        {"NO DEVICE", "computer connected"}, {"NO DEVICE", "look again"}, {"LOOKING", "for headphones, speakers"},
-        {"PIN", "0 4 2 6 1 3"}, {"BT MIDI", "on"}, {"BT MIDI", "off"}, {"BT MIDI OFF", "turn it on first"}, {"looking for devices...", 0}, {"still looking. SEL connects", 0},
-        {"pick a device. SEL connects", 0}, {"none found. In pairing mode?", 0}, {"connected. SEL lets it go", 0},
+        {"CONNECTING", "BLE MIDI"},
+        {"CONNECTED", 0}, {"NO ANSWER", 0}, {"DEVICE LOST", 0}, {"DISCONNECTED", 0},
+        {"NO DEVICE", "computer connected"}, {"NO DEVICE", "look again"},
+        {"PIN", "0 4 2 6 1 3"}, {"BT MIDI", "on"}, {"BT MIDI", "off"}, {"BT MIDI OFF", "turn it on first"},
+        {"pick a device. SEL connects", 0}, {"connected. SEL lets it go", 0},
         {"connecting...", 0}, {"looking for MIDI devices...", 0}, {"none found yet. Is it on?", 0}};
     static const char *const ASK[] = {"CLEAR SCENE 3?", "REPLACE USER PRESET 2?", "REPLACE PROJECT 2?", "REPLACE KIT K2?",
                                       "LOSE UNSAVED CHANGES?", "NEW PROJECT?", "CLEAR THE SONG?",
-                                      "NEW SOUNDS ON T2 TO T8?", "FORGET Speaker?"};
+                                      "NEW SOUNDS ON T2 TO T8?"};
     uint8_t keep_page = ui.page, keep_trk = proj.trk_sel, keep_lst = lst.open, keep_card = ui.card;
     knob_t k[4];
     char t[64];
@@ -4686,16 +4993,19 @@ void ui_init(void)
     memset(&lst, 0, sizeof lst);
     ui.touched = -1;
     ui.solo_tap_trk = 0xFF;
+#if LOOM_BT_AUDIO
     bt.want = (uint8_t)((proj.rsv[2] & BT_AUDIO_ON) != 0);   /* (Bluetooth audio as it was: on, the last device) */
+#endif
     bt.midi = (uint8_t)((proj.rsv[2] & BT_MIDI_OFF) == 0);   /* (Bluetooth MIDI as it was: on unless switched off) */
     bt.boot = 1;
     bt.pin = -1;
-#if !FM1B_BT_AUDIO
+#if LOOM_BT_AUDIO && !FM1B_BT_AUDIO
     sb.on = 0;                                   /* (the stand-in's radio starts off, as the FM-1's at power-on) */
     sb.st = PLAT_BTA_OFF;
 #endif
 #if defined(PLAT_HOST) && !defined(PLAT_WEB)
     cards_audit();
+    knob_names_audit();
 #endif
     ui.page = P_STEPS;
     ui.rem[0] = 60;
@@ -4711,9 +5021,6 @@ void ui_init(void)
     engine_tempo(proj.tempo_x10);
     engine_groove(proj.groove);
 #if defined(PLAT_HOST) && !defined(PLAT_WEB)
-    if (getenv("LOOM_THEME"))                        /* the host's screenshots in another theme */
-        proj.rsv[1] = (uint8_t)(THEME_SET | (uint32_t)atoi(getenv("LOOM_THEME")) % NTHEMES);
-    theme = THEME_OF_PROJ();
 #endif
     lcd_fill(0, 0, 240, 240, K_BG);
 }
@@ -4775,10 +5082,8 @@ void ui_frame(void)
     draw_header();
     draw_page();
     draw_rec_strip();
-    if (!(lst.open && !ui.card) && !(ui.card && band != &BANDS[0])) {   /* (large type: a card over them too) */
-        draw_tag();
+    if (!(lst.open && !ui.card))
         draw_knobs();
-    }
     draw_footer();
     leds();
     speak();

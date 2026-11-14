@@ -1,0 +1,472 @@
+bpm 120
+wait 300
+knob 1 send1 127
+knob 1 send2 127
+tap EDIT
+wait 200
+tap FX
+wait 200
+turn SELECT 3
+wait 300
+knob 12 engine plate
+knob 12 e1 100
+knob 12 e2 40
+knob 12 e3 44
+knob 12 e4 72
+wait 1100
+shot 01_plate_default.png
+knob 12 e1 0
+wait 1100
+shot 02_plate_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 03_plate_k1_127.png
+knob 12 e1 100
+knob 12 e2 0
+wait 1100
+shot 04_plate_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 05_plate_k2_127.png
+knob 12 e2 40
+knob 12 e3 0
+wait 1100
+shot 06_plate_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 07_plate_k3_127.png
+knob 12 e3 44
+knob 12 e4 0
+wait 1100
+shot 08_plate_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 09_plate_k4_127.png
+knob 12 e4 72
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 10_plate_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine room
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 11_room_default.png
+knob 12 e1 0
+wait 1100
+shot 12_room_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 13_room_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 14_room_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 15_room_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 16_room_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 17_room_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 18_room_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 19_room_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 20_room_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine studio_S
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 21_studio_S_default.png
+knob 12 e1 0
+wait 1100
+shot 22_studio_S_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 23_studio_S_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 24_studio_S_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 25_studio_S_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 26_studio_S_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 27_studio_S_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 28_studio_S_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 29_studio_S_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 30_studio_S_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine studio_M
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 31_studio_M_default.png
+knob 12 e1 0
+wait 1100
+shot 32_studio_M_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 33_studio_M_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 34_studio_M_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 35_studio_M_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 36_studio_M_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 37_studio_M_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 38_studio_M_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 39_studio_M_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 40_studio_M_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine studio_L
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 41_studio_L_default.png
+knob 12 e1 0
+wait 1100
+shot 42_studio_L_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 43_studio_L_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 44_studio_L_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 45_studio_L_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 46_studio_L_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 47_studio_L_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 48_studio_L_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 49_studio_L_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 50_studio_L_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine hall
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 51_hall_default.png
+knob 12 e1 0
+wait 1100
+shot 52_hall_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 53_hall_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 54_hall_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 55_hall_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 56_hall_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 57_hall_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 58_hall_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 59_hall_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 60_hall_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine half_echo
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 61_half_echo_default.png
+knob 12 e1 0
+wait 1100
+shot 62_half_echo_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 63_half_echo_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 64_half_echo_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 65_half_echo_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 66_half_echo_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 67_half_echo_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 68_half_echo_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 69_half_echo_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 70_half_echo_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine space_echo
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 71_space_echo_default.png
+knob 12 e1 0
+wait 1100
+shot 72_space_echo_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 73_space_echo_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 74_space_echo_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 75_space_echo_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 76_space_echo_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 77_space_echo_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 78_space_echo_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 79_space_echo_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 80_space_echo_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine chaos_echo
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 81_chaos_echo_default.png
+knob 12 e1 0
+wait 1100
+shot 82_chaos_echo_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 83_chaos_echo_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 84_chaos_echo_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 85_chaos_echo_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 86_chaos_echo_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 87_chaos_echo_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 88_chaos_echo_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 89_chaos_echo_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 90_chaos_echo_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine one_echo
+knob 12 e1 127
+knob 12 e2 64
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 91_one_echo_default.png
+knob 12 e1 0
+wait 1100
+shot 92_one_echo_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 93_one_echo_k1_127.png
+knob 12 e1 127
+knob 12 e2 0
+wait 1100
+shot 94_one_echo_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 95_one_echo_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 96_one_echo_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 97_one_echo_k3_127.png
+knob 12 e3 64
+knob 12 e4 0
+wait 1100
+shot 98_one_echo_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 99_one_echo_k4_127.png
+knob 12 e4 0
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 100_one_echo_sounding.png
+play 2 48 off
+wait 3000
+knob 12 engine lush
+knob 12 e1 64
+knob 12 e2 64
+knob 12 e3 56
+knob 12 e4 48
+wait 1100
+shot 101_lush_default.png
+knob 12 e1 0
+wait 1100
+shot 102_lush_k1_0.png
+knob 12 e1 127
+wait 1100
+shot 103_lush_k1_127.png
+knob 12 e1 64
+knob 12 e2 0
+wait 1100
+shot 104_lush_k2_0.png
+knob 12 e2 127
+wait 1100
+shot 105_lush_k2_127.png
+knob 12 e2 64
+knob 12 e3 0
+wait 1100
+shot 106_lush_k3_0.png
+knob 12 e3 127
+wait 1100
+shot 107_lush_k3_127.png
+knob 12 e3 56
+knob 12 e4 0
+wait 1100
+shot 108_lush_k4_0.png
+knob 12 e4 127
+wait 1100
+shot 109_lush_k4_127.png
+knob 12 e4 48
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 300
+shot 110_lush_sounding.png
+play 2 48 off
+wait 3000

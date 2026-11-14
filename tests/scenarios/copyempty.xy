@@ -1,6 +1,6 @@
 # the Steps list (2026-10-26): COPY TO EMPTY (the pattern with its locks into the track's first empty pattern, which
 # the scene then plays; the scene it was copied from keeps the original), CLEAR BAR (undone), CLEAR's choices, ROTATE
-# leaving the list up, each list opening on the row used last; the theme the FM-1's, kept when a project loads
+# leaving the list up, each list opening on the row used last; Setup's settings the FM-1's, kept when a project loads
 wait 300
 projnew
 pat 2 1 32
@@ -113,20 +113,16 @@ wait 50
 expect listopen 0
 expect lane 2 2 e1 0
 expect note 2 2 1 68
-# the FM-1's settings (the theme, Setup's list: NOTES here): set on Setup's list, kept when project 1 loads (and over
+# the FM-1's settings (Setup's list: NOTES here): set on Setup's list, kept when project 1 loads (and over
 # a restart: the load writes them into the slot), and by a new project
 projsave 1
-expect theme 2
 tap GLO
 turn SELECT 5
 expect page Setup
 tap SEL
-row THEME
-turn ALGO 1
 row NOTES
 turn ALGO -1
 tap HOME
-expect theme 0
 expect sendnotes 0
 tap HOME
 tap SEL
@@ -137,12 +133,9 @@ tap SEL
 wait 300
 expect ask 0
 expect spat2.2 2
-expect theme 0
 expect sendnotes 0
 reboot
 wait 400
-expect theme 0
 expect sendnotes 0
 projnew
-expect theme 0
 expect sendnotes 0

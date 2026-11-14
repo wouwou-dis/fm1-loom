@@ -1,0 +1,222 @@
+# NEW SECTION (HOME's SEL, scenes): a new scene that plays copies of the playing scene's patterns, so that editing it
+# leaves the scene it came from as it was; a track with no notes shares its pattern, one with no empty pattern left
+# shares it too (said); one undo takes it all back (the copies emptied, the scene gone, the scene before playing),
+# the redo makes it again
+wait 300
+projnew
+step 1 1 1 1 100
+step 2 1 1 60 100
+step 2 1 5 64 100
+lock 2 1 1 e1 30
+expect scene 1
+tap HOME
+listen
+tap SEL
+row NEW SECTION
+wait 200
+said NEW SECTION S2
+tap SEL
+wait 100
+said NEW S2 its own patterns
+expect listopen 0
+expect scene 2
+expect used 3
+# T1 (a kit) and T2 have copies of their own in P2; T3 (no notes) shares P1
+expect spat2.1 2
+expect spat2.2 2
+expect spat2.3 1
+expect spat1.1 1
+expect spat1.2 1
+expect note 1 2 1 1
+expect note 2 2 1 60
+expect note 2 2 5 64
+expect lane 2 2 e1 1
+expect pat2 2
+# one undo: back on scene 1, scene 2 empty again, the copies gone
+listen
+press HOME
+tap REC
+release HOME
+wait 100
+said UNDO new section
+unsaid song and scenes
+expect scene 1
+expect used 1
+expect note 2 2 1 0
+expect note 1 2 1 0
+expect lane 2 2 e1 0
+expect lane 2 1 e1 1
+expect note 2 1 1 60
+# the redo: made again
+press HOME
+tap PLAY
+release HOME
+wait 100
+expect scene 2
+expect used 3
+expect spat2.2 2
+expect note 2 2 1 60
+expect lane 2 2 e1 1
+# editing the new section's pattern (T2, Steps: a tap on step 9) leaves scene 1's as it was
+turn ALGO 1
+expect trk 2
+tap SEQ
+tapkey w8
+wait 50
+expect note 2 1 9 0
+expect note 2 1 1 60
+expect note 2 2 1 60
+expect note 2 2 5 64
+expect locks2.2.9 0
+expect locks2.2.1 1
+expect spat1.2 1
+expect spat2.2 2
+expect note 2 2 9 60
+# no empty pattern left on T2 (P3 to P8 hold notes): T2 shares, the others are copied; said how many share
+step 2 3 1 60 100
+step 2 4 1 60 100
+step 2 5 1 60 100
+step 2 6 1 60 100
+step 2 7 1 60 100
+step 2 8 1 60 100
+tap HOME
+listen
+tap SEL
+row NEW SECTION
+wait 200
+said NEW SECTION S3
+tap SEL
+wait 100
+said NEW S3 1 track still shared
+expect scene 3
+expect spat3.2 2
+expect spat3.1 3
+expect note 1 3 1 1
+# while playing: the new scene comes in at the next bar, the scene before keeps playing until then
+tap PLAY
+wait 200
+expect playing 1
+listen
+tap SEL
+row NEW SECTION
+tap SEL
+wait 50
+said NEW S4
+expect spat4.1 4
+wait 2500
+expect scene 4
+tap PLAY
+# no lanes left for T2's lock: T2 shares (never half a copy), T1 (no locks) is copied
+wait 100
+projnew
+step 1 1 1 1 100
+step 2 1 1 60 100
+lock 2 1 1 e1 30
+lock 5 1 1 0 10
+lock 5 1 1 1 10
+lock 5 1 1 2 10
+lock 5 2 1 0 10
+lock 5 2 1 1 10
+lock 5 2 1 2 10
+lock 5 3 1 0 10
+lock 5 3 1 1 10
+lock 5 3 1 2 10
+lock 5 4 1 0 10
+lock 5 4 1 1 10
+lock 5 4 1 2 10
+lock 5 5 1 0 10
+lock 5 5 1 1 10
+lock 5 5 1 2 10
+lock 5 6 1 0 10
+lock 5 6 1 1 10
+lock 5 6 1 2 10
+lock 5 7 1 0 10
+lock 5 7 1 1 10
+lock 5 7 1 2 10
+lock 5 8 1 0 10
+lock 5 8 1 1 10
+lock 5 8 1 2 10
+lock 6 1 1 0 10
+lock 6 1 1 1 10
+lock 6 1 1 2 10
+lock 6 2 1 0 10
+lock 6 2 1 1 10
+lock 6 2 1 2 10
+lock 6 3 1 0 10
+lock 6 3 1 1 10
+lock 6 3 1 2 10
+lock 6 4 1 0 10
+lock 6 4 1 1 10
+lock 6 4 1 2 10
+lock 6 5 1 0 10
+lock 6 5 1 1 10
+lock 6 5 1 2 10
+lock 6 6 1 0 10
+lock 6 6 1 1 10
+lock 6 6 1 2 10
+lock 6 7 1 0 10
+lock 6 7 1 1 10
+lock 6 7 1 2 10
+lock 6 8 1 0 10
+lock 6 8 1 1 10
+lock 6 8 1 2 10
+lock 7 1 1 0 10
+lock 7 1 1 1 10
+lock 7 1 1 2 10
+lock 7 2 1 0 10
+lock 7 2 1 1 10
+lock 7 2 1 2 10
+lock 7 3 1 0 10
+lock 7 3 1 1 10
+lock 7 3 1 2 10
+lock 7 4 1 0 10
+lock 7 4 1 1 10
+lock 7 4 1 2 10
+lock 7 5 1 0 10
+lock 7 5 1 1 10
+lock 7 5 1 2 10
+lock 7 6 1 0 10
+lock 7 6 1 1 10
+lock 7 6 1 2 10
+lock 7 7 1 0 10
+lock 7 7 1 1 10
+lock 7 7 1 2 10
+lock 7 8 1 0 10
+lock 7 8 1 1 10
+lock 7 8 1 2 10
+lock 8 1 1 0 10
+lock 8 1 1 1 10
+lock 8 1 1 2 10
+lock 8 2 1 0 10
+lock 8 2 1 1 10
+lock 8 2 1 2 10
+lock 8 3 1 0 10
+lock 8 3 1 1 10
+lock 8 3 1 2 10
+lock 8 4 1 0 10
+lock 8 4 1 1 10
+lock 8 4 1 2 10
+lock 8 5 1 0 10
+lock 8 5 1 1 10
+lock 8 5 1 2 10
+lock 8 6 1 0 10
+lock 8 6 1 1 10
+lock 8 6 1 2 10
+lock 8 7 1 0 10
+lock 8 7 1 1 10
+lock 8 7 1 2 10
+lock 8 8 1 0 10
+lock 8 8 1 1 10
+expect lanes 96
+tap HOME
+listen
+tap SEL
+row NEW SECTION
+tap SEL
+wait 100
+said NEW S2 1 track still shared
+expect spat2.1 2
+expect spat2.2 1
+expect note 1 2 1 1
+expect note 2 2 1 0
+expect lanes 96

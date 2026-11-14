@@ -223,6 +223,132 @@ static void loom_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t c
     cv_linef((float)x0, (float)y0, (float)x1, (float)y1, c, 1.5f);
 }
 
+/* ---- the service manual's drawing (pages.c builds its figures from these): integer paths per pixel; a float per
+ * shape or per row at most */
+static uint32_t cv_isqrt(uint32_t v)                 /* floor(sqrt(v)) */
+{
+    uint32_t r = 0, b = 1u << 30;
+    while (b > v)
+        b >>= 2;
+    while (b) {
+        if (v >= r + b) {
+            v -= r + b;
+            r = (r >> 1) + b;
+        } else
+            r >>= 1;
+        b >>= 2;
+    }
+    return r;
+}
+static int32_t fx8(float v) { return (int32_t)(v * 256.0f + (v < 0.0f ? -0.5f : 0.5f)); }   /* to 1/256 px */
+/* a filled circle (disc) or a ring w wide on a radius r, anti-aliased: each pixel by its centre's distance from the
+ * centre, in 1/256 px (pixel (i, j)'s centre is the point (i, j), as cv_dotf). r up to ~120 px */
+static void cv_circ(float cx, float cy, float r, float w, uint16_t c)
+{
+    int32_t x8 = fx8(cx), y8 = fx8(cy), r8 = fx8(r), h8 = fx8(w * 0.5f), out = r8 + (w > 0.0f ? h8 : 0) + 256;
+    int32_t i0 = (x8 - out) >> 8, i1 = (x8 + out) >> 8, j0 = (y8 - out) >> 8, j1 = (y8 + out) >> 8;
+    for (int32_t j = j0; j <= j1; j++) {
+        int32_t dy = j * 256 - y8;
+        for (int32_t i = i0; i <= i1; i++) {
+            int32_t dx = i * 256 - x8, d, a;
+            uint32_t d2 = (uint32_t)(dx * dx) + (uint32_t)(dy * dy);
+            if (d2 > (uint32_t)out * (uint32_t)out)
+                continue;
+            d = (int32_t)cv_isqrt(d2);
+            a = w > 0.0f ? h8 + 128 - (d > r8 ? d - r8 : r8 - d) : r8 + 128 - d;
+            if (a > 0)
+                cv_blend(i, j, c, a >= 256 ? 256u : (uint32_t)a);
+        }
+    }
+}
+static void cv_disc(float cx, float cy, float r, uint16_t c) { cv_circ(cx, cy, r, 0.0f, c); }
+static void cv_ring(float cx, float cy, float r, float w, uint16_t c) { cv_circ(cx, cy, r, w, c); }
+/* a filled polygon (n points x, y, x, y ...; any shape, even-odd): each pixel whose centre is inside, at a/256. hatch
+ * > 0: only the pixels of diagonal lines ("/", hatch px apart along a row: the manual's section hatching), so the
+ * same call hatches a wall or the area under a curve. A row's crossings in float, its pixels in integers */
+static void cv_poly(const float *xy, int n, uint16_t c, uint32_t a, int32_t hatch)
+{
+    float y0 = xy[1], y1 = xy[1];
+    for (int k = 1; k < n; k++) {
+        y0 = xy[2 * k + 1] < y0 ? xy[2 * k + 1] : y0;
+        y1 = xy[2 * k + 1] > y1 ? xy[2 * k + 1] : y1;
+    }
+    for (int32_t j = f_floor(y0); j <= f_floor(y1) + 1; j++) {
+        float xs[24], y = (float)j;
+        int m = 0;
+        for (int k = 0; k < n && m < 24; k++) {
+            float ax = xy[2 * k], ay = xy[2 * k + 1], bx = xy[2 * ((k + 1) % n)], by = xy[2 * ((k + 1) % n) + 1];
+            if ((ay <= y && by > y) || (by <= y && ay > y))
+                xs[m++] = ax + (y - ay) * (bx - ax) / (by - ay);
+        }
+        for (int p = 1; p < m; p++)                  /* (a few: insertion) */
+            for (int q = p; q > 0 && xs[q] < xs[q - 1]; q--) {
+                float t = xs[q];
+                xs[q] = xs[q - 1], xs[q - 1] = t;
+            }
+        for (int p = 0; p + 1 < m; p += 2) {
+            int32_t i0 = f_floor(xs[p] + 0.5f), i1 = f_floor(xs[p + 1] + 0.5f);   /* [i0, i1): the centres inside */
+            for (int32_t i = i0; i < i1; i++)
+                if (hatch <= 0 || ((i + j) % hatch + hatch) % hatch == 0)
+                    cv_blend(i, j, c, a);
+        }
+    }
+}
+/* a small filled triangle, anti-aliased (4 x 4 samples a pixel, in integers): pointers, arrowheads */
+static void cv_tri(float ax, float ay, float bx, float by, float qx, float qy, uint16_t c)
+{
+    int32_t x[3] = {fx8(ax) >> 6, fx8(bx) >> 6, fx8(qx) >> 6}, y[3] = {fx8(ay) >> 6, fx8(by) >> 6, fx8(qy) >> 6};
+    int32_t s = (x[1] - x[0]) * (y[2] - y[0]) - (y[1] - y[0]) * (x[2] - x[0]);   /* (quarter pixels; the winding) */
+    int32_t i0 = x[0], i1 = x[0], j0 = y[0], j1 = y[0];
+    for (int k = 1; k < 3; k++) {
+        i0 = x[k] < i0 ? x[k] : i0, i1 = x[k] > i1 ? x[k] : i1;
+        j0 = y[k] < j0 ? y[k] : j0, j1 = y[k] > j1 ? y[k] : j1;
+    }
+    if (!s)
+        return;
+    for (int32_t j = (j0 >> 2) - 1; j <= (j1 >> 2) + 1; j++)
+        for (int32_t i = (i0 >> 2) - 1; i <= (i1 >> 2) + 1; i++) {
+            uint32_t in = 0;
+            for (int32_t sy = 0; sy < 4; sy++)
+                for (int32_t sx = 0; sx < 4; sx++) {
+                    int32_t px = i * 4 - 2 + sx, py = j * 4 - 2 + sy, ok = 1;   /* (the samples around the centre) */
+                    for (int k = 0; k < 3 && ok; k++) {
+                        int32_t e = (x[(k + 1) % 3] - x[k]) * (py - y[k]) - (y[(k + 1) % 3] - y[k]) * (px - x[k]);
+                        ok = s > 0 ? e >= 0 : e <= 0;
+                    }
+                    in += (uint32_t)ok;
+                }
+            if (in)
+                cv_blend(i, j, c, in * 16u);
+        }
+}
+/* a dashed line: on px drawn, off px left, from the start */
+static void cv_dash(float x0, float y0, float x1, float y1, float on, float off, float w, uint16_t c)
+{
+    float dx = x1 - x0, dy = y1 - y0, len = f_abs(dx) > f_abs(dy) ? f_abs(dx) : f_abs(dy), t;
+    if (len < 1.0f)
+        return;
+    len = f_sqrt1(dx * dx + dy * dy);
+    dx /= len, dy /= len;
+    for (t = 0.0f; t < len; t += on + off) {
+        float e = t + on < len ? t + on : len;
+        cv_linef(x0 + dx * t, y0 + dy * t, x0 + dx * e, y0 + dy * e, c, w);
+    }
+}
+/* a dotted leader along a row (the manual's "label ......... value"): a dot every 3 px */
+static void cv_leader(int32_t x0, int32_t x1, int32_t y, uint16_t c)
+{
+    for (int32_t x = x0 + (3 - x0 % 3) % 3; x <= x1; x += 3)   /* (on a 3 px grid: leaders line up) */
+        cv_blend(x, y, c, 210u);
+}
+/* graph paper: a dot every step px over the box, on the glass's grid (gy: the canvas's top on the glass) */
+static void cv_grid(int32_t x0, int32_t y0, int32_t w, int32_t h, int32_t step, int32_t gy, uint16_t c)
+{
+    for (int32_t y = y0 + ((step - (y0 + gy) % step) % step); y < y0 + h; y += step)
+        for (int32_t x = x0 + (step - x0 % step) % step; x < x0 + w; x += step)
+            cv_blend(x, y, c, 220u);
+}
+
 /* glyph index of a character: lower case folds to upper case when the font
  * has none, anything missing (and C1 controls) draws as '?' */
 static uint32_t loom_glyph(const loom_font_t *f, uint32_t ch)
@@ -348,57 +474,13 @@ static int32_t app_sys_h(int face) { return SYS_FACE[face]->h; }
 static int32_t app_sys_w(int face, const char *s) { return loom_text_w(SYS_FACE[face], s); }
 static void app_sys_text(int32_t x, int32_t y, int face, const char *s, uint16_t c) { loom_text(x, y, SYS_FACE[face], s, c); }
 
-/* large type (Setup > SEL > LARGE TYPE): the roles' faces one size up or more, the larger ones from the resource region
- * (tools/gen_font.py LARGE: 18 px semibold for XS's labels, 20 px for S's and B's), the values L's 31 px; without the
- * region (not yet written after an update) the faces built in. The hints keep the small face (LFONT_XS): they are
- * hints. loom_type(1) switches every FONT_* below at once */
-static loom_font_t lt_face[3];
-static uint8_t lt_ok, lt_on;
-static uint16_t lt_rd16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
-static void loom_large_load(void)
-{
-    uint32_t n, i, cnt;
-    const uint8_t *p = res_section(RES_TAG('L', 'F', 'T', '1'), &n);
-    lt_ok = 0;
-    if (!p || n < 4u || (cnt = lt_rd16(p)) < 3u || n < 4u + 4u * cnt)
-        return;
-    for (i = 0; i < 3; i++) {
-        uint32_t o = res_rd32(p + 4 + 4 * i);
-        const uint8_t *f = p + o;
-        loom_font_t *t = &lt_face[i];
-        if (o > n - 24u || ((uintptr_t)f & 3u))
-            return;
-        t->h = f[0], t->pad = f[1], t->first = f[2], t->last = f[3], t->rle = f[4];
-        t->adv = f + res_rd32(f + 8);
-        t->box = (const uint8_t (*)[4])(f + res_rd32(f + 12));
-        t->off = (const uint16_t *)(f + res_rd32(f + 16));
-        t->data = f + res_rd32(f + 20);
-        if (t->last < t->first || o + res_rd32(f + 20) > n)
-            return;
-    }
-    lt_ok = 1;
-}
-static const loom_font_t *lt_xs = &LFONT_XS, *lt_s = &LFONT_S, *lt_b = &LFONT_B, *lt_m = &LFONT_M;
-static int loom_type(int large)                      /* -> large type on (the faces there) */
-{
-    if (large && !lt_ok)                             /* (written since the start: the installer after an update) */
-        loom_large_load();
-    lt_on = (uint8_t)(large && lt_ok);
-    lt_xs = lt_on ? &lt_face[0] : &LFONT_XS;
-    lt_s = lt_on ? &lt_face[1] : &LFONT_S;
-    lt_b = lt_on ? &lt_face[2] : &LFONT_B;
-    lt_m = lt_on ? &LFONT_L : &LFONT_M;
-    return lt_on;
-}
-
 /* from here on, the app draws with these */
 #define felucca_font_t loom_font_t
-#define FONT_XS (*lt_xs)
-#define FONT_S (*lt_s)
-#define FONT_B (*lt_b)
-#define FONT_M (*lt_m)
+#define FONT_XS LFONT_XS
+#define FONT_S LFONT_S
+#define FONT_B LFONT_B
+#define FONT_M LFONT_M
 #define FONT_L LFONT_L
-#define FONT_HINT LFONT_XS                           /* (the hints: small in large type too) */
 #define cv_begin loom_begin
 #define cv_line loom_line
 #define cv_text loom_text

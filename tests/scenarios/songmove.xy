@@ -1,0 +1,86 @@
+# the Song page's sections and MOVE SLOT (HOME's SEL, the song): the slot picked swapped with the one before or after,
+# the knobs following it; a song playing goes on from where it was; one undo each
+wait 300
+tapkey w0
+tap HOME
+tapkey w1
+tapkey w2
+tap HOME
+wait 100
+expect page Song
+tapkey w0
+tapkey w1
+tapkey w2
+expect songlen 3
+expect slotsc1 1
+expect slotsc3 3
+expect slotrep1 4
+turn K1 -1
+turn K3 -2
+expect slotrep2 2
+shot song_sections.png
+# slot 2 (S2, 2 bars) later: S1 S3 S2
+listen
+tap SEL
+row MOVE SLOT
+turn ALGO 1
+wait 200
+said MOVE SLOT later
+tap SEL
+wait 50
+said MOVED to slot 3
+expect slotsc2 3
+expect slotsc3 2
+expect slotrep3 2
+# again (the list opens on it, later kept): the last slot can't go further
+tap SEL
+tap SEL
+wait 50
+said LAST SLOT
+expect slotsc3 2
+# earlier, twice: S2 S1 S3
+tap SEL
+turn ALGO -1
+tap SEL
+tap SEL
+tap SEL
+wait 50
+expect slotsc1 2
+expect slotsc2 1
+expect slotsc3 3
+tap SEL
+tap SEL
+wait 50
+said FIRST SLOT
+# undo: the moves made in a run (within a second, as a knob's turns) go back together; a move a while later, alone
+wait 1100
+tap SEL
+turn ALGO 1
+tap SEL
+wait 50
+expect slotsc1 1
+expect slotsc2 2
+press HOME
+tap REC
+release HOME
+expect slotsc1 2
+expect slotsc2 1
+# while the song plays: slot 1 (S2, 2 bars) playing, moved later, keeps playing as slot 2; the song goes on to slot 3
+turn K1 -5
+tap PLAY
+wait 300
+expect songpos 1
+expect scene 2
+tap SEL
+row MOVE SLOT
+turn ALGO 1
+tap SEL
+wait 50
+expect slotsc2 2
+expect songpos 2
+wait 1000
+expect scene 2
+wait 3000
+expect songpos 3
+expect scene 3
+tap PLAY

@@ -1,0 +1,20 @@
+bpm 120
+wait 300
+knob 2 send1 127
+knob 2 send2 127
+tap EDIT
+wait 200
+tap FX
+wait 200
+turn SELECT 1
+wait 100
+turn SELECT 1
+wait 300
+knob 11 engine lofi
+play 2 48 on 120
+wait 100
+shot a.png
+wait 300
+shot b.png
+wait 600
+shot c.png

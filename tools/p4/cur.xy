@@ -1,0 +1,23 @@
+bpm 120
+wait 300
+tap EDIT
+wait 300
+tap FX
+wait 300
+shot c_char.png
+turn SELECT 1
+wait 300
+shot c_sends.png
+turn SELECT 1
+wait 300
+shot c_fx1.png
+turn SELECT 1
+wait 300
+shot c_fx2.png
+knob 12 engine half_echo
+wait 300
+shot c_half.png
+turn ALGO 2
+tap ARP
+wait 300
+shot c_players.png

@@ -7,7 +7,9 @@
 (app/gfx_loom.c; fm1-base's own screens keep fm1-base's fonts):
   tools/gen_font.py OUT.h        LFONT_XS .. LFONT_L, of type loom_font_t
 
-  XS / S / B / M / L: Terminus 12, 16, 16 bold, 24 bold, 32 bold (BDF, SIL OFL 1.1); see SIZES. TTF fonts also work through render()
+  XS / S / B / M / L: Terminus 12, 16, 16 bold, 24 bold, 32 bold (BDF, SIL OFL 1.1); see SIZES. The paper interface's
+  own: C (capitals, 11: knob labels, key-caps, section heads, the header's chip and FIG.), XB (bold beside XS: a spec
+  row's value, a list's), V (the knobs' values, 21 bold); the default set is Barlow Semi Condensed (SIL OFL 1.1). TTF fonts also work through render()
 (anti-aliased, tabular figures via the OpenType `tnum` feature).
 
 Glyph format: per glyph an advance width, an ink box {x, y, w, h} and a byte
@@ -35,27 +37,42 @@ FONTSETS = {
                  ("S", "ter-u16n.bdf", 16, 1, True, 32, 126),
                  ("B", "ter-u16b.bdf", 16, 1, True, 32, 126),
                  ("M", "ter-u24b.bdf", 24, 1, True, 32, 95),
-                 ("L", "ter-u32b.bdf", 32, 1, True, 32, 95)],
+                 ("L", "ter-u32b.bdf", 32, 1, True, 32, 95),
+                 ("C", "ter-u12n.bdf", 12, 1, True, 32, 95),
+                 ("XB", "ter-u12n.bdf", 12, 1, True, 32, 126),
+                 ("V", "ter-u24b.bdf", 24, 1, True, 32, 126)],
     "barlow": [("XS", "BarlowSemiCondensed-SemiBold.ttf", 12, 1, False, 32, 126),
                ("S", "BarlowSemiCondensed-Medium.ttf", 15, 1, False, 32, 126),
                ("B", "BarlowSemiCondensed-Bold.ttf", 15, 1, False, 32, 126),
                ("M", "BarlowSemiCondensed-SemiBold.ttf", 23, 1, False, 32, 95),
-               ("L", "BarlowSemiCondensed-Bold.ttf", 31, 1, False, 32, 126)],
+               ("L", "BarlowSemiCondensed-Bold.ttf", 31, 1, False, 32, 126),
+               ("C", "BarlowSemiCondensed-Bold.ttf", 11, 1, False, 32, 95),       # capitals: knob labels, key-caps
+               ("XB", "BarlowSemiCondensed-Bold.ttf", 12, 1, False, 32, 126),     # a bold value beside XS
+               ("V", "BarlowSemiCondensed-Bold.ttf", 21, 1, False, 32, 126)],     # the knobs' values
     "inter": [("XS", "Inter[opsz,wght].ttf@wght=600", 11, 1, False, 32, 126),
               ("S", "Inter[opsz,wght].ttf@wght=500", 14, 1, False, 32, 126),
               ("B", "Inter[opsz,wght].ttf@wght=700", 14, 1, False, 32, 126),
               ("M", "Inter[opsz,wght].ttf@wght=650", 21, 1, False, 32, 95),
-              ("L", "Inter[opsz,wght].ttf@wght=700", 29, 1, False, 32, 95)],
+              ("L", "Inter[opsz,wght].ttf@wght=700", 29, 1, False, 32, 95),
+              ("C", "Inter[opsz,wght].ttf@wght=700", 10, 1, False, 32, 95),
+              ("XB", "Inter[opsz,wght].ttf@wght=700", 11, 1, False, 32, 126),
+              ("V", "Inter[opsz,wght].ttf@wght=700", 19, 1, False, 32, 126)],
     "rajdhani": [("XS", "Rajdhani-Bold.ttf", 14, 1, False, 32, 126),
                  ("S", "Rajdhani-SemiBold.ttf", 17, 1, False, 32, 126),
                  ("B", "Rajdhani-Bold.ttf", 17, 1, False, 32, 126),
                  ("M", "Rajdhani-Bold.ttf", 26, 1, False, 32, 95),
-                 ("L", "Rajdhani-Bold.ttf", 35, 1, False, 32, 95)],
+                 ("L", "Rajdhani-Bold.ttf", 35, 1, False, 32, 95),
+                 ("C", "Rajdhani-Bold.ttf", 13, 1, False, 32, 95),
+                 ("XB", "Rajdhani-Bold.ttf", 14, 1, False, 32, 126),
+                 ("V", "Rajdhani-Bold.ttf", 24, 1, False, 32, 126)],
     "chakra": [("XS", "ChakraPetch-SemiBold.ttf", 11, 1, False, 32, 126),
                ("S", "ChakraPetch-Medium.ttf", 14, 1, False, 32, 126),
                ("B", "ChakraPetch-Bold.ttf", 14, 1, False, 32, 126),
                ("M", "ChakraPetch-SemiBold.ttf", 21, 1, False, 32, 95),
-               ("L", "ChakraPetch-Bold.ttf", 29, 1, False, 32, 95)],
+               ("L", "ChakraPetch-Bold.ttf", 29, 1, False, 32, 95),
+               ("C", "ChakraPetch-Bold.ttf", 10, 1, False, 32, 95),
+               ("XB", "ChakraPetch-Bold.ttf", 11, 1, False, 32, 126),
+               ("V", "ChakraPetch-Bold.ttf", 19, 1, False, 32, 126)],
 }
 import os  # noqa: E402
 FONTSET = os.environ.get("X0X_FONTSET", "barlow")    # the others need X0X_FONT_DIRS (not in assets/)
@@ -210,13 +227,6 @@ def unpack(nib, n, runs):
     return out
 
 
-# large type (Setup > SEL > LARGE TYPE): the faces the large roles add, kept in the resource region (tools/gen_res.py,
-# app/gfx_loom.c loom_large_load), not in the image; the values use L, the units and the two-line labels S
-LARGE = [("L18", "BarlowSemiCondensed-SemiBold.ttf", 18, 1, False, 32, 126),    # XS's role: labels, pads
-         ("L20", "BarlowSemiCondensed-Medium.ttf", 20, 1, False, 32, 126),      # S's: the path line, captions
-         ("L20B", "BarlowSemiCondensed-Bold.ttf", 20, 1, False, 32, 126)]      # B's: the header, step numbers
-
-
 # a face's third coding (runs 2, the faces in the image: main), when it is smaller: each pixel's alpha by one of three
 # canonical Huffman codes, the one for the alpha after a 0, after a 15, after anything else (a glyph starts after a 0),
 # bits from the high one down, each glyph padded to a byte. The data starts with the three codes (HUF_SZ bytes each: the
@@ -341,32 +351,6 @@ def face(name, ttf, px, scale, pixel, first, last, huff=False):
             data, offs, runs = hd, ho, 2
     assert len(data) < 65536 and all(max(b) < 256 for b in boxes)
     return h, PAD * scale, first, last, runs, [a for a, _, _ in glyphs], boxes, offs, data or [0]
-
-
-def blob(entries=LARGE):
-    """the faces as the resource region holds them (little-endian, read in place by app/gfx_loom.c loom_large_load):
-    u16 count, u16 0, u32 offset of each face (from the blob's start); each face 4-aligned: u8 h, pad, first, last,
-    rle, 3 x 0, u32 offsets (from the face's start) of its advances (u8 a glyph), ink boxes (4 x u8), glyph offsets
-    (u16, 2-aligned) and nibbles"""
-    import struct
-    faces = []
-    for e in entries:
-        h, pad, first, last, runs, adv, boxes, offs, data = face(*e)
-        n = len(adv)
-        o_adv = 24
-        o_box = o_adv + n
-        o_off = (o_box + 4 * n + 1) & ~1
-        o_dat = o_off + 2 * n
-        b = struct.pack("<8B4I", h, pad, first, last, runs, 0, 0, 0, o_adv, o_box, o_off, o_dat)
-        b += bytes(adv) + bytes(v for bx in boxes for v in bx)
-        b += bytes(o_off - len(b)) + struct.pack(f"<{n}H", *offs) + bytes(data)
-        faces.append(b + bytes(-len(b) % 4))
-    head = struct.pack("<HH", len(faces), 0)
-    at = len(head) + 4 * len(faces)
-    for f in faces:
-        head += struct.pack("<I", at)
-        at += len(f)
-    return head + b"".join(faces)
 
 
 def main(out):

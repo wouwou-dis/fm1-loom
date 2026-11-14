@@ -26,7 +26,7 @@ static void check(const char *what, int ok)
     bad += !ok;
 }
 
-static int16_t dly_l[FX_DLY_LEN], dly_r[FX_DLY_LEN], rv[FX_RV_LEN];
+static int16_t dly_l[FX_DLY_LEN], dly_r[FX_DLY_LEN], rv[FX_RV_LEN] __attribute__((aligned(4)));
 static uint8_t fxb[FXSLOT_BYTES] __attribute__((aligned(8)));
 static uint8_t msb[MASTER_BYTES] __attribute__((aligned(8)));
 static fxslot_t *fx = (fxslot_t *)fxb;
@@ -160,6 +160,25 @@ static float bright(const float *y, int from, int to)
         d += (y[i] - y[i - 1]) * (y[i] - y[i - 1]);
     }
     return d / (e + 1e-20f);
+}
+/* the share of the energy above hz in a window (a plain DFT, 10 Hz apart; the window's ends tapered) */
+static float share_above(const float *y, int from, int to, float hz)
+{
+    float tot = 0.0f, hi = 0.0f;
+    int n = to - from, k, i;
+    for (k = 1; k < 2205; k++) {                 /* 10 Hz .. 22.05 kHz */
+        float f = 10.0f * (float)k, re = 0.0f, im = 0.0f, p;
+        for (i = 0; i < n; i++) {
+            float w = 0.5f - 0.5f * fm_cosf(FM_TWO_PI * (float)i / (float)n), ph = f * (float)i / SR;
+            re += w * y[from + i] * fm_cosf(FM_TWO_PI * (ph - fm_floorf(ph)));
+            im += w * y[from + i] * fm_sinf(FM_TWO_PI * (ph - fm_floorf(ph)));
+        }
+        p = re * re + im * im;
+        tot += p;
+        if (f >= hz)
+            hi += p;
+    }
+    return hi / (tot + 1e-20f);
 }
 static float imp_l[3 * SR], imp_r[3 * SR];
 
@@ -337,12 +356,19 @@ int main(void)
             static const uint8_t kt[2][4] = {{72, 64, 100, 20}, {72, 64, 100, 110}};
             float br[2];
             int s2;
+            float img;
             for (s2 = 0; s2 < 2; s2++) {                     /* 1/8 at 120 BPM: 11025 samples; right at 22050 */
                 impulse(FXT_DELAY, kt[s2], imp_l, imp_r, 24064);
                 br[s2] = bright(imp_r, 22050 - 16, 22050 + 2000);
             }
+            /* (x3: bright() weighs the top octave most, and the old line's straight-line read put images there, above
+             * 11 kHz, which took its ratio to 4.3 (x4 here until 2026-11): 15 dB under the echo, now 23: checked next) */
             snprintf(name, sizeof name, "  tone 20 -> 110: the repeats brighter (%.4f -> %.4f)", (double)br[0], (double)br[1]);
-            check(name, br[1] > br[0] * 4.0f);
+            check(name, br[1] > br[0] * 3.0f);
+            img = share_above(imp_l, 11025 - 256, 11025 + 256, 13000.0f);   /* the left's first echo, tone open */
+            snprintf(name, sizeof name, "  the first echo: what lies above 13 kHz (images) %.1f dB under the whole",
+                     (double)-db(fm_sqrtf(img)));
+            check(name, img < 0.01f);                         /* (the old straight-line read: 15 dB) */
         }
         {   /* PING WIDTH: 127 as fx_init has it (the bounce hard left and right), 0 the echoes centred (left = right),
              * 64 between; the same power at each */
@@ -410,6 +436,122 @@ int main(void)
                 pk = fm_maxf(pk, fm_fabsf(ol[i]));
             check("reverb tail gone after 20 s", pk < 1e-5f);
         }
+    }
+
+    printf("-- the plate: falls smoothly into silence, no DC, two sides apart, sound at its knobs' ends\n");
+    {
+        static float env[20 * SR / 2205];
+        static const uint8_t kd[4] = {100, 40, 44, 72};
+        const int nb = 20 * SR / BLK, W = 2205;
+        float acc = 0.0f, sl = 0.0f, sr = 0.0f, slr = 0.0f, mean = 0.0f, e2 = 0.0f, worst = 0.0f, first = 0.0f;
+        int nw = 0, ok = 1, k, gone = 0;
+        fx_init(fx, dly_l, dly_r, rv);
+        fx_set(fx, FXT_REVERB, kd);
+        rng = 4321;
+        for (b = 0; b < nb; b++) {               /* 0.1 s of noise, then 20 s of silence: the tail's level each 50 ms */
+            for (i = 0; i < BLK; i++)
+                in[i] = b * BLK + i < SR / 10 ? 0.5f * noise() : 0.0f;
+            memset(ol, 0, sizeof ol);
+            memset(orr, 0, sizeof orr);
+            fx_process(fx, in, ol, orr, BLK);
+            for (i = 0; i < BLK; i++) {
+                int tt = b * BLK + i;
+                ok &= ol[i] == ol[i] && orr[i] == orr[i];
+                acc += ol[i] * ol[i] + orr[i] * orr[i];
+                if (tt >= SR / 5 && tt < 2 * SR) {          /* the tail's first two seconds: its sides, its DC */
+                    sl += ol[i] * ol[i];
+                    sr += orr[i] * orr[i];
+                    slr += ol[i] * orr[i];
+                    mean += ol[i] + orr[i];
+                    e2 += ol[i] * ol[i] + orr[i] * orr[i];
+                }
+                if ((tt + 1) % W == 0) {
+                    env[nw++] = acc / (float)(2 * W);
+                    acc = 0.0f;
+                }
+            }
+        }
+        /* from 0.2 s on, until it is 120 dB under where it started: each 50 ms quieter than the last, and never a step
+         * of more than 6 dB (the 12-bit combs fell off a cliff: 25 dB in one step, then nothing) */
+        first = env[4];
+        for (k = 5; k < nw; k++) {
+            float d;
+            if (env[k] < first * 1e-12f) {
+                gone = k;
+                break;
+            }
+            d = db(env[k - 1]) * 0.5f - db(env[k]) * 0.5f;   /* (energies: half the dB of their square roots) */
+            worst = fm_maxf(worst, d);
+            ok &= env[k] < env[k - 1];
+        }
+        snprintf(name, sizeof name, "  a tail at the defaults: down 120 dB at %.2f s, smoothly (the largest step %.1f dB)",
+                 (double)gone * W / SR, (double)worst);
+        check(name, ok && gone > 0 && worst < 6.0f);
+        snprintf(name, sizeof name, "  ... and silent at the end (%.1f dB)", (double)(db(env[nw - 1]) * 0.5f));
+        check(name, env[nw - 1] < 1e-14f);
+        snprintf(name, sizeof name, "  its sides apart: correlation %.3f; its DC %.4f of its level", (double)(slr / fm_sqrtf(sl * sr)),
+                 (double)(mean / fm_sqrtf(e2 * (float)(2 * SR - SR / 5) * 2.0f)));
+        check(name, fm_fabsf(slr / fm_sqrtf(sl * sr)) < 0.2f && fm_fabsf(mean / fm_sqrtf(e2 * (float)(2 * SR - SR / 5) * 2.0f)) < 0.01f);
+    }
+    {   /* a held DC on the send: nothing of it comes back (the send's high-pass) */
+        static const uint8_t kd[4] = {100, 40, 44, 72};
+        float m2 = 0.0f;
+        fx_init(fx, dly_l, dly_r, rv);
+        fx_set(fx, FXT_REVERB, kd);
+        for (b = 0; b < 3 * SR / BLK; b++) {
+            for (i = 0; i < BLK; i++)
+                in[i] = 0.5f;
+            memset(ol, 0, sizeof ol);
+            memset(orr, 0, sizeof orr);
+            fx_process(fx, in, ol, orr, BLK);
+            if (b >= 2 * SR / BLK)
+                for (i = 0; i < BLK; i++)
+                    m2 += ol[i] + orr[i];
+        }
+        m2 /= (float)(2 * (3 * SR / BLK - 2 * SR / BLK) * BLK);
+        snprintf(name, sizeof name, "  a held 0.5 on the send: %.6f comes back", (double)m2);
+        check(name, fm_fabsf(m2) < 1e-4f);
+    }
+    {   /* another mode's work on the line (int16), then the plate (floats on it): cleared first, so it starts quiet and
+         * finite, then works */
+        static const uint8_t kh[4] = {127, 127, 64, 0}, kd[4] = {100, 40, 44, 72};
+        int m2, ok = 1;
+        float pk = 0.0f, pk2 = 0.0f;
+        for (m2 = 0; m2 < 2; m2++) {
+            run_fx(m2 ? FXT_REVERB + RV_LUSH : FXT_REVERB + RV_CHAOS_ECHO, kh, &r, 0);   /* (a loud tail on the line) */
+            fx_set(fx, FXT_REVERB, kd);
+            for (b = 0; b < 200; b++) {
+                for (i = 0; i < BLK; i++)
+                    in[i] = b >= 100 ? 0.3f * noise() : 0.0f;
+                memset(ol, 0, sizeof ol);
+                memset(orr, 0, sizeof orr);
+                fx_process(fx, in, ol, orr, BLK);
+                for (i = 0; i < BLK; i++) {
+                    ok &= ol[i] == ol[i] && orr[i] == orr[i];
+                    if (b < 100)
+                        pk = fm_maxf(pk, fm_fabsf(ol[i]) + fm_fabsf(orr[i]));
+                    else
+                        pk2 = fm_maxf(pk2, fm_fabsf(ol[i]) + fm_fabsf(orr[i]));
+                }
+            }
+        }
+        snprintf(name, sizeof name, "  chaos echo / lush -> plate mid-tail: quiet (%.6f), then working (%.2f)", (double)pk, (double)pk2);
+        check(name, ok && pk < 1e-4f && pk2 > 0.01f && pk2 < 4.0f);
+    }
+    {   /* every corner of the four knobs: bounded, no NaN, and the tail falling */
+        int ok = 1, c;
+        for (c = 0; c < 16; c++) {
+            uint8_t kn[4];
+            for (i = 0; i < 4; i++)
+                kn[i] = (uint8_t)(c >> i & 1 ? 127 : 0);
+            run_fx(FXT_REVERB, kn, &r, 0);
+            if (r.nan || r.peak > 4.0f || !(r.rms_end < r.rms_after)) {
+                printf("  plate %d %d %d %d: peak %.2f, after %.1f dB, end %.1f dB, nan %d\n", kn[0], kn[1], kn[2], kn[3],
+                       (double)r.peak, (double)db(r.rms_after), (double)db(r.rms_end), r.nan);
+                ok = 0;
+            }
+        }
+        check("  the knobs' 16 corners: bounded, finite, the tail falling", ok);
     }
 
     printf("-- the slot's filter page and a change of effect\n");

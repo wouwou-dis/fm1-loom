@@ -1,0 +1,160 @@
+bpm 120
+wait 300
+projnew
+hits 1 1 1 x...x...x...x...
+hits 1 1 2 ....x.......x...
+hits 1 1 3 ..x...x...x...xx
+step 2 1 1 48 100
+step 2 1 4 48 100
+step 2 1 9 51 100
+step 2 1 12 53 100
+step 3 1 3 60 100
+step 3 1 7 63 100
+step 3 1 11 67 100
+step 3 1 15 70 100
+step 4 1 1 60 100
+step 4 1 4 62 100
+step 4 1 7 64 100
+step 4 1 9 65 100
+step 4 1 12 67 100
+step 4 1 15 69 100
+pat 5 1 12
+step 5 1 1 72 100
+step 5 1 9 72 100
+step 6 1 2 55 100
+step 6 1 6 55 100
+step 6 1 10 55 100
+step 6 1 14 55 100
+pat 8 1 64
+step 8 1 1 40 100
+step 8 1 3 40 100
+step 8 1 5 40 100
+step 8 1 7 40 100
+step 8 1 17 41 100
+step 8 1 21 41 100
+step 8 1 33 43 100
+step 8 1 49 45 100
+step 9 1 1 60 100
+step 9 1 9 64 100
+step 10 1 16 1 100
+tap HOME
+wait 300
+shot 20_Arrange-stopped.png
+tapkey w1
+tapkey w2
+tapkey w0
+tap PLAY
+wait 700
+shot 21_Arrange-playing.png
+tapkey b6
+key b0 down
+wait 50
+tapkey w2
+tapkey w1
+wait 50
+key b0 up
+wait 300
+shot 22_Arrange-mutes.png
+tapkey w1
+wait 100
+shot g_arr_00.png
+wait 80
+shot g_arr_01.png
+wait 80
+shot g_arr_02.png
+wait 80
+shot g_arr_03.png
+wait 80
+shot g_arr_04.png
+wait 80
+shot g_arr_05.png
+wait 80
+shot g_arr_06.png
+wait 80
+shot g_arr_07.png
+wait 80
+shot g_arr_08.png
+wait 80
+shot g_arr_09.png
+wait 80
+shot g_arr_10.png
+wait 80
+shot g_arr_11.png
+wait 80
+shot g_arr_12.png
+wait 80
+shot g_arr_13.png
+wait 80
+shot g_arr_14.png
+wait 80
+shot g_arr_15.png
+wait 80
+shot g_arr_16.png
+wait 80
+shot g_arr_17.png
+wait 80
+shot g_arr_18.png
+wait 80
+shot g_arr_19.png
+wait 80
+shot g_arr_20.png
+wait 80
+shot g_arr_21.png
+wait 80
+shot g_arr_22.png
+wait 80
+shot g_arr_23.png
+wait 80
+shot g_arr_24.png
+wait 80
+shot g_arr_25.png
+wait 80
+shot g_arr_26.png
+wait 80
+shot g_arr_27.png
+wait 80
+shot g_arr_28.png
+wait 80
+shot g_arr_29.png
+wait 80
+shot g_arr_30.png
+wait 80
+shot g_arr_31.png
+wait 80
+shot g_arr_32.png
+wait 80
+shot g_arr_33.png
+wait 80
+shot g_arr_34.png
+wait 80
+shot g_arr_35.png
+wait 80
+shot g_arr_36.png
+wait 80
+shot g_arr_37.png
+wait 80
+shot g_arr_38.png
+wait 80
+shot g_arr_39.png
+wait 80
+shot g_arr_40.png
+wait 80
+shot g_arr_41.png
+wait 80
+shot g_arr_42.png
+wait 80
+shot g_arr_43.png
+wait 80
+shot g_arr_44.png
+wait 80
+shot g_arr_45.png
+wait 80
+shot g_arr_46.png
+wait 80
+shot g_arr_47.png
+wait 80
+shot g_arr_48.png
+wait 80
+shot g_arr_49.png
+wait 80
+tap PLAY

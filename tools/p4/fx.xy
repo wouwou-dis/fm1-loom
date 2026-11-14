@@ -1,0 +1,187 @@
+bpm 120
+wait 600
+knob 1 send1 127
+knob 1 send2 127
+tap EDIT
+wait 200
+tap FX
+wait 200
+turn SELECT 1
+wait 100
+turn SELECT 1
+wait 600
+knob 11 engine delay
+knob 11 e1 72
+knob 11 e2 64
+knob 11 e3 56
+knob 11 e4 64
+wait 1100
+shot 01_delay_default.png
+knob 11 e1 0
+wait 1100
+shot 02_delay_k1_0.png
+knob 11 e1 127
+wait 1100
+shot 03_delay_k1_127.png
+knob 11 e1 72
+knob 11 e2 0
+wait 1100
+shot 04_delay_k2_0.png
+knob 11 e2 127
+wait 1100
+shot 05_delay_k2_127.png
+knob 11 e2 64
+knob 11 e3 0
+wait 1100
+shot 06_delay_k3_0.png
+knob 11 e3 127
+wait 1100
+shot 07_delay_k3_127.png
+knob 11 e3 56
+knob 11 e4 0
+wait 1100
+shot 08_delay_k4_0.png
+knob 11 e4 127
+wait 1100
+shot 09_delay_k4_127.png
+knob 11 e4 64
+knob 11 x1 0
+wait 1100
+shot 10_delay_width_0.png
+knob 11 x1 127
+wait 1100
+shot 11_delay_width_127.png
+knob 11 x1 127
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 600
+shot 12_delay_sounding.png
+play 2 48 off
+wait 3000
+knob 11 engine chorus
+knob 11 e1 50
+knob 11 e2 86
+knob 11 e3 20
+knob 11 e4 127
+wait 1100
+shot 13_chorus_default.png
+knob 11 e1 0
+wait 1100
+shot 14_chorus_k1_0.png
+knob 11 e1 127
+wait 1100
+shot 15_chorus_k1_127.png
+knob 11 e1 50
+knob 11 e2 0
+wait 1100
+shot 16_chorus_k2_0.png
+knob 11 e2 127
+wait 1100
+shot 17_chorus_k2_127.png
+knob 11 e2 86
+knob 11 e3 0
+wait 1100
+shot 18_chorus_k3_0.png
+knob 11 e3 127
+wait 1100
+shot 19_chorus_k3_127.png
+knob 11 e3 20
+knob 11 e4 0
+wait 1100
+shot 20_chorus_k4_0.png
+knob 11 e4 127
+wait 1100
+shot 21_chorus_k4_127.png
+knob 11 e4 127
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 600
+shot 22_chorus_sounding.png
+play 2 48 off
+wait 3000
+knob 11 engine lofi
+knob 11 e1 80
+knob 11 e2 80
+knob 11 e3 64
+knob 11 e4 40
+wait 1100
+shot 23_lofi_default.png
+knob 11 e1 0
+wait 1100
+shot 24_lofi_k1_0.png
+knob 11 e1 127
+wait 1100
+shot 25_lofi_k1_127.png
+knob 11 e1 80
+knob 11 e2 0
+wait 1100
+shot 26_lofi_k2_0.png
+knob 11 e2 127
+wait 1100
+shot 27_lofi_k2_127.png
+knob 11 e2 80
+knob 11 e3 0
+wait 1100
+shot 28_lofi_k3_0.png
+knob 11 e3 127
+wait 1100
+shot 29_lofi_k3_127.png
+knob 11 e3 64
+knob 11 e4 0
+wait 1100
+shot 30_lofi_k4_0.png
+knob 11 e4 127
+wait 1100
+shot 31_lofi_k4_127.png
+knob 11 e4 40
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 600
+shot 32_lofi_sounding.png
+play 2 48 off
+wait 3000
+knob 11 engine phaser
+knob 11 e1 50
+knob 11 e2 90
+knob 11 e3 50
+knob 11 e4 80
+wait 1100
+shot 33_phaser_default.png
+knob 11 e1 0
+wait 1100
+shot 34_phaser_k1_0.png
+knob 11 e1 127
+wait 1100
+shot 35_phaser_k1_127.png
+knob 11 e1 50
+knob 11 e2 0
+wait 1100
+shot 36_phaser_k2_0.png
+knob 11 e2 127
+wait 1100
+shot 37_phaser_k2_127.png
+knob 11 e2 90
+knob 11 e3 0
+wait 1100
+shot 38_phaser_k3_0.png
+knob 11 e3 127
+wait 1100
+shot 39_phaser_k3_127.png
+knob 11 e3 50
+knob 11 e4 0
+wait 1100
+shot 40_phaser_k4_0.png
+knob 11 e4 127
+wait 1100
+shot 41_phaser_k4_127.png
+knob 11 e4 80
+knob 2 send1 127
+knob 2 send2 127
+play 2 48 on 120
+wait 600
+shot 42_phaser_sounding.png
+play 2 48 off
+wait 3000

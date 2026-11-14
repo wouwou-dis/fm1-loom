@@ -11,7 +11,7 @@
 
 enum { FXT_CHORUS, FXT_DELAY, FXT_LOFI, FXT_PHASER, FXT_REVERB, NFXT };
 extern const char *const FXT_NAME[NFXT];
-/* the reverb's modes: the plate (9W9's combs), then the SPU reverbs of the PlayStation (psx-spx's register
+/* the reverb's modes: the plate (a feedback delay network), then the SPU reverbs of the PlayStation (psx-spx's register
  * sets, as in schwung-psxverb): room, studio small / medium / large, hall, half echo, space echo, chaos echo
  * (almost endless), delay (one echo); then lush, Dattorro's plate at 22.05 kHz (saved by number: a new mode at the end) */
 enum { RV_PLATE, RV_ROOM, RV_STUDIO_S, RV_STUDIO_M, RV_STUDIO_L, RV_HALL, RV_HALF_ECHO, RV_SPACE_ECHO,
@@ -30,14 +30,15 @@ const char *fx_knob_name(int pick, int k);     /* the four knobs' names (the pla
  *   delay       time fine repeats tone           72 64 56 64    1/8 ping-pong, ~4 repeats, repeats low-passed at 4 kHz
  *   lofi        rate bits smooth width           80 80 64 40    8.4 kHz, 11 bits, half smoothed, the right 3.4 ms late
  *   phaser      freq depth rate feedback         50 90 50 80    466 Hz, +-2.1 octaves, 0.27 Hz, feedback 0.57
- *   plate       size motion tone damp            100 40 44 72   combs x1.43 (feedback 0.88), a little wander, 7.4 kHz, damp 0.45
+ *   plate       size motion tone damp            100 40 44 72   lines x1.43 (the old combs' feedback 0.88: ~1.5 s), a little
+ *                                                               wander, 7.4 kHz, damp 0.45
  *   SPU modes   size decay tone damp             127 64 64 0    the console's own: its delays (x4 of the registers), its
  *                                                               wall feedback, flat, its own reflection filter
  *   lush        size decay tone damp             64 64 56 48    Dattorro's lengths x1 (pre-delay 19 ms), a tail of
  *                                                               ~1.4 s (decay: 0.6 .. 7 s to fall 60 dB, whatever the
  *                                                               size), a little darker, the tank's damping at 0.39
  * delay time: 1/32 1/32D 1/16 1/16D 1/8 1/8D 1/4 1/2 of the tempo, fine +-25 %; delay tone: the repeats' low-pass,
- * 800 Hz .. 19 kHz; reverb tone: a low-pass below the centre, a high-pass above it; plate damp: the combs' damping.
+ * 800 Hz .. 19 kHz; reverb tone: a low-pass below the centre, a high-pass above it; plate damp: the damping in its loop.
  * SPU size: the delays from x1 of the registers (schwung-psxverb's) to x4 (the console's: the registers count
  * 8-byte units); SPU decay: the wall reflection's feedback, 0.5x .. x1 (64) .. as far as it stays stable;
  * SPU damp: the reflections' low-pass (vIIR) closes. The FX tracks are plain send / return: an effect's output
@@ -48,7 +49,8 @@ extern const uint8_t RV_LUSH_DEFAULT[4];        /* lush's */
 
 #define FX_DLY_LEN 11200              /* int16 samples a side, at half rate (22.05 kHz): 0.5 s plus a 128-sample margin
                                        * (the second core's lag, 256 frames at most; the pool's budget) */
-#define FX_RV_LEN 32768               /* int16 samples: the reverb's lines (the plate uses 11.4 k of them; an SPU mode at
+#define FX_RV_LEN 32768               /* int16 samples: the reverb's lines (the plate keeps floats on it, 16 k of them: the
+                                       * line must be 4-byte aligned, or fx_init gives the slot no reverb; an SPU mode at
                                        * x4 up to 32766: the chaos echo's and the delay's 1FFFh x 4) */
 typedef struct fxslot fxslot_t;
 #define FXSLOT_BYTES 5760             /* the chorus line (2048 int16: 4 KB, the lofi's spread reads it too) and the states */
@@ -66,7 +68,7 @@ void fx_width(fxslot_t *f, int w);                          /* the delay's PING 
 void fx_process(fxslot_t *f, const float *in, float *out_l, float *out_r, uint32_t n);
 /* the same for a send that arrives lag samples late (0..256: the engine runs the effects a block behind, on the
  * second core): the chorus, the delay and the plate put it back in time in their lines (their output as without the
- * lag, but for the lines' rounding); the SPU modes take it as that much more pre-delay. fx_lags: the effect is one of
+ * lag, but for the lines' rounding: the plate's none); the SPU modes and lush take it as that much more pre-delay. fx_lags: the effect is one of
  * those (the lofi and the phaser have no line to hide it in: the engine runs them in time) */
 void fx_process_lag(fxslot_t *f, const float *in, float *out_l, float *out_r, uint32_t n, int lag);
 int fx_lags(const fxslot_t *f);

@@ -1,0 +1,33 @@
+bpm 120
+turn ALGO 1
+notes 2 1 1 2 100 60
+tap EDIT
+turn SELECT 1
+wait 300
+shot 70_Play.png
+knob 2 vmode poly
+knob 2 porta 60
+knob 2 bend 5
+wait 300
+shot 71_Play-poly-glide.png
+turn SELECT 1
+wait 300
+shot 72_Play2-octave.png
+turn SELECT 1
+wait 300
+shot 73_Sub-knit.png
+knob 2 engine rayon
+knob 2 x1 60
+knob 2 x2 30
+wait 300
+shot 74_Sub-rayon.png
+knob 2 engine acid
+knob 2 x1 80
+knob 2 x2 1
+wait 300
+shot 75_Sub-acid.png
+turn ALGO 8
+wait 300
+tap EDIT
+wait 300
+shot 76_Throws.png

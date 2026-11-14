@@ -24,6 +24,8 @@
  *   upload FILE                  an upload's SysEx frames (tools/loom_samples.py syx), each through samples.c as from
  *                                USB; a frame not answered, or answered with an error, fails the run
  *   expect WHAT VALUE            besides fm1-base's: playing, scene, mute (the tracks' bits), songpos, used (the scenes' bits), voices, drumhits (the kit's hits),
+ *                                slotrepN (slot N's bars), plenT.P (a pattern's length), locksT.P.S (the lanes
+ *                                with a value on step S),
  *                                guard, cores, dirty, ask, mem (the last save's
  *                                share of a project slot, %), model_avg /
  *                                model_peak (the last meter's, %), tempo, trk, user / userbytes / rateN (the user bank's
@@ -40,7 +42,7 @@
  *                                runs, out of the result: render.sh sets 0)
  *   LOOM_MSTSET=comp=0,pump=0    master knobs held at these values whatever the script sets (at each "mst" and at
  *                                "stats reset", which every song has before its "wav")
- * LOOM_THEME=N: the screenshots in theme N (ui.c). The layout audit (gfx_loom.c): its findings fail the run. */
+ * The layout audit (gfx_loom.c): its findings fail the run. */
 #include <time.h>
 
 static float meter_avg, meter_peak, host_load;      /* the last "meter", the model's load now (below) */
@@ -445,9 +447,23 @@ int app_expect(const char *what, int *got)
         *got = pats.song.len;
     else if (!strncmp(what, "slotsc", 6))          /* slotscN: song slot N's scene, both from 1 */
         *got = pats.song.slot[(atoi(what + 6) - 1) & (NSONG - 1)].scene + 1;
-    else if (!strcmp(what, "theme"))              /* the theme (THEME_*) */
-        *got = theme_ix();
-    else if (!strcmp(what, "listopen"))             /* a SEL list up */
+    else if (!strncmp(what, "slotrep", 7))         /* slotrepN: song slot N's bars (N from 1) */
+        *got = pats.song.slot[(atoi(what + 7) - 1) & (NSONG - 1)].rep;
+    else if (!strncmp(what, "plen", 4) && strchr(what, '.')) {   /* plenT.P: track T's pattern P's length, steps */
+        int t = atoi(what + 4) - 1, p = atoi(strchr(what, '.') + 1) - 1;
+        if (t < 0 || t >= NSEQT || p < 0 || p >= NPATT)
+            return 0;
+        *got = pats.pat[t][p].len;
+    } else if (!strncmp(what, "locks", 5) && what[5] != 0 && what[5] != '.') {   /* locksT.P.S: the lanes (not the
+                                                     * random pool) with a value on that step */
+        int t, pt, st;
+        if (sscanf(what + 5, "%d.%d.%d", &t, &pt, &st) != 3 || st < 1 || st > NSTEP)
+            return 0;
+        *got = 0;
+        for (int k = 0; k < NLANE; k++)
+            *got += pats.lane[k].used && pats.lane[k].trk == t - 1 && pats.lane[k].pat == pt - 1 &&
+                    !lane_is_pool(pats.lane[k].param) && pats.lane[k].val[st - 1] != LOCK_NONE;
+    } else if (!strcmp(what, "listopen"))             /* a SEL list up */
         *got = lst.open;
     else if (!strcmp(what, "slot_reads"))           /* project_exists's reads of the flash so far */
         *got = (int)slot_reads;
@@ -1066,9 +1082,6 @@ static int song_cmd(const char *cmd)
             printf("LIST\t%s\t%s\t%s\t%s\n", page_name_of(ui.page, sel_trk()), KIND[k % 6],
                    k == LK_PICK ? (set ? "setting" : "choice") : "", lst.row[i].name);
         }
-    } else if (!strcmp(cmd, "large")) {             /* large 0|1: large type (Setup > SEL > LARGE TYPE) off or on */
-        large_type_set(n > 1 && atoi(w[1]) != 0);
-        run_ms(40);
     } else if (!strcmp(cmd, "usersave")) {          /* usersave T SLOT: track T's sound as user preset SLOT (1..16) */
         t = atoi(w[1]) - 1;
         k = n > 2 ? atoi(w[2]) - 1 : -1;
@@ -1389,6 +1402,10 @@ static int song_cmd(const char *cmd)
 
 int app_host_cmd(const char *cmd, const char *a, const char *b, const char *c, const char *d)
 {
+    if (!strcmp(cmd, "splash")) {                    /* splash: the boot screen, for a shot (the app redraws after) */
+        app_splash();
+        return 1;
+    }
     if (song_cmd(cmd))
         return 1;
     if (!strcmp(cmd, "expect"))

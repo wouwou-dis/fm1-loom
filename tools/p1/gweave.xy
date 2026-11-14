@@ -1,0 +1,80 @@
+wait 300
+hits 1 1 1 x...x...x...x...
+hits 1 1 3 ..x...x...x...x.
+notes 2 1 1 1 100 C4
+notes 2 1 3 1 100 E4
+notes 2 1 5 1 100 G4
+notes 2 1 7 1 100 B4
+turn ALGO 1
+tap ARP
+turn SELECT 1
+wait 50
+shot 50_Weave-empty.png
+tapkey b0
+wait 50
+turn K3 2
+wait 100
+shot 51_Weave-rhythm.png
+tap PLAY
+wait 900
+shot g_weave_00.png
+wait 80
+shot g_weave_01.png
+wait 80
+shot g_weave_02.png
+wait 80
+shot g_weave_03.png
+wait 80
+shot g_weave_04.png
+wait 80
+shot g_weave_05.png
+wait 80
+shot g_weave_06.png
+wait 80
+shot g_weave_07.png
+wait 80
+shot g_weave_08.png
+wait 80
+shot g_weave_09.png
+wait 80
+shot g_weave_10.png
+wait 80
+shot g_weave_11.png
+wait 80
+shot g_weave_12.png
+wait 80
+shot g_weave_13.png
+wait 80
+shot g_weave_14.png
+wait 80
+shot g_weave_15.png
+wait 80
+shot g_weave_16.png
+wait 80
+shot g_weave_17.png
+wait 80
+shot g_weave_18.png
+wait 80
+shot g_weave_19.png
+wait 80
+shot g_weave_20.png
+wait 80
+shot g_weave_21.png
+wait 80
+shot g_weave_22.png
+wait 80
+shot g_weave_23.png
+wait 80
+shot g_weave_24.png
+wait 80
+shot g_weave_25.png
+wait 80
+shot g_weave_26.png
+wait 80
+shot g_weave_27.png
+wait 80
+shot g_weave_28.png
+wait 80
+shot g_weave_29.png
+wait 80
+tap PLAY

@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 /* LOOM-8 effects (fx.h): the send slots and the master section.
  *
- * Send slots: each takes a mono send and adds a stereo return. The reverb is 9W9's (X0X's fxbus.c):
- * four int16 combs with damping in the loop and two allpasses a side, the right side reading the
- * combs with alternate signs; here the combs are circular buffers read at a modulated, interpolated
- * tap so "size" scales their lengths and "motion" wanders them (at a fixed 0.5 Hz), "damp" sets the
- * combs' damping, and "tone" filters the wet: a low-pass below the centre, a high-pass above it, flat
- * in the middle. The delay is a ping-pong over the two int16 lines, timed in divisions of the tempo
- * (1/32 to 1/2, dotted ones between) and slewed so a change of time warps instead of clicking (9W9
- * again), its repeats low-passed by "tone"; the chorus is the JP-8000's stepped, slewed triangle on
- * a short int16 line (NuSaw's); the lofi a sample-and-hold with a quantiser, "smooth" its anti-alias
+ * Send slots: each takes a mono send and adds a stereo return. The reverb's plate is a pre-delay, four
+ * diffusing allpasses and an eight-line feedback delay network in floats (do_reverb; until 2026-11 9W9's
+ * four int16 combs, X0X's fxbus.c, whose knobs it keeps): "size" scales its lines (and the pre-delay and the
+ * decay with them), "motion" wanders them (0.5 and 0.37 Hz), "damp" the damping in the loop, and "tone"
+ * filters the wet: a low-pass below the centre, a high-pass above it, flat in the middle. The delay is a
+ * ping-pong over the two int16 lines at half rate, timed in divisions of the tempo (1/32 to 1/2, dotted ones
+ * between) and slewed so a change of time warps instead of clicking (9W9 again), its repeats low-passed by
+ * "tone"; the chorus three voices a side on a short int16 line, swung by one sine a third of a turn apart
+ * (it was the JP-8000's stepped, slewed triangle, one voice); the lofi a sample-and-hold with a quantiser, "smooth" its anti-alias
  * filters, its "width" a stereo spread: the right side reads the lofi output back from the chorus's
  * idle line a few milliseconds late, the lateness wandering slowly; the phaser four first-order
  * allpasses a side, the right side's sweep a quarter turn behind. Every effect returns its wet sound
@@ -41,8 +41,12 @@
 #define SUB 32                                /* the block: parameter glides step here */
 #define GLIDE 0.07f                           /* a block's share of the distance: ~10 ms to settle */
 #define CHO_N 2048                            /* the chorus line: 46 ms (int16; the lofi's spread reads it too) */
-#define RV_MOD_HZ 0.5f                        /* the reverb's wander */
-#define RV_WET 0.8f                           /* the reverb's return level */
+#define CHO_V 3                               /* the chorus's voices a side */
+#define CHO_RSHIFT (2.0f * SR / 1000.0f)      /* the right's voices that much later at full width (the three voices
+                                               * average each side's swing out: this keeps the sides apart) */
+#define CHO_WET 0.5f                          /* (three voices: their sum, at about the one voice's level) */
+#define RV_WET 0.8f                           /* lush's return level */
+#define PL_WET 0.62f                          /* the plate's */
 #define LOFI_SPREAD 480.0f                    /* width 127: the right side ~11 ms behind the left */
 
 static void zero16(int16_t *b, int32_t n);
@@ -59,11 +63,12 @@ static const char *const FXT_KNOB[NFXT][4] = {
 static const char *const SPU_KNOB[4] = {"size", "decay", "tone", "damp"};
 /* the defaults, 0..127 (what each gives: fx_derive's mappings) */
 const uint8_t FXT_DEFAULT[NFXT][4] = {
-    {50, 86, 20, 127},                        /* chorus      0.33 Hz, +-5.5 ms, feedback 0.11, fully wide */
+    {50, 86, 20, 127},                        /* chorus      0.33 Hz, +-5.5 ms (three voices), feedback 0.11, fully wide */
     {72, 64, 56, 64},                         /* delay       1/8, on the beat, feedback 0.42 (~4 repeats), 4 kHz */
     {80, 80, 64, 40},                         /* lofi        8.4 kHz, 10.8 bits, half smoothed, 3.4 ms spread */
     {50, 90, 50, 80},                         /* phaser      466 Hz, +-2.1 octaves, 0.27 Hz, feedback 0.57 */
-    {100, 40, 44, 72},                        /* plate       combs x1.43, 2.4 samples of wander, 7.4 kHz, damp 0.45 */
+    {100, 40, 44, 72},                        /* plate       lines x1.43 (pre-delay 18 ms, ~1.5 s), 2.4 samples of
+                                               *             wander, 7.4 kHz, damp 0.45 */
 };
 const uint8_t RV_SPU_DEFAULT[4] = {127, 64, 64, 0};   /* the console's sizes, its decay, flat, its own filter */
 const uint8_t RV_LUSH_DEFAULT[4] = {64, 64, 56, 48};  /* (fx.h) */
@@ -80,13 +85,30 @@ const char *fx_knob_name(int pick, int k)
     return t == FXT_REVERB && fx_pick_mode(pick) != RV_PLATE ? SPU_KNOB[k] : FXT_KNOB[t][k];
 }
 
-/* the reverb's lines inside the int16 buffer: 9W9's comb lengths, each with room to grow 1.9x,
- * and its four allpasses (left 556 / 441, right 579 / 457) */
-static const int32_t RV_COMB[4] = {1116, 1188, 1277, 1356};
-static const int32_t RV_CAP[4] = {2125, 2262, 2431, 2581};
-static const int32_t RV_AP[4] = {556, 441, 579, 457};
-#define RV_AP0 (2125 + 2262 + 2431 + 2581)
-_Static_assert(RV_AP0 + 556 + 441 + 579 + 457 <= FX_RV_LEN, "the reverb's lines do not fit FX_RV_LEN");
+/* the plate: floats on the reverb line (FX_RV_LEN int16 = PL_RING floats: one ring whose base moves a sample a
+ * sample, as lush's), its lines in order: the pre-delay, four input diffusers (Dattorro's lengths, as samples at 44.1 kHz), then the eight
+ * lines of the feedback network, each with room for the largest size (x1.9) and the wander (24 samples) */
+#define PL_RING (FX_RV_LEN / 2)
+#define PL_MASK (PL_RING - 1)
+#define PL_PRE_MIN 265.0f                     /* the pre-delay at size 0: 6 ms, so the second core's lag (256) hides in it */
+#define PL_PRE_MAX 1058.0f                    /* .. at size 127: 24 ms */
+#define PL_LREF 920.0f                        /* the lines decay as the old combs did at a feedback (measured: their tails) */
+#define PL_SLEEP 16384                        /* quiet samples (in and out under -120 dB) before the plate sleeps */
+static const float PL_TAPF[8] = {0.43f, 0.61f, 0.29f, 0.53f, 0.37f, 0.67f, 0.47f, 0.31f};
+static const int32_t PL_DIF[4] = {142, 107, 379, 277};
+static const float PL_DIFG[4] = {0.75f, 0.75f, 0.625f, 0.625f};
+static const float PL_LEN[8] = {563.0f, 647.0f, 733.0f, 829.0f, 919.0f, 1013.0f, 1129.0f, 1201.0f};
+enum { PO_PRE = 0, PO_D0 = 1088, PO_D1 = PO_D0 + 143, PO_D2 = PO_D1 + 108, PO_D3 = PO_D2 + 380, PO_L0 = PO_D3 + 278 };
+static const int32_t PL_OFF[8] = {PO_L0, PO_L0 + 1097, PO_L0 + 2354, PO_L0 + 3774, PO_L0 + 5377, PO_L0 + 7151,
+                                  PO_L0 + 9103, PO_L0 + 11276};   /* (each line 1.9 x its length + 27) */
+_Static_assert(PO_L0 + 11276 + 2309 <= PL_RING, "the plate's lines do not fit FX_RV_LEN");
+_Static_assert((PL_RING & PL_MASK) == 0, "the plate's ring must be a power of two");
+typedef struct {
+    uint32_t base;
+    int32_t clear, quiet;             /* samples of the line still to clear (another mode ran on it); quiet samples */
+    float d[8], z[8], g[8], gfb;      /* the lines' read delays (gliding), their damping, their gains (at feedback gfb) */
+    float hp, tl[2], th[2], ph1, ph2; /* the send's high-pass, the tone a side, the wander's two phases */
+} plate_t;
 /* the delay's times in sixteenths: 1/32, 1/32D, 1/16, 1/16D, 1/8, 1/8D, 1/4, 1/2 (dotted = 1.5x) */
 static const float DL_DIV[8] = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 8.0f};
 
@@ -105,9 +127,29 @@ typedef struct {
     int32_t len[NLU];                 /* the lines' lengths at the size now, 22.05 kHz samples */
     uint32_t base;
     int32_t clear, quiet;             /* (as the SPU's) */
-    float lp, hold, lfo, dmp[2], fb[2], prev[2], cur[2], tl, th, tr, thr, scale;
-    uint8_t phase;
+    float lfo, dmp[2], fb[2], out[2][2], tl, th, tr, thr, scale;
+    float in[128];                    /* the decimator's input and the interpolators' (psxrev.h's half-band FIR, as the */
+    float up[2][64];                  /* SPU modes': rings written twice, so the taps read them without a mask) */
+    uint8_t phase, ip, up_w;
 } lush_t;
+
+/* the delay's FIRs: the decimator, a half-band (11 taps: -0.2 dB at 8 kHz, -3 at 10, 17 dB down at 13 kHz and 28 or more
+ * above 14; the pair's mean it replaces: 4 dB down at 13 kHz), and the midpoint between two slots that a read falls
+ * between (4 slots: within +0.5 / -2.8 dB to 8 kHz; a straight line: -7.6 dB at 8 kHz). The decimator's input at 44.1 kHz (the send's), written twice so the taps read
+ * it without a mask (in the reverb's union: a slot runs one effect) */
+static const float DL_HB[3] = {0.29933f, -0.08493f, 0.0356f};   /* the decimator: 11 taps, Kaiser beta 2 */
+static const float DL_MID[2] = {0.61f, -0.11f};       /* the midpoint: 4 slots (within +0.5 / -2.8 dB to 8 kHz) */
+#define DL_PH 2.0f                            /* the read's place against the slot being written: its decimator's
+                                               * 5 samples behind */
+typedef struct {
+    float ix[32];                             /* the send, for its decimator */
+    float fn[2], ft[2], q1[2], q2[2];         /* the repeats (left, right: they come off the line already under 11 kHz):
+                                               * the last frame's, the last tick's; 1/4 1/2 1/4 of them, a tick and two
+                                               * ago (so they meet the send at its centre, 5 frames back) */
+    float vl[3], vr[3];                       /* each line at the read: slot ms, the midpoint after it, the next slot */
+    int32_t ms;
+    uint8_t ip;
+} dly_t;
 
 struct fxslot {
     int16_t cho[CHO_N];
@@ -120,21 +162,22 @@ struct fxslot {
     float hpc, lpc, hps, lps;                 /* the filter page */
     /* chorus */
     int32_t cw;
-    float cph, cs1, cs2, chl, chr, cfbz;
+    float cph, cm[CHO_V], chl, chr, cfbz;    /* the LFO's phase, each voice's swing (samples) at the block's start */
     /* delay */
     int32_t dw, dquiet, dph;                  /* (the line at half rate: dph, the pair's second frame) */
-    float dcur, dlpl, dlpr, dal, dar;         /* (the pair being summed into the slot at dw) */
+    float dcur, dlpl, dlpr;
     float dwa, dwb;                           /* PING WIDTH: a side's echo into its own side, into the other (fx_width) */
     /* lofi */
     float lph, lhold, lin1, lout1, lwph;
     /* phaser */
     float pxl[4], pyl[4], pxr[4], pyr[4], pph, pzl, pzr, pal, par_;
     /* reverb */
-    int32_t cpos[4], apos[4], rquiet;
-    float cdmp[4], cd[4], rph, rhp, rtl[2], rtr[2];   /* rtl / rtr: the tone's low-pass and high-pass a side */
-    union {                                   /* the SPU reverb or lush (one mode at a time: fx_states) */
+    uint8_t rv_dirty;                         /* another reverb mode ran on the line: the next one clears it first */
+    union {                                   /* the plate, the SPU reverb or lush (one mode at a time: fx_states) */
+        plate_t pl;
         spu_t spu;
         lush_t lu;
+        dly_t dy;                             /* (the delay's, while the slot runs the delay) */
     };
 };
 _Static_assert(sizeof(struct fxslot) <= FXSLOT_BYTES, "fxslot_t does not fit FXSLOT_BYTES");
@@ -159,23 +202,29 @@ static void fx_states(fxslot_t *f)              /* a fresh effect: its states at
 {
     int i;
     zero16(f->cho, CHO_N);
-    f->cw = 0; f->cph = 0.0f; f->cs1 = f->cs2 = f->chl = f->chr = f->cfbz = 0.0f;
+    f->cw = 0; f->cph = 0.0f; f->chl = f->chr = f->cfbz = 0.0f;
+    for (i = 0; i < CHO_V; i++)
+        f->cm[i] = f->pt[1] * fm_sin_turns((float)i * (1.0f / CHO_V));
     f->dw = 0; f->dquiet = 2 * FX_DLY_LEN; f->dlpl = f->dlpr = 0.0f;
-    f->dph = 0; f->dal = f->dar = 0.0f;
+    f->dph = 0;
     f->dcur = f->pt[0];                       /* a new delay starts on time (the slew is for changes) */
     f->lph = f->lhold = f->lin1 = f->lout1 = f->lwph = 0.0f;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++)
         f->pxl[i] = f->pyl[i] = f->pxr[i] = f->pyr[i] = 0.0f;
-        f->cpos[i] = f->apos[i] = 0;
-        f->cdmp[i] = 0.0f;
-        f->cd[i] = f->pt[0] * (float)RV_COMB[i];
-    }
     f->pph = 0.0f; f->pzl = f->pzr = 0.0f; f->pal = f->par_ = 0.0f;
-    f->rquiet = FX_RV_LEN; f->rph = f->rhp = 0.0f;
-    f->rtl[0] = f->rtl[1] = f->rtr[0] = f->rtr[1] = 0.0f;
     for (i = 0; i < 6; i++)
         f->pc[i] = f->pt[i];
-    if (f->mode != RV_LUSH) {
+    if (f->mode == RV_PLATE) {
+        plate_t *p = &f->pl;
+        uint8_t *z = (uint8_t *)p;
+        for (i = 0; i < (int)sizeof *p; i++)
+            z[i] = 0;
+        p->clear = f->rv_dirty ? FX_RV_LEN : 0;   /* (a line fx_set or fx_clear zeroed needs no clearing) */
+        p->quiet = PL_SLEEP;
+        p->gfb = -1.0f;                           /* (the gains computed at the first block) */
+        for (i = 0; i < 8; i++)
+            p->d[i] = f->pt[0] * PL_LEN[i];
+    } else if (f->mode != RV_LUSH) {
         spu_reset(&f->spu, f->mode);
     } else {
         lush_t *u = &f->lu;
@@ -184,6 +233,12 @@ static void fx_states(fxslot_t *f)              /* a fresh effect: its states at
             z[i] = 0;
         u->clear = FX_RV_LEN;
         u->quiet = FX_RV_LEN * 2;
+    }
+    if (f->type == FXT_DELAY) {               /* (the union is the delay's FIRs, not a reverb's: at rest) */
+        uint8_t *z = (uint8_t *)&f->dy;
+        for (i = 0; i < (int)sizeof f->dy; i++)
+            z[i] = 0;
+        f->dy.ms = -1;
     }
 }
 
@@ -254,12 +309,12 @@ static void fx_derive(fxslot_t *f)
             f->pt[4] = 0.0f;
             break;
         }
-        f->pt[0] = 0.5f * fm_exp2f(a * 1.926f);                       /* size: the combs x 0.5 .. 1.9 */
+        f->pt[0] = 0.5f * fm_exp2f(a * 1.926f);                       /* size: the lines x 0.5 .. 1.9 */
         f->pt[1] = 24.0f * b * b;                                     /* motion, samples of wander */
         /* tone: below the centre a low-pass closes to 800 Hz, above it a high-pass opens to 2 kHz */
         f->pt[2] = c < 0.5f ? onepole_k(20000.0f * fm_exp2f(-(0.5f - c) * 9.29f)) : 1.0f;
         f->pt[5] = c > 0.5f ? onepole_k(20.0f * fm_exp2f((c - 0.5f) * 13.29f)) : 0.0f;
-        f->pt[3] = 0.8f * d;                                          /* damp: the combs' damping */
+        f->pt[3] = 0.8f * d;                                          /* damp: the lines' damping */
         f->pt[4] = 0.55f + 0.42f * a;                                 /* the loop's feedback: decay with size */
         break;
     default:
@@ -273,6 +328,8 @@ void fx_init(fxslot_t *f, int16_t *dly_l, int16_t *dly_r, int16_t *rv)
     uint8_t *z = (uint8_t *)f;
     for (i = 0; i < sizeof *f; i++)
         z[i] = 0;
+    if ((uintptr_t)rv & 3u)                   /* (the plate keeps floats on the line: fx.h asks for 4-byte alignment) */
+        rv = 0;
     f->dl = dly_l;
     f->dr = dly_r;
     f->rv = rv;
@@ -298,6 +355,7 @@ void fx_clear(fxslot_t *f)
     if (f->dr) zero16(f->dr, FX_DLY_LEN);
     if (f->rv) zero16(f->rv, FX_RV_LEN);
     f->hps = f->lps = 0.0f;
+    f->rv_dirty = 0;
     fx_states(f);
 }
 
@@ -374,23 +432,33 @@ static inline float cho_tap(const fxslot_t *f, float p)      /* the short line, 
 /* lag (fx_process_lag): the send arrives that many samples late; the effects with a line take it back by writing
  * the send that far into the line's past (a slot not read yet: every tap reads further back), so their output is
  * where it would have been, but for the line's rounding: the delay and the chorus add it to the feedback already
- * there (one int16 rounding more, and the delay's soft clip on the sum read back), the plate's combs likewise (its
- * 12 bits) */
+ * there (one int16 rounding more, and the delay's soft clip on the sum read back); the plate writes it into its
+ * pre-delay's past (floats: the same output, sample for sample) */
 static inline int16_t add16(int16_t a, float x)                /* a + x on the int16 line (x in its units) */
 {
     float v = (float)a + x * 16384.0f;
     return (int16_t)(v > 32767.0f ? 32767.0f : v < -32767.0f ? -32767.0f : v);
 }
+/* the chorus: three voices a side on the one line, each a tap swung by the same sine a third of a turn apart (so the
+ * three never meet, and their sum stays level); the right's voices swing by "width": the left's (0), none (64), the
+ * left's mirrored (127). The sine is computed a block and followed in straight lines between (at 6 Hz a block is a
+ * 230th of a turn): the rate is the rate, with no stepping and no slew to blunt it */
 static void do_chorus(fxslot_t *f, const float *x, float *ol, float *orr, int m, int lag)
 {
-    const float inc = f->pc[0] / SR, range = f->pc[1], fb = f->pc[2], side = 1.0f - 2.0f * f->pc[3];
-    const float centre = 15.0f * (SR / 1000.0f), slew = 1.0f - fm_expf(-1.0f / (0.070f * SR));
+    const float range = f->pc[1], fb = f->pc[2], side = 1.0f - 2.0f * f->pc[3], im = 1.0f / (float)m;
+    const float centre = 15.0f * (SR / 1000.0f), cr = f->pc[3] * CHO_RSHIFT;
     const float hpk = 0.028f;                 /* ~200 Hz: the wet without its lows */
-    float ph = f->cph, s1 = f->cs1, s2 = f->cs2, hl = f->chl, hr = f->chr, fz = f->cfbz;
+    float ph = f->cph, hl = f->chl, hr = f->chr, fz = f->cfbz, m0 = f->cm[0], m1 = f->cm[1], m2 = f->cm[2], d0, d1, d2;
     int32_t w = f->cw;
     int i;
+    ph += f->pc[0] * (float)m / SR;
+    if (ph >= 1.0f)
+        ph -= 1.0f;
+    d0 = (range * fm_sin_turns(ph) - m0) * im;
+    d1 = (range * fm_sin_turns(ph + (1.0f / 3.0f)) - m1) * im;
+    d2 = (range * fm_sin_turns(ph + (2.0f / 3.0f)) - m2) * im;
     for (i = 0; i < m; i++) {
-        float tri, st, pl, pr, wl, wr;
+        float c, wl, wr;
         if (lag) {
             f->cho[w] = f16(fz * fb);
             f->cho[(w - lag) & (CHO_N - 1)] = add16(f->cho[(w - lag) & (CHO_N - 1)], x[i]);
@@ -398,89 +466,116 @@ static void do_chorus(fxslot_t *f, const float *x, float *ol, float *orr, int m,
             f->cho[w] = f16(x[i] + fz * fb);
         }
         w = (w + 1) & (CHO_N - 1);
-        tri = 2.0f * fm_fabsf(2.0f * ph - 1.0f) - 1.0f;     /* the JP's stepped triangle */
-        ph += inc;
-        if (ph >= 1.0f)
-            ph -= 1.0f;
-        st = fm_floorf(tri * 4.0f + 0.5f) * 0.25f;
-        s1 += (st - s1) * slew;
-        s2 += (s1 - s2) * slew;
-        pl = (float)w - (centre + s2 * range);
-        pr = (float)w - (centre + s2 * range * side);
-        if (pl < 0.0f) pl += CHO_N;
-        if (pr < 0.0f) pr += CHO_N;
-        wl = cho_tap(f, pl);
-        wr = cho_tap(f, pr);
-        fz = wl;
+        m0 += d0;
+        m1 += d1;
+        m2 += d2;
+        c = (float)(w + CHO_N) - centre;      /* (a line's length on: every tap reads at a positive place) */
+        wl = cho_tap(f, c - m0) + cho_tap(f, c - m1) + cho_tap(f, c - m2);
+        c -= cr;
+        wr = cho_tap(f, c - side * m0) + cho_tap(f, c - side * m1) + cho_tap(f, c - side * m2);
+        fz = wl * (1.0f / CHO_V);
         hl += (wl - hl) * hpk;
         hr += (wr - hr) * hpk;
-        ol[i] += (wl - hl) * 0.85f;
-        orr[i] += (wr - hr) * 0.85f;
+        ol[i] += (wl - hl) * CHO_WET;
+        orr[i] += (wr - hr) * CHO_WET;
     }
-    f->cph = ph; f->cs1 = s1; f->cs2 = s2; f->chl = fm_flush(hl); f->chr = fm_flush(hr); f->cfbz = fz;
+    f->cph = ph; f->cm[0] = m0; f->cm[1] = m1; f->cm[2] = m2;
+    f->chl = fm_flush(hl); f->chr = fm_flush(hr); f->cfbz = fz;
     f->cw = w;
 }
 
-static inline float tap16(const int16_t *b, float rp)
+/* the delay: its lines at half rate (22.05 kHz). The send goes in through DL_HB (it was a pair's mean: what was above
+ * 11 kHz folded back into the echoes; the repeats, already under it, go in through three taps), and a read is made at 44.1 kHz: the slots are the even samples of
+ * the band-limited signal, the odd ones the FIR's midpoints between them (one a tick, as the read moves along), and a
+ * straight line goes between those two (it was a straight line between slots: an echo between them lost its top,
+ * 7 dB at 8 kHz, and kept images above 11 kHz). So a change of time still warps smoothly, and the echoes land on the
+ * beat (the decimator's 7 samples are taken off the read). The repeats are low-passed by the tone, 4 kHz by default */
+static inline float dl_dec(const float *z)    /* the decimator around its centre z[0] (z[-5..5]) */
 {
-    int32_t i0 = (int32_t)rp, i1;
-    float fr = rp - (float)i0, a, c;
-    if (i0 >= FX_DLY_LEN) i0 -= FX_DLY_LEN;
-    i1 = i0 + 1 >= FX_DLY_LEN ? 0 : i0 + 1;
-    a = s16f(b[i0]);
-    c = s16f(b[i1]);
-    return a + (c - a) * fr;
+    return 0.5f * z[0] + DL_HB[0] * (z[-1] + z[1]) + DL_HB[1] * (z[-3] + z[3]) + DL_HB[2] * (z[-5] + z[5]);
 }
-
-/* the delay: its lines at half rate (22.05 kHz: a slot a pair of frames, their mean; the repeats low-passed by the
- * tone, at 4 kHz by default, so the 11 kHz the line keeps is enough), read at the frame's own place between slots */
+static inline void dl_mid(const int16_t *b, int32_t s, float *v)   /* slots s, s + 1 and the line between them */
+{
+    int32_t i0 = s - 1, i2 = s + 1, i3 = s + 2;
+    if (i0 < 0) i0 += FX_DLY_LEN;
+    if (i2 >= FX_DLY_LEN) i2 -= FX_DLY_LEN;
+    if (i3 >= FX_DLY_LEN) i3 -= FX_DLY_LEN;
+    v[0] = s16f(b[s]);
+    v[2] = s16f(b[i2]);
+    v[1] = DL_MID[0] * (v[0] + v[2]) + DL_MID[1] * (s16f(b[i0]) + s16f(b[i3]));
+}
 static void do_delay(fxslot_t *f, const float *x, float *ol, float *orr, int m, int any, int lag)
 {
+    dly_t *y = &f->dy;
     const float target = f->pt[0], fb = f->pc[2], tc = f->pc[3], wa = f->dwa, wb = f->dwb;
-    float dcur = f->dcur, lpl = f->dlpl, lpr = f->dlpr, al = f->dal, ar = f->dar;
-    int32_t w = f->dw, quiet = f->dquiet, ph = f->dph;
+    float dcur = f->dcur, lpl = f->dlpl, lpr = f->dlpr;
+    float fnl = y->fn[0], fnr = y->fn[1], ftl = y->ft[0], ftr = y->ft[1], q1l = y->q1[0], q1r = y->q1[1], q2l = y->q2[0],
+          q2r = y->q2[1];
+    int32_t w = f->dw, quiet = f->dquiet, ph = f->dph, ms = y->ms;
+    uint32_t ip = y->ip;
     int i;
     if (!any && quiet >= 2 * FX_DLY_LEN) {    /* silent in, an empty line: time moves on, nothing to read */
         w += (ph + m) >> 1;
         f->dph = (ph + m) & 1;
         f->dw = w % FX_DLY_LEN;
-        f->dal = f->dar = 0.0f;
         f->dcur += (target - dcur) * (1.0f - fm_expf(-0.0008f * (float)m));
+        y->ms = -1;                           /* (the midpoint taken afresh when it wakes) */
         return;
     }
     for (i = 0; i < m; i++) {
-        float rp, tl, tr, a, b;
+        float rp, fr, tl, tr, a, b;
+        int32_t s0, k;
         dcur += (target - dcur) * 0.0008f;
-        rp = (float)w + 0.5f * (float)ph - 0.5f * dcur;
+        rp = (float)w + 0.5f * (float)ph + DL_PH - 0.5f * dcur;   /* the read, in slots */
         if (rp < 0.0f)
             rp += (float)FX_DLY_LEN;
-        tl = tap16(f->dl, rp);
-        tr = tap16(f->dr, rp);
+        s0 = (int32_t)rp;
+        fr = 2.0f * (rp - (float)s0);
+        if (s0 >= FX_DLY_LEN)
+            s0 -= FX_DLY_LEN;
+        if (s0 != ms) {                       /* the read moved on: its slots and the midpoints between */
+            dl_mid(f->dl, s0, y->vl);
+            dl_mid(f->dr, s0, y->vr);
+            ms = s0;
+        }
+        k = fr < 1.0f ? 0 : 1;                /* between the slot and the midpoint, or the midpoint and the next */
+        fr -= (float)k;
+        tl = y->vl[k] + fr * (y->vl[k + 1] - y->vl[k]);
+        tr = y->vr[k] + fr * (y->vr[k + 1] - y->vr[k]);
         lpl += tc * (tl - lpl);               /* tone: the repeats darken */
         lpr += tc * (tr - lpr);
-        a = (lag ? 0.0f : x[i]) + lpr * fb;   /* ping-pong: the send and the right into the left, */
-        b = lpl * fb;                         /* the left into the right */
-        if (a > 1.0f || a < -1.0f) a = fm_tanhf(a);
-        if (b > 1.0f || b < -1.0f) b = fm_tanhf(b);
-        al += a;
-        ar += b;
-        if (lag) {                            /* the send into the line's past (not read yet: the time is longer) */
-            int32_t p = w - ((lag + 1) >> 1);
-            float v;
-            if (p < 0)
-                p += FX_DLY_LEN;
-            v = s16f(f->dl[p]) + 0.5f * x[i];
-            if (v > 1.0f || v < -1.0f) v = fm_tanhf(v);
-            f->dl[p] = f16(v);
-        }
-        if (ph) {                             /* the pair's second frame: its mean into the slot */
-            int16_t ka = f16(0.5f * al), kb = f16(0.5f * ar);
-            f->dl[w] = ka;
-            f->dr[w] = kb;
+        y->ix[ip] = y->ix[ip + 16u] = x[i];
+        ip = (ip + 1u) & 15u;
+        if (ph) {                             /* the pair's second frame: into the slot */
+            float xd = dl_dec(y->ix + ip + 10u), cl, cr;
+            int16_t ka, kb;
+            cl = 0.25f * (ftl + lpr) + 0.5f * fnl;   /* ping-pong: the right into the left (and the send), */
+            cr = 0.25f * (ftr + lpl) + 0.5f * fnr;   /* the left into the right */
+            ftl = lpr;
+            ftr = lpl;
+            a = (lag ? 0.0f : xd) + fb * q2l;
+            b = fb * q2r;
+            q2l = q1l; q1l = cl;
+            q2r = q1r; q1r = cr;
+            if (a > 1.0f || a < -1.0f) a = fm_tanhf(a);
+            if (b > 1.0f || b < -1.0f) b = fm_tanhf(b);
+            f->dl[w] = ka = f16(a);
+            f->dr[w] = kb = f16(b);
+            if (lag) {                        /* the send into the line's past (not read yet: the time is longer) */
+                int32_t p = w - (lag >> 1);
+                float v;
+                if (p < 0)
+                    p += FX_DLY_LEN;
+                v = s16f(f->dl[p]) + xd;
+                if (v > 1.0f || v < -1.0f) v = fm_tanhf(v);
+                f->dl[p] = f16(v);
+            }
             quiet = (ka == 0 && kb == 0 && x[i] == 0.0f) ? quiet + 2 : 0;
-            al = ar = 0.0f;
             if (++w >= FX_DLY_LEN)
                 w = 0;
+        } else {
+            fnl = lpr;
+            fnr = lpl;
         }
         ph ^= 1;
         ol[i] += wa * tl + wb * tr;           /* PING WIDTH: at full width wa 1, wb 0, the sides as they are */
@@ -488,8 +583,10 @@ static void do_delay(fxslot_t *f, const float *x, float *ol, float *orr, int m, 
     }
     f->dw = w;
     f->dph = ph;
-    f->dal = al;
-    f->dar = ar;
+    y->ip = (uint8_t)ip;
+    y->fn[0] = fnl; y->fn[1] = fnr; y->ft[0] = ftl; y->ft[1] = ftr;
+    y->q1[0] = q1l; y->q1[1] = q1r; y->q2[0] = q2l; y->q2[1] = q2r;
+    y->ms = ms;
     f->dcur = dcur;
     f->dlpl = fm_flush(lpl);
     f->dlpr = fm_flush(lpr);
@@ -569,124 +666,139 @@ static void do_phaser(fxslot_t *f, const float *x, float *ol, float *orr, int m)
     f->pal = al; f->par_ = ar; f->pzl = zl; f->pzr = zr;
 }
 
+/* the plate: the send high-passed (~120 Hz) into a pre-delay that grows with the size (6 .. 24 ms), four allpasses
+ * that diffuse it (Dattorro's input diffusers, his lengths as 44.1 kHz samples), then an eight-line feedback delay
+ * network: each line read between samples at its length (x size) wandering by "motion" (two slow sines, 0.5 and
+ * 0.37 Hz, each line at its own phase), damped by a one-pole in the loop ("damp", as the combs were), scaled so it
+ * decays as the old combs did at the same feedback (a project's size keeps its tail), mixed by an 8-point Hadamard and
+ * written back with the diffused send. The left reads the even lines part-way along, the right the odd ones: two
+ * decorrelated sides from the mono send (echo density: the combs' never passed half a noise's; this is noise's from
+ * 50 ms on). The lines are floats
+ * (two int16 slots each), so the tail falls into silence smoothly, with no 12-bit floor; a constant 1e-18 on the send
+ * keeps them clear of denormals. A lag goes into the pre-delay's past (at least 6 ms, the second core's 256 frames
+ * fit): the output is as without it, sample for sample */
+#define PL_RD(o) r[(b + (uint32_t)(o)) & PL_MASK]
+#define PL_AP(o, len, gg)                                                                     \
+    do {                                                                                       \
+        float d_ = PL_RD((o) + (len)), v_ = s - (gg) * d_;                                    \
+        PL_RD(o) = v_;                                                                         \
+        s = d_ + (gg) * v_;                                                                    \
+    } while (0)
+#define PL_TAP(k)                                                                             \
+    do {                                                                                       \
+        int32_t n_;                                                                            \
+        float fr_, a0_;                                                                        \
+        d[k] += dd[k];                                                                         \
+        n_ = (int32_t)d[k];                                                                    \
+        fr_ = d[k] - (float)n_;                                                                \
+        a0_ = PL_RD(PL_OFF[k] + n_);                                                           \
+        v[k] = a0_ + fr_ * (PL_RD(PL_OFF[k] + n_ + 1) - a0_);                                 \
+        z[k] = v[k] + (z[k] - v[k]) * damp;                                                    \
+        h[k] = g[k] * z[k];                                                                    \
+    } while (0)
 static void do_reverb(fxslot_t *f, const float *x, float *ol, float *orr, int m, int any, int lag)
 {
-    const float damp = f->pc[3], fb = f->pc[4], hpk = 0.017f;                          /* ~120 Hz on the send */
-    const float tlk = f->pc[2], thk = f->pc[5];                                        /* the tone's filters */
-    float cdd[4], cd[4], cdmp[4], hp = f->rhp, tl0 = f->rtl[0], tl1 = f->rtl[1], th0 = f->rtr[0], th1 = f->rtr[1];
-    int16_t *cb[4], *ab[4];
-    int32_t cp[4], ap[4], quiet = f->rquiet;
-    int c, i;
-    if (!any && quiet >= FX_RV_LEN)
+    plate_t *p = &f->pl;
+    float *const r = (float *)(void *)f->rv;
+    const float damp = f->pc[3], hpk = 0.017f, tlk = f->pc[2], thk = f->pc[5], im = 1.0f / (float)m;
+    float d[8], dd[8], z[8], g[8], hp = p->hp, tl0 = p->tl[0], tl1 = p->tl[1], th0 = p->th[0], th1 = p->th[1], e = 0.0f;
+    uint32_t b = p->base;
+    int32_t pre, lo, tp[8];
+    int i, k;
+    if (p->clear > 0) {                       /* the last mode's work emptied first, silent meanwhile */
+        int32_t c = p->clear > SPU_CLEAR ? SPU_CLEAR : p->clear;
+        zero16(f->rv + (FX_RV_LEN - p->clear), c);
+        p->clear -= c;
         return;
-    f->rph += RV_MOD_HZ * (float)m / SR;
-    if (f->rph >= 1.0f)
-        f->rph -= 1.0f;
-    cb[0] = f->rv;
-    for (c = 0; c < 4; c++) {                 /* where each comb's tap wants to be: size, then the wander */
-        float d = f->pc[0] * (float)RV_COMB[c] + f->pc[1] * fm_sin_turns(f->rph + 0.25f * (float)c);
-        d = fm_clampf(d, 8.0f, (float)(RV_CAP[c] - 3));
-        cd[c] = f->cd[c];
-        cdd[c] = (d - cd[c]) / (float)m;
-        cdmp[c] = f->cdmp[c];
-        cp[c] = f->cpos[c];
-        ap[c] = f->apos[c];
-        if (c)
-            cb[c] = cb[c - 1] + RV_CAP[c - 1];
     }
-    ab[0] = f->rv + RV_AP0;
-    ab[1] = ab[0] + RV_AP[0];
-    ab[2] = ab[1] + RV_AP[1];
-    ab[3] = ab[2] + RV_AP[2];
-    {   /* the four combs and four allpasses unrolled, every state a local (the same operations, in the same order) */
-        int16_t *const b0 = cb[0], *const b1 = cb[1], *const b2 = cb[2], *const b3 = cb[3];
-        int16_t *const a0 = ab[0], *const a1 = ab[1], *const a2 = ab[2], *const a3 = ab[3];
-        float cd0 = cd[0], cd1 = cd[1], cd2 = cd[2], cd3 = cd[3];
-        const float dd0 = cdd[0], dd1 = cdd[1], dd2 = cdd[2], dd3 = cdd[3];
-        float m0 = cdmp[0], m1 = cdmp[1], m2 = cdmp[2], m3 = cdmp[3];
-        int32_t p0 = cp[0], p1 = cp[1], p2 = cp[2], p3 = cp[3], q0 = ap[0], q1 = ap[1], q2 = ap[2], q3 = ap[3];
-#define LAG lag
-#define RV_COMB_STEP(B, CAP, CD, DD, MD, P, NEG)                                              \
-        do {                                                                                   \
-            float rp_, a_, bb_, v_;                                                           \
-            int32_t i0_, i1_, k_;                                                             \
-            CD += DD;                                                                          \
-            rp_ = (float)P - CD;                                                               \
-            if (rp_ < 0.0f)                                                                    \
-                rp_ += (float)(CAP);                                                           \
-            i0_ = (int32_t)rp_;                                                                \
-            i1_ = i0_ + 1 >= (CAP) ? 0 : i0_ + 1;                                             \
-            a_ = (float)B[i0_];                                                                \
-            bb_ = (float)B[i1_];                                                               \
-            v_ = (a_ + (bb_ - a_) * (rp_ - (float)i0_)) * (1.0f / 2048.0f);                   \
-            acc += v_;                                                                         \
-            accr += NEG ? -v_ : v_;                                                            \
-            MD = v_ + (MD - v_) * damp;                                                        \
-            if (LAG) {                        /* the send into the comb's past, its feedback here */ \
-                int32_t q_ = P - LAG < 0 ? P - LAG + (CAP) : P - LAG, j_;                     \
-                k_ = (int32_t)(MD * fb * 2048.0f);                                             \
-                j_ = (int32_t)B[q_] + (int32_t)(y * 2048.0f);                                  \
-                j_ = j_ > 32767 ? 32767 : j_ < -32767 ? -32767 : j_;                           \
-                B[q_] = (int16_t)j_;                                                           \
-                wr |= j_;                                                                      \
-            } else {                                                                           \
-                k_ = (int32_t)((y + MD * fb) * 2048.0f);   /* 12 bits in the loop, as 9W9 */   \
-            }                                                                                  \
-            if (k_ > 32767) k_ = 32767;                                                        \
-            if (k_ < -32767) k_ = -32767;                                                      \
-            B[P] = (int16_t)k_;                                                                \
-            wr |= k_;                                                                          \
-            P = P + 1 >= (CAP) ? 0 : P + 1;                                                    \
-        } while (0)
-#define RV_AP_STEP(B, LEN, Q, S)                                                              \
-        do {                                                                                   \
-            float bo_ = (float)B[Q] * (1.0f / 2048.0f), nv_ = (S + bo_ * 0.5f) * 2048.0f;     \
-            B[Q] = (int16_t)fm_clampf(nv_, -32767.0f, 32767.0f);                              \
-            S = bo_ - S * 0.5f;                                                                \
-            Q = Q + 1 >= (LEN) ? 0 : Q + 1;                                                    \
-        } while (0)
-        for (i = 0; i < m; i++) {
-            float acc = 0.0f, accr = 0.0f, y, yr;
-            int32_t wr = 0;
-            hp += hpk * (x[i] - hp);
-            y = x[i] - hp;
-            RV_COMB_STEP(b0, RV_CAP[0], cd0, dd0, m0, p0, 0);
-            RV_COMB_STEP(b1, RV_CAP[1], cd1, dd1, m1, p1, 1);
-            RV_COMB_STEP(b2, RV_CAP[2], cd2, dd2, m2, p2, 0);
-            RV_COMB_STEP(b3, RV_CAP[3], cd3, dd3, m3, p3, 1);
-            y = acc * 0.25f;
-            yr = accr * 0.25f;
-            RV_AP_STEP(a0, RV_AP[0], q0, y);       /* two allpasses a side, int16 */
-            RV_AP_STEP(a1, RV_AP[1], q1, y);
-            RV_AP_STEP(a2, RV_AP[2], q2, yr);
-            RV_AP_STEP(a3, RV_AP[3], q3, yr);
-            tl0 += tlk * (y - tl0);           /* the tone: a low-pass (k = 1 passes), then a high-pass (k = 0 passes) */
-            tl1 += tlk * (yr - tl1);
-            th0 += thk * (tl0 - th0);
-            th1 += thk * (tl1 - th1);
-            ol[i] += (tl0 - th0) * RV_WET;
-            orr[i] += (tl1 - th1) * RV_WET;
-            quiet = (wr == 0 && x[i] == 0.0f) ? quiet + 1 : 0;
+    if (!any && p->quiet >= PL_SLEEP)         /* silent in, the tail under -120 dB: nothing to do */
+        return;
+    if (f->pc[4] != p->gfb) {                 /* the lines' gains: feedback^(length / the combs'), x 1/sqrt(8) */
+        float lg = fm_log2f(f->pc[4]) * (1.0f / PL_LREF);
+        for (k = 0; k < 8; k++)
+            p->g[k] = 0.35355339f * fm_exp2f(lg * PL_LEN[k]);
+        p->gfb = f->pc[4];
+    }
+    p->ph1 += 0.5f * (float)m / SR;
+    p->ph2 += 0.37f * (float)m / SR;
+    if (p->ph1 >= 1.0f) p->ph1 -= 1.0f;
+    if (p->ph2 >= 1.0f) p->ph2 -= 1.0f;
+    for (k = 0; k < 8; k++) {                 /* where each line's tap wants to be at the block's end: size, the wander */
+        float t = f->pc[0] * PL_LEN[k] + f->pc[1] * fm_sin_turns((k & 1 ? p->ph2 : p->ph1) + 0.25f * (float)(k >> 1));
+        d[k] = p->d[k];
+        dd[k] = (t - d[k]) * im;
+        z[k] = p->z[k];
+        g[k] = p->g[k];
+    }
+    for (k = 0; k < 8; k++)                   /* the sides' taps part-way along the lines (whole samples, a block) */
+        tp[k] = PL_OFF[k] + (int32_t)(d[k] * PL_TAPF[k]);
+    pre = (int32_t)(PL_PRE_MIN + (PL_PRE_MAX - PL_PRE_MIN) * (f->pc[0] - 0.5f) * (1.0f / 1.4f));
+    lo = lag < pre ? lag : pre;
+    for (i = 0; i < m; i++) {
+        float s, v[8], h[8], a, c, yl, yr;
+        hp += hpk * (x[i] - hp);
+        s = x[i] - hp + 1e-18f;
+        if (lo) {                             /* the send into the pre-delay's past (a slot not read yet) */
+            PL_RD(PO_PRE) = 0.0f;
+            PL_RD(PO_PRE + lo) = s;
+        } else {
+            PL_RD(PO_PRE) = s;
         }
-#undef RV_COMB_STEP
-#undef RV_AP_STEP
-#undef LAG
-        cd[0] = cd0; cd[1] = cd1; cd[2] = cd2; cd[3] = cd3;
-        cdmp[0] = m0; cdmp[1] = m1; cdmp[2] = m2; cdmp[3] = m3;
-        cp[0] = p0; cp[1] = p1; cp[2] = p2; cp[3] = p3;
-        ap[0] = q0; ap[1] = q1; ap[2] = q2; ap[3] = q3;
+        s = PL_RD(PO_PRE + pre);
+        PL_AP(PO_D0, PL_DIF[0], PL_DIFG[0]);
+        PL_AP(PO_D1, PL_DIF[1], PL_DIFG[1]);
+        PL_AP(PO_D2, PL_DIF[2], PL_DIFG[2]);
+        PL_AP(PO_D3, PL_DIF[3], PL_DIFG[3]);
+        PL_TAP(0); PL_TAP(1); PL_TAP(2); PL_TAP(3); PL_TAP(4); PL_TAP(5); PL_TAP(6); PL_TAP(7);
+        /* the Hadamard, three butterflies */
+        a = h[0] + h[1]; c = h[0] - h[1]; h[0] = a; h[1] = c;
+        a = h[2] + h[3]; c = h[2] - h[3]; h[2] = a; h[3] = c;
+        a = h[4] + h[5]; c = h[4] - h[5]; h[4] = a; h[5] = c;
+        a = h[6] + h[7]; c = h[6] - h[7]; h[6] = a; h[7] = c;
+        a = h[0] + h[2]; c = h[0] - h[2]; h[0] = a; h[2] = c;
+        a = h[1] + h[3]; c = h[1] - h[3]; h[1] = a; h[3] = c;
+        a = h[4] + h[6]; c = h[4] - h[6]; h[4] = a; h[6] = c;
+        a = h[5] + h[7]; c = h[5] - h[7]; h[5] = a; h[7] = c;
+        /* the third butterfly into the lines in another order, some signs turned (the Hadamard alone is its own
+         * inverse: two trips round would bring a line's sound whole back to it; this way none of two to ten trips
+         * brings back more than 0.71 of it to any line), and the diffused send into every line, the signs mixed */
+        s *= 0.5f;
+        PL_RD(PL_OFF[3]) = h[0] + h[4] + s;
+        PL_RD(PL_OFF[1]) = -h[1] - h[5] - s;
+        PL_RD(PL_OFF[2]) = h[2] + h[6] + s;
+        PL_RD(PL_OFF[0]) = -h[3] - h[7] + s;
+        PL_RD(PL_OFF[5]) = h[4] - h[0] - s;
+        PL_RD(PL_OFF[7]) = h[5] - h[1] + s;
+        PL_RD(PL_OFF[4]) = h[6] - h[2] - s;
+        PL_RD(PL_OFF[6]) = h[7] - h[3] - s;
+        b--;
+        /* the sides read the lines part-way along (from their ends, each side would send back whatever one line
+         * was just fed: a ring at that line's length) */
+#define PL_MID(k) PL_RD(tp[k])
+        yl = (PL_MID(0) - PL_MID(2) + PL_MID(4) - PL_MID(6)) * PL_WET;
+        yr = (PL_MID(1) - PL_MID(3) + PL_MID(5) - PL_MID(7)) * PL_WET;
+#undef PL_MID
+        e += yl * yl + yr * yr;
+        tl0 += tlk * (yl - tl0);              /* the tone: a low-pass (k = 1 passes), then a high-pass (k = 0 passes) */
+        tl1 += tlk * (yr - tl1);
+        th0 += thk * (tl0 - th0);
+        th1 += thk * (tl1 - th1);
+        ol[i] += tl0 - th0;
+        orr[i] += tl1 - th1;
     }
-    for (c = 0; c < 4; c++) {
-        f->cd[c] = cd[c];
-        f->cdmp[c] = fm_flush(cdmp[c]);
-        f->cpos[c] = cp[c];
-        f->apos[c] = ap[c];
+    for (k = 0; k < 8; k++) {
+        p->d[k] = d[k];
+        p->z[k] = fm_flush(z[k]);
     }
-    f->rhp = fm_flush(hp);
-    f->rtl[0] = fm_flush(tl0); f->rtl[1] = fm_flush(tl1);
-    f->rtr[0] = fm_flush(th0); f->rtr[1] = fm_flush(th1);
-    f->rquiet = quiet;
+    p->base = b;
+    p->quiet = (!any && e < 1e-12f * (float)m) ? p->quiet + m : 0;
+    p->hp = fm_flush(hp);
+    p->tl[0] = fm_flush(tl0); p->tl[1] = fm_flush(tl1);
+    p->th[0] = fm_flush(th0); p->th[1] = fm_flush(th1);
 }
+#undef PL_RD
+#undef PL_AP
+#undef PL_TAP
 
 /* an SPU mode: the send decimated to 22.05 kHz, a tick of the console's reverb every second sample, its two
  * sides interpolated back; the plate's tone on the return. Its addresses follow the gliding size a block */
@@ -749,10 +861,34 @@ static void do_spu(fxslot_t *f, const float *x, float *ol, float *orr, int m, in
     s->thr = fm_flush(thr);
 }
 
-/* lush: the send low-passed and decimated to 22.05 kHz (a tick every second sample, on the pair's mean), Dattorro's
- * tank, its seven taps a side, then back to 44.1 kHz linearly (half a tick late) and the plate's tone. A lag is more
- * pre-delay (as the SPU's). The lengths follow the gliding size a block (whole samples); the two tank allpasses wander
- * +-12 samples (x size) on a 0.7 Hz sine, a quarter turn apart */
+/* lush: the send decimated to 22.05 kHz through the SPU's 39-tap half-band FIR (a tick every second sample), Dattorro's
+ * tank, its seven taps a side, then back to 44.1 kHz through the same FIR (flat to ~9 kHz, the images and the aliases
+ * under it; it was a pair's mean in and a straight line out, which dulled the top and let it fold back), and the plate's
+ * tone. The two FIRs' 38 samples come off the pre-delay. A lag is more pre-delay (as the SPU's). The lengths follow the
+ * gliding size a block (whole samples); the two tank allpasses wander +-12 samples (x size) on a 0.7 Hz sine, a quarter
+ * turn apart */
+#define LU_FIR_TICKS 18                       /* the decimator's 19 samples and the interpolator's 9.5 ticks, in ticks */
+#define LU_HB_N 7                             /* the FIR's first 7 pairs (the last three are under 3e-4: the stopband
+                                               * still 56 dB down above 15 kHz) */
+static inline float lu_decimate(const float *in, uint32_t ip)   /* (spu_decimate on lush's ring) */
+{
+    const float *z = in + ip + 64u - 20u;
+    float y = 0.5f * z[0];
+    int k;
+    for (k = 0; k < LU_HB_N; k++)
+        y += SPU_HB[k] * (z[-1 - 2 * k] + z[1 + 2 * k]);
+    return y;
+}
+static inline void lu_interp(const float *u, uint32_t w, float *o0, float *o1)   /* (spu_interp, likewise) */
+{
+    const float *z = u + w + 31u - 9u;
+    float y = 0.0f;
+    int k;
+    for (k = 0; k < LU_HB_N; k++)
+        y += SPU_HB[k] * (z[k] + z[-1 - k]);
+    *o0 = 2.0f * y;
+    *o1 = z[0];
+}
 #define LU_RD(l, k) spu_rd(w, b, LU_OFF[l] + (k))
 #define LU_WR(l, v) (wz |= spu_wr(w, b, LU_OFF[l], (v)))
 #define LU_AP(l, g, x)                                                                        \
@@ -772,8 +908,10 @@ static void do_lush(fxslot_t *f, const float *x, float *ol, float *orr, int m, i
     lush_t *u = &f->lu;
     int16_t *w = f->rv;
     const float sc = f->pc[0] * (22050.0f / 29761.0f), dec = f->pc[1], damp = f->pc[3], tlk = f->pc[2], thk = f->pc[5];
-    const float lpk = 0.55f, exc = 12.0f * f->pc[0];      /* (lpk: the send's low-pass, ~5.6 kHz before decimation) */
+    const float exc = 12.0f * f->pc[0];
     float tl = u->tl, th = u->th, tr = u->tr, thr = u->thr;
+    float o00 = u->out[0][0], o01 = u->out[0][1], o10 = u->out[1][0], o11 = u->out[1][1];
+    uint32_t ip = u->ip, up_w = u->up_w;
     int i, l;
     if (u->clear > 0) {                       /* a new mode: the line emptied first, silent meanwhile */
         int32_t k = u->clear > SPU_CLEAR ? SPU_CLEAR : u->clear;
@@ -788,16 +926,18 @@ static void do_lush(fxslot_t *f, const float *x, float *ol, float *orr, int m, i
             u->len[l] = (int32_t)(LU_LEN[l] * sc);
         u->scale = sc;
     }
-    u->len[LU_PRE] = (int32_t)f->pc[4];
+    u->len[LU_PRE] = (int32_t)f->pc[4] - LU_FIR_TICKS;
     for (i = 0; i < m; i++) {
         float yl, yr;
-        u->lp += lpk * (x[i] - u->lp);
-        if (!u->phase) {
-            u->hold = u->lp;
+        u->in[ip] = u->in[ip + 64u] = x[i];
+        ip = (ip + 1u) & 63u;
+        if (!u->phase) {                      /* the first of a pair: the interpolators' second output */
+            yl = o01;
+            yr = o11;
         } else {                              /* a tick */
             const uint32_t b = u->base;
             int32_t wz = 0;
-            float s = 0.5f * (u->hold + u->lp), a, c, mo, l0, r0;
+            float s = lu_decimate(u->in, ip), a, c, mo, l0, r0;
             u->lfo += 0.7f / 22050.0f;
             if (u->lfo >= 1.0f)
                 u->lfo -= 1.0f;
@@ -844,15 +984,16 @@ static void do_lush(fxslot_t *f, const float *x, float *ol, float *orr, int m, i
             r0 = LU_RD(LU_DL1, T(353)) + LU_RD(LU_DL1, T(3627)) - LU_RD(LU_APL, T(1228)) + LU_RD(LU_DL2, T(2673))
                  - LU_RD(LU_DR1, T(2111)) - LU_RD(LU_APR, T(335)) - LU_RD(LU_DR2, T(121));
 #undef T
-            u->prev[0] = u->cur[0];
-            u->prev[1] = u->cur[1];
-            u->cur[0] = l0 * 0.45f;                 /* (0.6 was a little loud beside the dry: Charles) */
-            u->cur[1] = r0 * 0.45f;
+            u->up[0][up_w] = u->up[0][up_w + 32u] = l0 * 0.45f;   /* (0.6 was a little loud beside the dry: Charles) */
+            u->up[1][up_w] = u->up[1][up_w + 32u] = r0 * 0.45f;
+            up_w = (up_w + 1u) & 31u;
+            lu_interp(u->up[0], up_w, &o00, &o01);    /* o00 between the ticks 9.5 back, o01 the tick 9 back: */
+            lu_interp(u->up[1], up_w, &o10, &o11);    /* this sample, then the next */
+            yl = o00;
+            yr = o10;
             u->base = b - 1u;
             u->quiet = (wz == 0 && !any) ? u->quiet + 2 : 0;
         }
-        yl = u->phase ? 0.5f * (u->prev[0] + u->cur[0]) : u->cur[0];
-        yr = u->phase ? 0.5f * (u->prev[1] + u->cur[1]) : u->cur[1];
         u->phase ^= 1u;
         tl += tlk * (yl - tl);
         tr += tlk * (yr - tr);
@@ -861,7 +1002,9 @@ static void do_lush(fxslot_t *f, const float *x, float *ol, float *orr, int m, i
         ol[i] += (tl - th) * RV_WET;
         orr[i] += (tr - thr) * RV_WET;
     }
-    u->lp = fm_flush(u->lp);
+    u->ip = (uint8_t)ip;
+    u->up_w = (uint8_t)up_w;
+    u->out[0][0] = o00; u->out[0][1] = o01; u->out[1][0] = o10; u->out[1][1] = o11;
     u->dmp[0] = fm_flush(u->dmp[0]);
     u->dmp[1] = fm_flush(u->dmp[1]);
     u->tl = fm_flush(tl);
@@ -883,9 +1026,12 @@ void fx_process_lag(fxslot_t *f, const float *in, float *out_l, float *out_r, ui
 {
     uint32_t o;
     if (f->type_t != f->type || f->mode_t != f->mode) {   /* a new effect or mode: start it at rest */
+        /* (the reverb in another mode: the line holds the last mode's work; a new effect's line fx_set zeroed) */
+        f->rv_dirty = (uint8_t)(f->type == FXT_REVERB && f->type_t == FXT_REVERB);
         f->type = f->type_t;
         f->mode = f->mode_t;
         fx_states(f);
+        f->rv_dirty = 0;
     }
     for (o = 0; o < n; o += SUB) {
         float x[SUB];
@@ -933,7 +1079,7 @@ int fx_awake(const fxslot_t *f)
     switch (f->type) {
     case FXT_DELAY: return f->dquiet < 2 * FX_DLY_LEN;
     case FXT_REVERB:
-        return f->mode == RV_PLATE ? f->rquiet < FX_RV_LEN
+        return f->mode == RV_PLATE ? f->pl.clear > 0 || f->pl.quiet < PL_SLEEP
              : f->mode == RV_LUSH ? f->lu.clear > 0 || f->lu.quiet < FX_RV_LEN * 2
              : f->spu.clear > 0 || f->spu.quiet < FX_RV_LEN * 2;
     case FXT_CHORUS: case FXT_LOFI: case FXT_PHASER: return 1;

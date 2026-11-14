@@ -1,0 +1,63 @@
+bpm 120
+hits 1 1 1 x...x...x...x...
+tap EDIT
+wait 400
+shot 40_Engine-kit.png
+knob 1 d2.model 909_snare
+knob 1 d3.model x_hat
+knob 1 d5.model clang
+knob 1 d6.model sophie
+knob 1 d7.model 909_ride
+knob 1 d8.model 909_crash
+knob 1 d9.model tambourine
+knob 1 d10.model x_rim
+knob 1 d11.model x_noise
+tapkey b4
+tap PLAY
+wait 300
+shot 41_Engine-kit-models.png
+knob 1 d2.model sample
+knob 1 d3.model 909_open
+knob 1 d5.model x_fm
+knob 1 d6.model 909_rim
+knob 1 d7.model 909_hat
+wait 300
+shot 42_Engine-kit-models2.png
+tap PLAY
+turn ALGO 1
+wait 300
+shot 43_Engine-knit.png
+knob 2 e3 1
+knob 2 e1 127
+wait 300
+shot 44_Engine-knit-one.png
+knob 2 engine rayon
+wait 300
+shot 45_Engine-rayon.png
+knob 2 engine jacquard
+wait 300
+shot 46_Engine-jacquard.png
+knob 2 engine bellows
+wait 300
+shot 47_Engine-bellows.png
+knob 2 engine cane
+wait 300
+shot 48_Engine-cane.png
+knob 2 e1 4
+wait 300
+shot 49_Engine-cane-bell.png
+knob 2 engine voile
+wait 300
+shot 50_Engine-voile.png
+knob 2 engine acid
+wait 300
+shot 51_Engine-acid.png
+knob 2 engine sample
+wait 300
+shot 52_Engine-sample.png
+knob 2 engine slice
+wait 300
+shot 53_Engine-slice.png
+knob 2 engine midi
+wait 300
+shot 54_Engine-midi.png

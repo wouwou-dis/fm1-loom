@@ -1,0 +1,27 @@
+bpm 120
+wait 300
+step 2 1 1 48 100
+step 2 1 5 52 100
+step 2 1 9 55 100
+turn ALGO 8
+expect trk 9
+tap EDIT
+wait 300
+shot 40_Conductor.png
+turn K1 3
+turn K2 1
+wait 200
+shot 41_Conductor-key.png
+turn SELECT 1
+wait 300
+shot 42_Conductor-routing.png
+turn SELECT 1
+wait 300
+shot 43_Conductor-follow.png
+turn SELECT -2
+turn K1 6
+turn K2 7
+tap PLAY
+wait 600
+shot 44_Conductor-long-name-playing.png
+tap PLAY

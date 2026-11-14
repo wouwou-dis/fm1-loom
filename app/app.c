@@ -76,7 +76,6 @@ void app_init(void)
     }
     smp_user_scan();                                /* (an empty or torn bank: no user samples) */
     d909_res_get = res_samples;                     /* the 909 cymbals' samples: the resource region (fm1.toml) */
-    loom_large_load();                              /* the large type faces, from there too */
     project_load(project_last_slot());              /* the slot used last; defaults when nothing (or another format) is saved */
     presets_load();
     engine_init(&pats, proj_par);
@@ -156,22 +155,45 @@ void app_say(const char *a, const char *b) { ui_say(a, b); }
 void app_redraw(void) { ui_redraw(); }
 int app_sysex(const uint8_t *p, uint32_t n) { return smp_frame(p, n); }
 
-/* the name over the eight tracks' inks woven as threads, in the default theme (pages.c THEMES[0]) */
+/* the splash, a manual's cover: the name under a double rule, a punched card with a row of holes for each of the
+ * eight tracks in its ink and the playhead's bracket in vermilion, then the credits (three canvases: the title, the
+ * card, the credits; pages.c PAPER) */
 void app_splash(void)
 {
-    const theme_t *t = &THEMES[0];
+    const theme_t *t = &PAPER;
+    static const uint8_t HITS[NTRK] = {4, 2, 8, 3, 5, 6, 1, 7};   /* each row's punches in 16 steps, spread evenly */
     lcd_fill(0, 0, 240, 240, t->bg);
-    cv_begin(240, 96, t->bg);
-    {
-        int32_t w = text_w(&FONT_L, "LOOM-8");
-        cv_text((240 - w) / 2, 0, &FONT_L, "LOOM-8", t->text);
-        for (int i = 0; i < 8; i++)                  /* the warp: eight threads, each over and under the weft */
-            for (int j = 0; j < 12; j++)
-                cv_rect(56 + i * 16, 44 + j * 3, 8, (i + j) & 1 ? 3 : 2, (i + j) & 1 ? t->ink[i] : t->panel2);
-        w = text_w(&FONT_S, "a pocket groovebox");
-        cv_text((240 - w) / 2, 76, &FONT_S, "a pocket groovebox", t->dim);
-    }
+    cv_begin(240, 76, t->bg);                        /* the title: y 0..75 */
+    cv_rect(12, 12, 216, 2, t->text);
+    cv_rect(12, 16, 216, 1, t->text);
+    cv_text(12, 24, &FONT_L, "LOOM-8", t->text);
+    tr_text(13, 61, F_LAB, "POCKET GROOVEBOX", t->dim, 1);
+    cv_blit(0, 0);
+    cv_begin(240, 96, t->bg);                        /* the card: y 76..171 */
+    cv_frame(12, 2, 216, 92, 4, t->text, t->card);
+    cv_tri(11.0f, 1.0f, 25.0f, 1.0f, 11.0f, 15.0f, t->bg);     /* its cut corner */
+    cv_linef(12.5f, 14.5f, 24.5f, 2.5f, t->text, 1.2f);
+    for (int r = 0; r < NTRK; r++)
+        for (int c = 0; c < 16; c++) {
+            int32_t x = 33 + c * 12, y = 11 + r * 10;
+            if ((c * HITS[r]) % 16 < HITS[r])
+                cv_rect(x, y, 7, 6, t->ink[r]);
+            else
+                cv_rect(x + 3, y + 2, 1, 2, t->line);
+        }
+    cv_frame(33 + 6 * 12 - 3, 6, 13, 84, 3, t->rec, t->card);   /* the playhead's bracket, on the seventh step */
+    for (int r = 0; r < NTRK; r++)                   /* (its column's punches again, over the bracket's fill) */
+        if ((6 * HITS[r]) % 16 < HITS[r])
+            cv_rect(33 + 6 * 12, 11 + r * 10, 7, 6, t->ink[r]);
+        else
+            cv_rect(33 + 6 * 12 + 3, 13 + r * 10, 1, 2, t->line);
     cv_blit(0, 76);
+    cv_begin(240, 68, t->bg);                        /* the credits: y 172..239 */
+    tr_text(13, 6, F_LAB, "DESIGNED BY", t->dim, 1);
+    cv_text(12, 17, &FONT_L, "wouwou", t->text);
+    cv_rect(12, 58, 216, 1, t->text);
+    cv_rect(12, 61, 216, 2, t->text);
+    cv_blit(0, 172);
 }
 
 /* backup and restore over USB (fm1-base's backup.c): the slots and the presets as saved (LOOM-8 saves when asked:

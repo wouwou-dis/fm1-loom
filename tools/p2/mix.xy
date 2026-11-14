@@ -1,0 +1,26 @@
+bpm 120
+hits 1 1 1 x...x...x...x...
+hits 1 1 3 ..x...x...x...xx
+notes 2 1 1 4 100 48
+notes 2 1 9 4 100 43
+notes 3 1 1 8 100 60 64 67
+tap PLAY
+tap GLO
+wait 800
+shot 20_Mix-playing.png
+knob 2 level 40
+knob 4 level 127
+tapkey b2
+wait 600
+shot 21_Mix-muted.png
+key b0 down
+wait 900
+shot 22_Mix-solo.png
+key b0 up
+wait 300
+turn ALGO 1
+wait 300
+shot 23_Mix-sel.png
+tap PLAY
+wait 1500
+shot 24_Mix-stopped.png

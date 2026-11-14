@@ -1,8 +1,7 @@
-# Bluetooth (app/bt.c): Setup's two rows; GLO's SEL list, two pairs: BT MIDI (on or off) and MIDI DEVICE, BT AUDIO
-# (on or off) and AUDIO DEVICE (SEL: their lists, each with a first line that says what to do). The audio list with
-# the simulator's stand-in ("Speaker": found half a second into a scan, playing 0.3 s after a connect), FORGET asked
-# first; the MIDI devices' list with fm1-base's stand-in ("BLE MIDI"); a computer's link refusing devices; BT MIDI
-# off (no advertising, MIDI DEVICE refused) and audio on, both kept over a restart; a pairing's code in the header
+# Bluetooth (app/bt.c): Setup's one row, BT MIDI with a computer (this build has no Bluetooth audio and no Bluetooth
+# MIDI devices: LOOM_BT_AUDIO 0, ble_central = false). GLO's SEL list on Setup has BT MIDI (on or off) and nothing
+# for devices; BT MIDI off (no advertising) kept over a restart; a computer's link shown on the row; a pairing's code
+# in the header
 wait 1500
 tap GLO
 turn SELECT -2
@@ -10,73 +9,23 @@ wait 100
 expect page Setup
 shot bt_setup.png
 listen
-# SEL on Setup: Setup's own list, on BT MIDI; AUDIO DEVICE three below says what SEL does
+# SEL on Setup: Setup's own list, on BT MIDI; no AUDIO DEVICE, BT AUDIO or MIDI DEVICE rows
 tap SEL
 wait 300
 said BT MIDI on
-row AUDIO DEVICE
-wait 300
-said AUDIO DEVICE choose, action
 shot bt_glo_list.png
-# SEL: the audio devices, looked for while the list is up
-tap SEL
-wait 300
-said Audio devices list. looking for devices...
-wait 600
-said still looking. SEL connects. Speaker new
-shot bt_audio_list.png
-# SEL: connect it (audio turns on, kept in the project)
-tap SEL
-wait 600
-said BT AUDIO Speaker
-expect dirty 1
-wait 100
-shot bt_setup_playing.png
-# the list again: Speaker remembered and playing, no scan while it plays
-tap SEL
-row AUDIO DEVICE
-tap SEL
-wait 300
-said pick a device. SEL connects. Speaker playing
-row FORGET
-wait 100
-said FORGET Speaker
-shot bt_audio_forget.png
-# FORGET asks; HOME says no
-tap SEL
-wait 100
-expect ask 1
 tap HOME
 wait 100
-expect ask 0
-tap HOME
-# BT AUDIO: ALGORITHM off, SEL on again (the last device)
+# BT MIDI off: no advertising
 tap SEL
-row BT AUDIO
-turn ALGO -1
-wait 200
-said BT AUDIO off
-tap SEL
-wait 600
-said BT AUDIO Speaker
-tap HOME
-# BT MIDI off: no advertising, MIDI DEVICE says so and SEL there does nothing
-tap SEL
-row BT MIDI
 turn ALGO -1
 wait 200
 said BT MIDI off
 expect ble 0
-row MIDI DEVICE
-wait 100
-said MIDI DEVICE BT MIDI off
-tap SEL
-wait 100
-said BT MIDI OFF turn it on first
 tap HOME
 wait 100
 shot bt_setup_midi_off.png
-# saved, then a restart: BT MIDI stays off, audio was on so Speaker connects again once the radio is up
+# saved, then a restart: BT MIDI stays off
 tap SAVE
 wait 100
 reboot
@@ -88,49 +37,23 @@ wait 100
 shot bt_after_reboot.png
 listen
 where
-said BT audio Speaker, BT MIDI off
+said BT MIDI off
 # BT MIDI on again (SEL toggles it too)
 tap SEL
-row BT MIDI
 tap SEL
 wait 1200
 said BT MIDI on
 expect ble 2
-# the MIDI devices: MIDI DEVICE's list looks while it is up
-row MIDI DEVICE
-wait 100
-said MIDI DEVICE choose
-tap SEL
-wait 200
-said MIDI devices list. looking for MIDI devices...
-wait 700
-said pick a device. SEL connects. BLE MIDI found
-shot bt_dev_list.png
-tap SEL
-wait 600
-said CONNECTED BLE MIDI
-expect ble_dev 4
-wait 100
-shot bt_setup_device.png
-tap SEL
-row MIDI DEVICE
-tap SEL
-wait 200
-said connected. SEL lets it go. DISCONNECT BLE MIDI
-tap SEL
-wait 200
-said DISCONNECTED
-expect ble_dev 0
-# a computer connected: no devices, said plainly
+# a computer connected: the row says so
 ble connect
-wait 100
-tap SEL
-row MIDI DEVICE
-wait 100
-said MIDI DEVICE computer connected
-tap SEL
 wait 200
-said NO DEVICE computer connected
+tap HOME
+tap GLO
+turn SELECT -2
+wait 100
+where
+said BT MIDI computer connected
+shot bt_setup_computer.png
 ble disconnect
 # a pairing's code: the header shows it on every page, the reader says it digit by digit
 tap SEQ
