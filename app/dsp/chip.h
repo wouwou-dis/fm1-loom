@@ -16,8 +16,9 @@
  *              CH_TABLE_N)
  *   E3 crush   the sample hold, 1 .. 16 samples (the output held at a lower rate: the chip's grain); past the
  *              middle the held value also falls to 16 steps
- *   E4 sweep   the pitch falls from the note's start, 1/8 .. 15/8 semitone a chunk, in 16 steps (a zap, a laser,
- *              a tom); 0 none. The note ends where the fall leaves hearing (20 Hz: CH_SWEEP_HZ), the chip silent till
+ *   E4 sweep   the pitch falls from the note's start (a glide down, a tom, a zap, a laser); 0 none, 1 the slowest,
+ *              8 semitones a second, 127 the fastest, LOFI's 15/8 semitone a chunk (~1290 a second), the rate even in
+ *              ratio between (CH_SWEEP_OCT: x1.041 a step, about doubling every 17). The note ends where the fall leaves hearing (20 Hz: CH_SWEEP_HZ), the chip silent till
  *              the next note, as a console's sweep unit mutes its channel past its range
  *   X1 chip    4 bit, 4 bit lo (the hold a sample longer: half the rate at no crush), 8 bit, 1 bit (the noise
  *              clocked at the held rate: hiss), step (the pulse's widths as a console's, the triangle a 32-step
@@ -34,6 +35,9 @@
  *   - the tone's cutoff ignores LOFI's filter modulation: LOOM-8's own filter follows (its keytrack, envelope, LFO);
  *   - the vibrato is LOOM-8's sine (fm_sin_turns) per chunk, LOFI's table per block; the pitch's floor is 8 Hz
  *     (LOFI's lowest table step);
+ *   - LOFI's SWP was 16 steps, linear (SWP / 8 eighths of a semitone a block): 1..7 did nothing, the slowest already
+ *     fell 86 semitones a second and the top three quarters all zapped alike. Here every step sweeps, exponentially
+ *     from 8 to LOFI's fastest (127: the same);
  *   - LOFI's sweep fell to that floor and stayed: a held note became a full-scale 8 Hz click train (a motorboat) for
  *     as long as it was held. Here the fall ends the note at 20 Hz (a quick fade to silence, ch_end) */
 
@@ -70,6 +74,8 @@ static inline int ch_nib(const uint8_t *w, int k) { return k & 1 ? w[k >> 1] & 1
 #define CH_GAIN 0.7f                                   /* a full-scale pulse near LOOM-8's other engines' level */
 #define CH_ARP_CHUNKS 14                               /* LOFI's arpeggio step: 28 blocks of 32 samples */
 #define CH_FRAME 192                                   /* the step envelope's frame: 12 sub-blocks, ~230 Hz (LOFI's 240) */
+#define CH_SWEEP_TOP 1.875f                            /* the sweep at 127: semitones a chunk (LOFI's fastest) */
+#define CH_SWEEP_OCT 0.0582173f                        /* its octaves a knob step: log2(1.875 / (8 * 64 / 44100)) / 126 */
 #define CH_SWEEP_HZ 20.0f                              /* the sweep's end: the pitch it falls past, out of hearing */
 #define CH_SWEEP_END 1000.0f                           /* o[3] once the sweep has ended (past any fall: 120) */
 static const int8_t CH_ARPS[4][3] = {{0, 0, 0}, {0, 12, 0}, {0, 4, 7}, {0, 3, 7}};
@@ -115,7 +121,7 @@ static void ch_prep(voice_t *v)
     for (i = 0; i < 32; i++)                          /* the table's mean: no DC from a lopsided shape */
         sum += bits == 1 ? (ch_nib(CH_WRAM[(int)c->ex[6]], i) >= 8 ? 1 : -1) : 2 * ch_nib(CH_WRAM[(int)c->ex[6]], i) - 15;
     c->ex[8] = bits == 1 ? (float)sum * (1.0f / 32.0f) : (float)sum * (1.0f / (32.0f * 15.0f));
-    c->ex[9] = (float)((int)c->ek[3] >> 3) * 0.125f;
+    c->ex[9] = (int)c->ek[3] > 0 ? CH_SWEEP_TOP * fm_exp2f((float)((int)c->ek[3] - CH_TOP) * CH_SWEEP_OCT) : 0.0f;
     c->ex[10] = (float)(((int)c->ex[19]) & 3);
     c->ex[11] = c->ex[20] * (0.0155f / 127.0f);
     c->ex[13] = chip == CC_1BIT ? 1.0f : 0.0f;
