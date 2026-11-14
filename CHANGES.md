@@ -53,6 +53,8 @@ bodies are in the `draw_*` functions.
 - **A second design pass** (merge `fbea914`): the envelope is a chart recorder, each filter type is its own machine, the
   shared LFO is a modulation box, the kit pads carry pictograms, messages and questions are drawn as boxes, and the Mix
   desk labels its tracks with tags. All of it is drawing code in `app/pages.c`; no sound changes.
+- **Setup is drawn as the instrument's rear panel** (`f2c0be9`): a slide switch for the clock, a toggle for the notes,
+  lamps for the lights, an antenna for Bluetooth MIDI and a rating plate.
 - **A new splash** (`94e9528`).
 
 ## Song building
@@ -78,6 +80,10 @@ bodies are in the `draw_*` functions.
   pulse, triangle, saw, noise and a 32-step 4-bit wave memory, with crush, a pitch sweep, and a Sub page (chip mode,
   arp, vibrato, tone). It has ten factory presets, and a new project's track 7 is a sequin track where it was a cane
   one (`27a699d`, `820cef8`).
+- **Sequin's sweep ends the note when the pitch falls below hearing** (`813f41f`). It used to motorboat at 8 Hz on held
+  notes, once the pitch had fallen too low to hear. The sweep knob is also spread evenly from a slow glide of 8
+  semitones a second to the fastest zap, with no dead travel (`5b8ad9f`). Four sequin presets (zap, chip kick, dub acid,
+  sequin) sound different because of it.
 - **The plate reverb is rebuilt** (`94e9528`) as a diffused feedback network instead of combs, and later polished
   (`6e272b0`): it is as bright as the old 12-bit plate at the defaults, each trip is damped less below the default size,
   and the input allpasses are thinned out at small sizes, where they rang. The unit test checks that a small plate's
