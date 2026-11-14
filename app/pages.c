@@ -4870,6 +4870,102 @@ static void m_acid(const uint8_t *p)
 }
 /* kit: a drum machine. A display (the key's model), four knobs (the key's), eleven pads named by their sound (the
  * selected one blue), and sixteen step buttons: the selected sound's steps in the bar shown, the playhead vermilion */
+/* the kit's pads: a pictogram of the key's model on each (one ink line, about 24 x 13): a bass drum's head, a
+ * snare's shell, a hat closed (or open: the key's length long), a cymbal, two palms clapping, a shaker, a tambourine,
+ * strings, a conga, a tom, two operators, a waveform, a stick on a rim, noise, a bell, a voice; the drums' size by
+ * their pitch knob */
+enum { KG_KICK, KG_SNARE, KG_HAT, KG_OPEN, KG_CLAP, KG_SHAKER, KG_TAMB, KG_STRING, KG_CONGA, KG_TOM, KG_FM, KG_SAMPLE,
+       KG_RIM, KG_NOISE, KG_CLANG, KG_VOICE, KG_CYMBAL };
+static const uint8_t KIT_GLYPH[NDM] = {KG_KICK, KG_SNARE, KG_HAT, KG_CLAP, KG_SHAKER, KG_TAMB, KG_STRING, KG_CONGA, KG_TOM,
+                                       KG_FM, KG_SAMPLE, KG_KICK, KG_SNARE, KG_HAT, KG_CLAP, KG_TOM, KG_RIM, KG_FM, KG_NOISE,
+                                       KG_CLANG, KG_VOICE, KG_KICK, KG_SNARE, KG_TOM, KG_RIM, KG_CLAP, KG_HAT, KG_OPEN,
+                                       KG_CYMBAL, KG_CYMBAL};
+static void kit_glyph(int g, float x, float y, float sc, uint16_t c)   /* (x, y: its centre) */
+{
+    switch (g) {
+    case KG_KICK:
+        cv_ring(x, y, 6.0f * sc, 1.2f, c), cv_ring(x, y, 2.6f * sc, 1.0f, c);
+        cv_linef(x - 4.0f, y + 5.0f, x - 6.0f, y + 7.0f, c, 1.0f), cv_linef(x + 4.0f, y + 5.0f, x + 6.0f, y + 7.0f, c, 1.0f);
+        break;
+    case KG_SNARE: case KG_TOM: case KG_CONGA: {   /* a shell: its head an ellipse, its sides, its foot */
+        float rx = (g == KG_CONGA ? 4.5f : 8.0f) * sc, h = g == KG_SNARE ? 6.0f : g == KG_CONGA ? 11.0f : 8.0f * sc;
+        float ty = y - h * 0.5f - 1.0f, bx = g == KG_CONGA ? rx * 0.6f : rx;
+        ellipse_arc(x, ty, rx, 2.2f, 0.0f, 1.0f, 1.0f, c);
+        cv_linef(x - rx, ty, x - bx, ty + h, c, 1.1f), cv_linef(x + rx, ty, x + bx, ty + h, c, 1.1f);
+        ellipse_arc(x, ty + h, bx, 2.0f, 0.0f, 0.5f, 1.0f, c);
+        if (g == KG_SNARE)
+            for (int k = 0; k < 3; k++)
+                cv_linef(x - 6.0f + 4.0f * (float)k, ty + 2.0f, x - 4.0f + 4.0f * (float)k, ty + h, c, 0.8f);
+        break;
+    }
+    case KG_HAT: case KG_OPEN: case KG_CYMBAL: {
+        float gap = g == KG_OPEN ? 4.0f : 1.5f;
+        cv_linef(x, y - 6.0f, x, y + 7.0f, c, 1.0f);
+        ellipse_arc(x, y - 3.0f, g == KG_CYMBAL ? 11.0f : 8.0f, 1.8f, 0.5f, 1.0f, 1.3f, c);
+        if (g != KG_CYMBAL)
+            ellipse_arc(x, y - 3.0f + gap, 8.0f, 1.8f, 0.0f, 0.5f, 1.3f, c);
+        cv_linef(x - 3.0f, y + 7.0f, x + 3.0f, y + 7.0f, c, 1.0f);
+        break;
+    }
+    case KG_CLAP:
+        ellipse_arc(x - 2.0f, y + 1.0f, 3.5f, 6.0f, 0.25f, 0.75f, 1.2f, c);
+        ellipse_arc(x + 2.0f, y + 1.0f, 3.5f, 6.0f, 0.75f, 1.25f, 1.2f, c);
+        for (int k = -1; k <= 1; k++)
+            cv_linef(x + 4.0f * (float)k, y - 6.0f, x + 6.0f * (float)k, y - 8.0f, c, 0.9f);
+        break;
+    case KG_SHAKER:
+        cv_ring(x - 1.0f, y + 1.0f, 4.5f, 1.2f, c);
+        cv_linef(x + 2.0f, y - 2.0f, x + 7.0f, y - 7.0f, c, 1.6f);
+        ellipse_arc(x - 1.0f, y + 1.0f, 8.0f, 7.0f, 0.55f, 0.7f, 0.9f, c);
+        break;
+    case KG_TAMB:
+        cv_ring(x, y, 6.0f, 1.2f, c);
+        for (int k = 0; k < 4; k++)
+            cv_rect((int32_t)(x + 6.0f * fm_sin_turns(0.125f + 0.25f * (float)k + 0.25f)) - 1,
+                    (int32_t)(y + 6.0f * fm_sin_turns(0.125f + 0.25f * (float)k)) - 1, 3, 3, c);
+        break;
+    case KG_STRING:
+        ellipse_arc(x, y + 6.0f, 9.0f, 12.0f, 0.5f, 0.75f, 1.2f, c);
+        for (int k = 0; k < 4; k++)
+            cv_linef(x - 6.0f + 4.0f * (float)k, y - 2.0f - (float)k * 1.5f, x - 6.0f + 4.0f * (float)k, y + 6.0f, c, 0.8f);
+        cv_linef(x - 9.0f, y + 6.0f, x + 7.0f, y + 6.0f, c, 1.2f);
+        break;
+    case KG_FM:
+        cv_ring(x - 6.0f, y, 3.2f, 1.1f, c), cv_ring(x + 6.0f, y, 3.2f, 1.1f, c);
+        cv_linef(x - 2.8f, y, x + 2.8f, y, c, 1.1f);
+        ellipse_arc(x - 6.0f, y - 3.0f, 3.0f, 3.5f, 0.5f, 1.0f, 0.9f, c);
+        break;
+    case KG_SAMPLE:
+        for (int k = 0; k < 8; k++) {
+            float hh = 6.0f * (float)(8 - k) / 8.0f * (k & 1 ? 0.6f : 1.0f);
+            cv_linef(x - 9.0f + 2.6f * (float)k, y - hh, x - 9.0f + 2.6f * (float)k, y + hh, c, 1.0f);
+        }
+        break;
+    case KG_RIM:
+        ellipse_arc(x, y + 2.0f, 8.0f, 2.5f, 0.0f, 1.0f, 1.1f, c);
+        cv_linef(x - 7.0f, y - 6.0f, x + 6.0f, y + 3.0f, c, 1.6f);
+        break;
+    case KG_NOISE: {
+        pen_t pn = {0};
+        static const int8_t NZ[9] = {1, -5, 3, -2, 6, -4, 2, -6, 0};
+        pn.w = 1.1f;
+        for (int k = 0; k < 9; k++)
+            pen_to(&pn, x - 10.0f + 2.5f * (float)k, y + (float)NZ[k], c);
+        break;
+    }
+    case KG_CLANG: {
+        float b[8] = {x - 3.0f, y - 6.0f, x + 3.0f, y - 6.0f, x + 7.0f, y + 4.0f, x - 7.0f, y + 4.0f};
+        cv_poly(b, 4, c, 256u, 0);
+        cv_disc(x, y + 6.5f, 1.6f, c);
+        break;
+    }
+    default:                                         /* a voice: a mouth, its sound going out */
+        cv_ring(x - 5.0f, y, 3.0f, 1.2f, c);
+        ellipse_arc(x - 2.0f, y, 5.0f, 5.0f, 0.875f, 1.125f, 1.0f, c);
+        ellipse_arc(x - 2.0f, y, 9.0f, 8.0f, 0.875f, 1.125f, 1.0f, c);
+        break;
+    }
+}
 static void m_kit(const uint8_t *p, int trk)
 {
     int sel = ui.dsound % DL_NSOUND, sm = p[TP_DRUM(sel, DP_MODEL)] % NDM;
@@ -4892,10 +4988,13 @@ static void m_kit(const uint8_t *p, int trk)
             cv_frame(x, y, 33, 18, 3, K_SEL, K_SEL);
         else
             cv_frame(x, y, 33, 18, 3, K_TEXT, K_BG);
-        if (text_w(&FONT_XS, DL_SOUND_NAME[k]) <= 29)
-            text_c(x + 17, y + 1, &FONT_XS, DL_SOUND_NAME[k], k == sel ? K_BG : K_TEXT);
-        else
-            tr_text(x + 17 - tr_w(&FONT_XS, DL_SOUND_NAME[k], -1) / 2, y + 1, &FONT_XS, DL_SOUND_NAME[k], k == sel ? K_BG : K_TEXT, -1);
+        {   /* its pictogram (the selected key's name: the header's KEY) */
+            const uint8_t *kp = p + TP_DRUM(k, 0);
+            int m = kp[DP_MODEL] % NDM, gl = KIT_GLYPH[m];
+            if (gl == KG_HAT && kp[DP_K2] > 50)
+                gl = KG_OPEN;
+            kit_glyph(gl, (float)x + 16.5f, (float)y + 9.0f, 0.8f + 0.4f * (float)(127 - kp[DP_K1]) / 127.0f, k == sel ? K_BG : K_TEXT);
+        }
     }
     for (int i = 0; i < 16; i++) {                   /* the step buttons */
         int s = ui.bar * 16 + i, on = s < tp->len && kit_has(&tp->st[s], sel + 1);
