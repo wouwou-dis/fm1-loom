@@ -83,6 +83,7 @@ wait 200
 said EUCLID HITS 4 of 16
 tap SEL
 wait 50
+shot euclid_synth.png
 expect barmask 2 1 1 0 0x1111
 expect note 2 1 1 60
 expect note 2 1 2 0
@@ -140,6 +141,7 @@ tap REC
 release HOME
 wait 50
 said UNDO T2 P1
+shot vary_undo.png
 # an empty bar (T3): nothing to vary, said
 wait 1300
 turn ALGO 1
@@ -149,3 +151,4 @@ row VARY BAR
 tap SEL
 wait 100
 said NOTHING TO VARY
+shot vary_none.png

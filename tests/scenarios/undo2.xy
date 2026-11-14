@@ -36,6 +36,7 @@ tap REC
 release HOME
 wait 100
 said UNDO song and scenes
+shot undo2_first.png
 expect songlen 3
 expect note 1 1 1 1
 listen
@@ -44,6 +45,7 @@ tap REC
 release HOME
 wait 100
 said UNDO T1 P1
+shot undo2_second.png
 expect songlen 3
 expect note 1 1 1 0
 # a third: nothing (two steps)
@@ -53,6 +55,7 @@ tap REC
 release HOME
 wait 100
 said NOTHING TO UNDO
+shot undo2_none.png
 expect note 1 1 1 0
 # redo 1: the note; redo 2: the slot deleted; a third: nothing
 listen
@@ -61,6 +64,7 @@ tap PLAY
 release HOME
 wait 100
 said REDO T1 P1
+shot undo2_redo.png
 expect note 1 1 1 1
 expect songlen 3
 listen

@@ -61,6 +61,7 @@ tap REC
 release HOME
 wait 100
 said UNDO duplicate
+shot dupsection_undo.png
 expect songlen 2
 expect used 3
 expect slotsc2 2
@@ -99,6 +100,7 @@ row DUPLICATE SECTION
 tap SEL
 wait 100
 said NOT COPIED 1 track has no room
+shot dupsection_noroom.png
 expect songlen 4
 expect used 7
 expect slotsc2 1
@@ -144,6 +146,7 @@ said none empty
 tap SEL
 wait 100
 said NO EMPTY SCENE
+shot dupsection_noscene.png
 expect songlen 4
 # a full song (64 slots): said, nothing changed
 song 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1
