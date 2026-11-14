@@ -196,9 +196,12 @@ static void ab_renders(void)
     ab_run("ab_lush_drums.wav", LU, RV_LUSH_DEFAULT, 1.0f, "lush (defaults 64 64 56 48) on the drums");
     ab_run("ab_delay_drums.wav", FXT_DELAY, dl, 1.0f, "delay (defaults: 1/8 ping-pong) on the drums");
     ab_run("ab_chorus_drums.wav", FXT_CHORUS, ch, 1.0f, "chorus (defaults) on the drums");
+    ab_run("ab_room_drums.wav", FXT_REVERB + RV_ROOM, RV_SPU_DEFAULT, 1.0f, "room (the SPU's defaults) on the drums");
+    ab_run("ab_hall_drums.wav", FXT_REVERB + RV_HALL, RV_SPU_DEFAULT, 1.0f, "hall (the SPU's defaults) on the drums");
     ab_chord();
     wav("ab_dry_chord.wav", ab_x, ab_x, AB_LEN, "a held chord, dry");
     ab_run("ab_plate_chord.wav", P, pl, 1.0f, "plate (defaults) on the chord");
+    ab_run("ab_plate_small_chord.wav", P, pl_small, 1.0f, "plate, size 30 on the chord");
     ab_run("ab_plate_big_chord.wav", P, pl_big, 1.0f, "plate, size 127, motion 90, tone 64, damp 40 on the chord");
     ab_run("ab_lush_chord.wav", LU, RV_LUSH_DEFAULT, 1.0f, "lush (defaults) on the chord");
     ab_run("ab_chorus_chord.wav", FXT_CHORUS, ch, 1.0f, "chorus (defaults: 0.33 Hz) on the chord");
@@ -209,6 +212,8 @@ static void ab_renders(void)
     ab_run("ab_plate_big_burst.wav", P, pl_big, 0.0f, "plate, size 127 ...: the return alone");
     ab_run("ab_lush_burst.wav", LU, RV_LUSH_DEFAULT, 0.0f, "lush (defaults): the return alone");
     ab_run("ab_delay_burst.wav", FXT_DELAY, dl, 0.0f, "delay (defaults): the return alone");
+    ab_run("ab_plate_small_burst.wav", P, pl_small, 0.0f, "plate, size 30: the return alone");
+    ab_run("ab_hall_burst.wav", FXT_REVERB + RV_HALL, RV_SPU_DEFAULT, 0.0f, "hall: the return alone");
 }
 
 int main(void)

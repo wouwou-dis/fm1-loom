@@ -538,6 +538,29 @@ int main(void)
         snprintf(name, sizeof name, "  chaos echo / lush -> plate mid-tail: quiet (%.6f), then working (%.2f)", (double)pk, (double)pk2);
         check(name, ok && pk < 1e-4f && pk2 > 0.01f && pk2 < 4.0f);
     }
+    {   /* a small plate (size 30) does not ring: its impulse's tail (50 .. 550 ms) is never more than 0.35 like itself
+         * at a lag of 100 .. 1000 samples (until 2026-11 the input allpasses rang through it: 0.40 at their 379) */
+        static const uint8_t ks[4] = {30, 40, 44, 72};
+        float worst = 0.0f, e0 = 0.0f;
+        int lag, at = 0;
+        impulse(FXT_REVERB, ks, imp_l, imp_r, SR + 2048);
+        for (i = 2205; i < 2205 + SR / 2; i++)
+            e0 += imp_l[i] * imp_l[i];
+        for (lag = 100; lag < 1000; lag++) {
+            float c = 0.0f, e1 = 0.0f;
+            for (i = 2205; i < 2205 + SR / 2; i++) {
+                c += imp_l[i] * imp_l[i + lag];
+                e1 += imp_l[i + lag] * imp_l[i + lag];
+            }
+            c = fm_fabsf(c) / fm_sqrtf(e0 * e1 + 1e-30f);
+            if (c > worst) {
+                worst = c;
+                at = lag;
+            }
+        }
+        snprintf(name, sizeof name, "  a small plate rings at no lag: at most %.3f like itself (at %d)", (double)worst, at);
+        check(name, worst < 0.35f);
+    }
     {   /* every corner of the four knobs: bounded, no NaN, and the tail falling */
         int ok = 1, c;
         for (c = 0; c < 16; c++) {
@@ -907,6 +930,38 @@ int main(void)
     }
 
     printf("-- the reverb's SPU modes\n");
+    {   /* their 22.05 kHz output back to 44.1 kHz: tones under 5 kHz in, nothing (no images) above 12 kHz out. (Until
+         * 2026-11 the interpolator's two outputs went out in the wrong order, a ramp as 22, 21.5, 23, 22.5: every tone
+         * came back with its image at 22.05 kHz less it, 7 to 15 dB under) */
+        static const int modes[4] = {RV_ROOM, RV_HALL, RV_HALF_ECHO, RV_ECHO_ONE};
+        static float yl[SR / 2];
+        static const uint8_t kn[4] = {127, 64, 127, 0};   /* (tone at its top: the return's high-pass only, flat above) */
+        float worst = 0.0f;
+        int mi;
+        for (mi = 0; mi < 4; mi++) {
+            float img;
+            fx_init(fx, dly_l, dly_r, rv);
+            fx_set(fx, FXT_REVERB + modes[mi], kn);
+            for (b = 0; b < SR / BLK; b++) {
+                for (i = 0; i < BLK; i++) {
+                    float t = (float)(b * BLK + i) / SR;
+                    in[i] = 0.1f * (fm_sin_turns(t * 440.0f) + fm_sin_turns(t * 1210.0f) + fm_sin_turns(t * 2650.0f) +
+                                    fm_sin_turns(t * 4870.0f));
+                }
+                memset(ol, 0, sizeof ol);
+                memset(orr, 0, sizeof orr);
+                fx_process(fx, in, ol, orr, BLK);
+                if (b * BLK >= SR / 2)
+                    for (i = 0; i < BLK; i++)
+                        yl[b * BLK + i - SR / 2] = ol[i];
+            }
+            img = share_above(yl, SR / 4, SR / 4 + 1024, 12000.0f);
+            printf("  %-10s above 12 kHz: %.1f dB under the whole\n", fx_pick_name(FXT_REVERB + modes[mi]), (double)-db(fm_sqrtf(img)));
+            worst = fm_maxf(worst, img);
+        }
+        snprintf(name, sizeof name, "  tones under 5 kHz in: the images above 12 kHz at least 50 dB under (%.1f)", (double)-db(fm_sqrtf(worst)));
+        check(name, worst < 1e-5f);
+    }
     {
         int ok = 1;
         for (t = FXT_REVERB + RV_ROOM; t < NFXPICK; t++) {   /* each decays (the chaos echo: at decay 0) */

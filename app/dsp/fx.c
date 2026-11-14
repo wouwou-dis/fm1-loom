@@ -68,7 +68,7 @@ const uint8_t FXT_DEFAULT[NFXT][4] = {
     {80, 80, 64, 40},                         /* lofi        8.4 kHz, 10.8 bits, half smoothed, 3.4 ms spread */
     {50, 90, 50, 80},                         /* phaser      466 Hz, +-2.1 octaves, 0.27 Hz, feedback 0.57 */
     {100, 40, 44, 72},                        /* plate       lines x1.43 (pre-delay 18 ms, ~1.5 s), 2.4 samples of
-                                               *             wander, 7.4 kHz, damp 0.45 */
+                                               *             wander, 7.4 kHz, damp 0.34 */
 };
 const uint8_t RV_SPU_DEFAULT[4] = {127, 64, 64, 0};   /* the console's sizes, its decay, flat, its own filter */
 const uint8_t RV_LUSH_DEFAULT[4] = {64, 64, 56, 48};  /* (fx.h) */
@@ -314,7 +314,8 @@ static void fx_derive(fxslot_t *f)
         /* tone: below the centre a low-pass closes to 800 Hz, above it a high-pass opens to 2 kHz */
         f->pt[2] = c < 0.5f ? onepole_k(20000.0f * fm_exp2f(-(0.5f - c) * 9.29f)) : 1.0f;
         f->pt[5] = c > 0.5f ? onepole_k(20.0f * fm_exp2f((c - 0.5f) * 13.29f)) : 0.0f;
-        f->pt[3] = 0.8f * d;                                          /* damp: the lines' damping */
+        f->pt[3] = 0.6f * d;                                          /* damp: the lines' damping (0.6: as bright
+                                                                       * as the 12-bit plate was at the defaults) */
         f->pt[4] = 0.55f + 0.42f * a;                                 /* the loop's feedback: decay with size */
         break;
     default:
@@ -700,7 +701,13 @@ static void do_reverb(fxslot_t *f, const float *x, float *ol, float *orr, int m,
 {
     plate_t *p = &f->pl;
     float *const r = (float *)(void *)f->rv;
-    const float damp = f->pc[3], hpk = 0.017f, tlk = f->pc[2], thk = f->pc[5], im = 1.0f / (float)m;
+    /* the damping a trip at the default size and above; below it the trips come quicker, so each damps less (the
+     * tail as bright a second on); the diffusers thin out under size 1 and are gone at its smallest (a small room's
+     * lines are short enough to blur the send themselves: the allpasses only rang there, at their lengths) */
+    const float damp = f->pc[3] * (f->pc[0] < 1.43f ? f->pc[0] * (1.0f / 1.43f) : 1.0f);
+    const float dsc = fm_clampf(f->pc[0] - 0.4f, 0.0f, 1.0f);
+    const float dg0 = PL_DIFG[0] * dsc, dg1 = PL_DIFG[1] * dsc, dg2 = PL_DIFG[2] * dsc, dg3 = PL_DIFG[3] * dsc;
+    const float hpk = 0.017f, tlk = f->pc[2], thk = f->pc[5], im = 1.0f / (float)m;
     float d[8], dd[8], z[8], g[8], hp = p->hp, tl0 = p->tl[0], tl1 = p->tl[1], th0 = p->th[0], th1 = p->th[1], e = 0.0f;
     uint32_t b = p->base;
     int32_t pre, lo, tp[8];
@@ -745,10 +752,10 @@ static void do_reverb(fxslot_t *f, const float *x, float *ol, float *orr, int m,
             PL_RD(PO_PRE) = s;
         }
         s = PL_RD(PO_PRE + pre);
-        PL_AP(PO_D0, PL_DIF[0], PL_DIFG[0]);
-        PL_AP(PO_D1, PL_DIF[1], PL_DIFG[1]);
-        PL_AP(PO_D2, PL_DIF[2], PL_DIFG[2]);
-        PL_AP(PO_D3, PL_DIF[3], PL_DIFG[3]);
+        PL_AP(PO_D0, PL_DIF[0], dg0);
+        PL_AP(PO_D1, PL_DIF[1], dg1);
+        PL_AP(PO_D2, PL_DIF[2], dg2);
+        PL_AP(PO_D3, PL_DIF[3], dg3);
         PL_TAP(0); PL_TAP(1); PL_TAP(2); PL_TAP(3); PL_TAP(4); PL_TAP(5); PL_TAP(6); PL_TAP(7);
         /* the Hadamard, three butterflies */
         a = h[0] + h[1]; c = h[0] - h[1]; h[0] = a; h[1] = c;
@@ -836,11 +843,11 @@ static void do_spu(fxslot_t *f, const float *x, float *ol, float *orr, int m, in
             up_w = (up_w + 1u) & 31u;
             spu_interp(s->up[0], up_w, &o00, &o01);
             spu_interp(s->up[1], up_w, &o10, &o11);
-            yl = o01 * g;                     /* the output volume: -1 again, and the level */
+            yl = o00 * g;                     /* the output volume: -1 again, and the level. o00 lies between */
+            yr = o10 * g;                     /* the ticks 9.5 back: this frame; o01, the tick 9 back: the next */
+        } else {                              /* (the other way round until 2026-11: each tone's image 5 to 10 dB */
+            yl = o01 * g;                     /* under it) */
             yr = o11 * g;
-        } else {
-            yl = o00 * g;
-            yr = o10 * g;
         }
         phase ^= 1u;
         tl += tlk * (yl - tl);
