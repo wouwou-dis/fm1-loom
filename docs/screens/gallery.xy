@@ -1,7 +1,7 @@
 # The gallery: the pages the README and CHANGES show, taken from a new project (docs/make_screens.sh runs this in the
 # host simulator and makes docs/img/paper-NAME.png, the hero strip and the composites from the shots). Every shot is
 # taken a fixed number of simulated milliseconds after what it shows (the simulator keeps its own time, so a rerun
-# makes the same pictures). A new project's sounds are LOOM-8's own defaults, not random ones.
+# makes the same pictures; a new project's random sounds are the same every run too).
 wait 200
 splash
 shot splash.png

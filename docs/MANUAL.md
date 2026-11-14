@@ -12,7 +12,14 @@ arrange it into a song of up to thirty-two scenes.
 LOOM-8 is made for one way of working. Write a short pattern, add a few tricks and weave it with another. Let the
 conductor play a progression, and season it with throws while it plays. Then put your scenes in order.
 
-To see it played first, watch the [LOOM-8 video](https://www.youtube.com/watch?v=d84QXnfulRE).
+To see it played first, watch the [LOOM-8 video](https://www.youtube.com/watch?v=d84QXnfulRE) (it shows Charles Vestal's
+LOOM-8; this build looks different, as the pictures below show).
+
+This manual is for the "paper" build, an unofficial fork of LOOM-8 0.15.1 (see the [README](../README.md) and
+[CHANGES.md](../CHANGES.md)). Its screens are drawn as pages of a printed service manual, and every picture here was
+taken from it. Where it differs from official LOOM-8: no colour themes or large type, no Bluetooth audio or Bluetooth
+MIDI devices, no cane engine and no studio S or L reverb modes; it has the sequin engine, NEW SECTION and the other
+song-building rows, two levels of undo and the EUCLID and VARY BAR fills.
 
 - [Quick start](#quick-start)
 - [Cheat sheet](#cheat-sheet)
@@ -34,31 +41,31 @@ To see it played first, watch the [LOOM-8 video](https://www.youtube.com/watch?v
 This quick start takes you from a blank project to a jam in ten minutes. Count the white keys 1 to 16 from the left, and the black
 keys 1 to 11.
 
-1. **A beat.** Turn **ALGORITHM** until the tag line says T1 kit, and press **SEQ**. Press black key 1 for the
+1. **A beat.** Turn **ALGORITHM** until the chip at the top left says T1 and the line under the header says KIT, and press **SEQ**. Press black key 1 for the
    kick, then press white keys 1, 5, 9 and 13. Press black key 2 for the snare, then white keys 5 and 13. Press
    black key 3 for the hat, then every other white key. Press **PLAY**.
 
-   <img src="img/screen-beat-playing.png" width="240" alt="Steps on T1 kit, playing: kick on 1, 5, 9 and 13, snare on 5 and 13, hats between; a tick for every sound on a step, the playhead lit" title="The beat playing">
+   <img src="img/screen-beat-playing.png" width="240" alt="Steps on T1 kit, playing: kick on 1, 5, 9 and 13, snare on 5 and 13, hats between; one row for each sound on the punched card, the playhead outlined in vermilion and the paper tinted coral on the beat" title="The beat playing">
 2. **A bass line.** Turn **ALGORITHM** to T2, the bass. Hold **SEQ** and play a low note. While you hold **SEQ**,
    the keys play like a keyboard, and LOOM-8 remembers the note you played. Let go and press white keys 1, 4, 7
    and 11 to put it on those steps. Hold **SEQ** again, play another note, let go and press white key 14. Or tap
    **REC** and play the notes one after another, and each one lands on the next step. Press **EDIT** and turn
    **KNOB 1** while it plays to hear the shape change.
 
-   <img src="img/screen-seq-held.png" width="240" alt="Steps on T2 with SEQ held: the keys play notes, and the line above the grid says the notes a step will write" title="SEQ held on Steps"> <img src="img/screen-step-record2.png" width="240" alt="Step record on T2: the red cursor on the next step after the notes written so far; the footer says KEYS write, OCT+ rest, OCT- back, REC done" title="Step record">
+   <img src="img/screen-seq-held.png" width="240" alt="Steps on T2 with SEQ held: the keys play notes, and the line above the card says the notes a step will write" title="SEQ held on Steps"> <img src="img/screen-step-record2.png" width="240" alt="Step record on T2: the red cursor on the next step after the notes written so far; the hints say KEYS write, OCT+ rest, OCT- back, REC done" title="Step record">
 3. **Tricks.** Still on T2, hold white key 7 and press **ARP**. Turn **KNOB 1** to multiply and **KNOB 2** to 3,
    and step 7 plays three hits. Let go. Now hold white key 14, press **ARP**, turn **KNOB 1** to jump and **KNOB 2**
    to "either", and the pattern starts to wander. Last, hold white key 1, press **ARP** and turn **KNOB 1** to
    skip trig, so step 1 only plays every other time round.
 
-   <img src="img/screen-trick.png" width="240" alt="Step 7 held with ARP: multiply 3 on the step; the knob strip shows its two trick slots and their values" title="A trick on step 7">
+   <img src="img/screen-trick.png" width="240" alt="Step 7 held with ARP: multiply 3 on the step; the knobs show its two trick slots and their values" title="A trick on step 7">
 4. **A chord track.** Turn **ALGORITHM** to T3. Press **EDIT** and turn **PRESETS** until you find a pad you
    like. Press **SEQ**, then hold **SEQ** and three keys together. Let go and press white key 1 to put the chord
    there. To make it last half the bar, hold white key 1 and press white key 8; a line under the cells shows how
    far it reaches. Now hold **SEQ** and three keys a little higher, let go and press white key 9. Each cell shows
    the name of its chord.
 
-   <img src="img/screen-chords.png" width="240" alt="Steps on T3: a C chord on step 1 and a D minor on step 9, each named in its cell, with a bar under the steps they last" title="Two chords">
+   <img src="img/screen-chords.png" width="240" alt="Steps on T3: chords on steps 1 and 9, each drawn as its notes on the piano-roll strip" title="Two chords">
 5. **The conductor.** Turn **ALGORITHM** to COND and press **EDIT**. This is the conductor. It sets the key for
    every melodic track, and it starts in C major. While the pattern plays, play an F, then a G, then a C, and the
    whole band follows you, in key.
@@ -72,7 +79,7 @@ keys 1 to 11.
    to **harmony**, and each note moves to the nearest note in the chord. With **ch. deg**, each note's place in
    the scale picks a note of the chord instead.
 
-   <img src="img/screen-conductor.png" width="240" alt="The conductor&#x27;s Engine page: C major, degree 0, the tracks that follow lit; knobs key, scale, link" title="The conductor"> <img src="img/screen-conductor-follow.png" width="240" alt="The conductor&#x27;s Follow page: chords from T3, its box in its color among the tracks that follow; T3&#x27;s notes set the chord" title="Chords from a track">
+   <img src="img/screen-conductor.png" width="240" alt="The conductor&#x27;s Engine page: C major on a keyboard, degree 0, the tracks that follow numbered; knobs key, scale, link" title="The conductor"> <img src="img/screen-conductor-follow.png" width="240" alt="The conductor&#x27;s Follow page: chords from T3, its box lit among the tracks that follow; T3&#x27;s notes set the chord" title="Chords from a track">
 6. **Throws.** Press **FX** and turn **SELECT** to the last page, Throws. Hold a key in the lower octave to throw
    an effect on the drums: F3 mutes them, G3 stutters them, A3 repeats, B3 echoes, C4 builds, D4 plays four on
    the floor and E4 jumbles them. The upper octave does the same to the melodic tracks. Let go and the pattern
@@ -84,7 +91,7 @@ keys 1 to 11.
    a new pattern. Press white keys 1 and 2 to switch between your scenes. While it plays, the new scene waits for
    the next bar; press its key again to switch right away.
 
-   <img src="img/screen-arrange.png" width="240" alt="Arrange: each track&#x27;s pattern with its playhead, scene 2 playing; knobs tempo, groove, amount, the track's pattern" title="Arrange">
+   <img src="img/screen-arrange.png" width="240" alt="Arrange: ten punched strips, one per track with its pattern and the playhead, scene 2 playing; knobs tempo, groove, amount, the track&#x27;s pattern" title="Arrange">
 8. **Save.** Press **SAVE**.
 
 Next, hold a step to see its velocity, length, chance and pitch. Hold a step and press
@@ -153,7 +160,7 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | transpose a pattern, or rotate it | On Steps, press **SEL** and pick SHIFT NOTES (semitones) or ROTATE (steps). Turn **ALGORITHM** for how far, such as +4 or L2, and press **SEL**. |
 | play one bar of a long pattern, or jump about in it | Press **SEQ** and turn **SELECT** to the Bar page. Hold **SEQ** and press black key 1 to 4 to jump to that bar. Hold two of them to loop those bars, or tap one twice to loop that bar. <!-- hint: hold SEQ; black 1,2,3,4 --> |
 | set the track scale | On Steps, turn **KNOB 3**. Or, on the Bar page of a synth track, press a black key: 1, 2, 3, 4, 5, 6, 8, 16 sixteenths a step, or black key 9 for half a sixteenth. <!-- hint: turn KNOB 3 --> |
-| change the pattern | On Steps, turn **KNOB 1**. While it plays, the new pattern comes in at the next bar line. Until then, the knob reads NEXT 1>2 and the tag line says "next P2". |
+| change the pattern | On Steps, turn **KNOB 1**. While it plays, the new pattern comes in at the next bar line. Until then, the knob reads NEXT 1>2. |
 | weave two patterns | On the track, press **ARP** and go to its last page, Weave. Press a black key for the track to weave in and a white key for its pattern; **KNOB 3** sets the rule. From then on, it plays woven. To bring it in by hand instead, set **KNOB 4** to "on WEAVE", then pick the WEAVE track with **ALGORITHM** and hold that track's white key. <!-- hint: press ARP; black 2; white 1; turn KNOB 3 --> |
 | change the sound | Press **EDIT** and turn **PRESETS** to step through the engine's own sounds. A name like "BASS 3/11" tells you what the sound is for and where you are in the list. **SEL** changes the engine. |
 | edit a drum sound | On a drum track, press **EDIT** and press the sound's black key. The knobs are the model's own four. Turn **SELECT** for the model, random, pan and volume. Its **SEL** list has the play mode. <!-- hint: press EDIT; black 1 --> |
@@ -216,39 +223,41 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | **PRESETS** | Steps to the next item of whatever the page shows: a preset, a drum key, an effect, a pattern, a drum sound, a scene. |
 | **KNOB 1–4** | Set the four values at the bottom of the screen. |
 
-Hold any button for a second, and a card explains it. The two lines at the bottom of the screen always say
+Hold any button for a second, and a card explains it. The hint area at the bottom of the screen always says
 what each control does on the page you're on.
 
 ## Getting around
 
 ### The screen
 
-From top to bottom, the screen has five parts.
+The whole screen is drawn as a page from a printed service manual: ink on paper, with circled numbers tying each
+knob to the part of the drawing it changes. There is one look. (Official LOOM-8 has three colour themes and a large-type
+mode; this build has neither.) From top to bottom, the screen has four parts.
 
-<img src="img/screen-beat.png" width="240" alt="The Steps page stopped: the header with the page and tempo, the line of what a step press writes and the bars, the 16 cells, the tag line, the knob strip and the two hint lines" title="The Steps page">
+<img src="img/screen-beat.png" width="240" alt="The Steps page stopped: the header with the page and tempo, the line under it naming the sound and the bar boxes, the punched card, the four knobs with their rulers and the two columns of hints" title="The Steps page">
 
-- **The header** shows the page's button and name, then the tempo with the battery beside it. The battery turns
-  red when it is low, and it shows a bolt while a computer powers the FM-1. A red dot appears while you record,
-  and "unsaved" appears when the project has changes you haven't saved. On a track's pages, the track's pill comes
-  first. A small meter before it shows what the track is playing right now, so you can tell its notes from the
-  other tracks'. Messages and questions cover the header for a moment.
-- **The middle** is the page itself.
-- **The tag line** tells you where you are. It names the track and its engine, the pattern and the scene, such as
-  "T3 knit › P2 › S1". The dots on the right show which of the button's pages you're on.
-- **The knob strip** shows the names and values of the four knobs, each with a bar in the track's color. The
-  knob you just turned shows in the text color.
-- **The two bottom lines** tell you what the encoders and the keys do here.
+- **The header** has a chip at the left with the page's button (HOME, SEQ, EDIT and so on), or the track's name (T1 to
+  T8, COND, FX I) on a track's pages, then the page's name. A short vermilion line under a track's chip is a meter
+  that shows what the track is playing right now. At the right are the scene ("S2"), the tempo, which turns
+  vermilion while the sequencer plays, and the battery. The battery turns red when it is low, and it shows a bolt while a
+  computer powers the FM-1. A vermilion dot appears before the scene while you record, and a small grey dot in the left margin
+  means the project has changes you haven't saved. Small squares under the header's rule, at the right, show which of
+  the button's pages you are on. Messages and questions cover the header for a moment.
+- **The middle** is the page itself, drawn as a figure: Steps is a punched card, Song a route map, Arrange ten
+  punched strips, Mix a desk. Each sound engine, send effect, reverb mode and character type is drawn as a small
+  imagined machine from the 1980s, and its own knobs are the page's four knobs, with the same circled numbers.
+- **The knob strip** shows the four knobs: a circled number, the name, the value and a ruler with a vermilion
+  marker at the value's place. The knob you just turned shows in blue.
+- **The hint area** at the bottom is always two columns of what the encoders and the keys do on the page, each as
+  a key-cap and a few words ("SELECT page", "WHITE steps"). It never moves and never goes away. Hold a button for a
+  second for a longer explanation.
 
-The screen comes in three themes. Pick one with Setup's THEME knob. **tape deck** is warm brown-black with cream
-text, **blueprint** is deep blue with white lines, and **b/w** is black with white text and red. A new FM-1 starts
-in b/w.
-
-Each instrument track has its own color in every theme. In b/w, T1 is pink, T2 teal, T3 yellow, T4 blue, T5
-orange, T6 green, T7 violet and T8 tan. In tape deck, T1 is mustard, T2 rust, T3 olive, T4 teal, T5 blue, T6 plum,
-T7 tan and T8 sage. Steps with notes show in the track's color, dimmed. Whatever is sounding right now shows in the
-track's color at full brightness, such as the step playing, the scene playing or a meter. On Arrange and Mix,
-every track keeps its color, so you can tell them apart at a glance. Cream (or white) outlines show what you are
-touching: the held step, the cursor, the knob you turned. Red is used only for recording and for locks.
+Each instrument track has its own ink, which is how Arrange, Mix and the Steps card show whose notes they are: T1 is
+blue, T2 teal, T3 amber, T4 violet, T5 pink, T6 green, T7 brown and T8 slate. Black is the ink of everything that
+belongs to no track. Vermilion means "playing now" and recording, and nothing else. Blue (or the track's ink) marks
+what you are touching: the held step, the cursor, the knob you turned, the selected slot. While the sequencer plays,
+the paper of the Steps card and of the Bar boxes tints coral on every beat (the first beat of a bar a little more);
+turn that off with BEAT FLASH on Setup's list. Above 180 BPM it tints every second beat.
 
 ### Messages
 
@@ -276,13 +285,14 @@ while the track is muted. Turn Setup's LIGHTS on to make the other buttons glow 
 
 ## Steps
 
-Press **SEQ**. The main band shows one bar of the pattern as 16 cells, and the 16 white keys are those cells. The
-top line shows what a key press writes. On a drum track, that's the sound shown. On a synth track, it's the
+Press **SEQ**. The page shows one bar of the pattern as a punched card of 16 columns (numbered 1, 5, 9 and 13), and
+the 16 white keys are those columns. On a drum track, the card has a row for every drum sound, so you see the whole
+bar at once; on a synth track, it is a piano-roll strip with a punch for each note. The line above the card shows what a key press writes. On a drum track, that's the sound shown. On a synth track, it's the
 remembered notes, which are the last keys you held together on a play page. On the THROW track, it's the last
-effect you played. The four squares on the right are the bars. Press **OCT−** or **OCT+** to see the previous or
+effect you played. The four boxes at the right of that line are the bars. Press **OCT−** or **OCT+** to see the previous or
 next bar.
 
-<img src="img/screen-step-held.png" width="240" alt="Step 13 held on T1: its velocity, length, chance and pitch on the knobs; the footer offers its length, its sounds, the nudge and the lock pages" title="A step held">
+<img src="img/screen-step-held.png" width="240" alt="Step 13 held on T1: its velocity, length, chance and pitch on the knobs; the hints offer its length, its sounds, the nudge and the lock pages" title="A step held">
 
 - **Hold SEQ and play keys** to choose what a step writes. The keys play the track, and the keys you hold
   together become the remembered notes, so you can write a chord. On a drum track, the key you play becomes the
@@ -396,7 +406,7 @@ clears all of its locks (a drum step keeps its pitch). While you record, any kno
 steps as they play. Use the Bar page's SHAPE knob to turn a track's locks into a line, where each lock holds until
 the next one and moves toward it.
 
-<img src="img/screen-lock.png" width="240" alt="Step 1 held with ENV&#x27;s filter page: the cutoff locked at 481 Hz in red; the other knobs show a dash, unlocked" title="A lock">
+<img src="img/screen-lock.png" width="240" alt="Step 1 held with ENV&#x27;s filter page: the cutoff locked at 330 Hz in red; the other knobs show a dash, unlocked" title="A lock">
 
 ### The Steps knobs and the Bar page
 
@@ -404,7 +414,7 @@ With no step held, **KNOB 1** picks the pattern (P1 to P8) and **KNOB 2** sets t
 the track scale, which is how many sixteenths a step takes, from 1/2 to 16. **KNOB 4** sets the track's groove
 amount.
 
-<img src="img/screen-list.png" width="240" alt="SEL on Steps: the pattern's actions (copy to empty, copy, clear, rotate, shift notes, double), then the bar's (copy, clear, duplicate)" title="The Steps list">
+<img src="img/screen-list.png" width="240" alt="SEL on Steps: the pattern&#x27;s actions (copy to empty, copy, clear, rotate, double), then the bar&#x27;s (copy, copy all tracks, clear, duplicate)" title="The Steps list">
 
 Turn **SELECT** for the Bar page. Its knobs set the quantize for live recording, the note length of new steps (as
 a percentage of a step), the groove amount and the shape. The keys write steps just as on Steps. Hold a step for
@@ -504,7 +514,7 @@ empty pattern, so you can edit it like any other. To make variations, weave a pa
 itself: copy it, use ROTATE FORWARD, then weave it by steps. To make a riff, weave a drum pattern's rhythm with a
 melody's notes.
 
-<img src="img/screen-weave.png" width="240" alt="ARP's Weave page on T2: T2 weaves with T1, by rhythm: T2 P1's rhythm, T1 P1's pitch; rows for T2 P1's steps, T1 P1's, and what plays; on, it plays woven" title="A weave set up"> <img src="img/screen-woven.png" width="240" alt="The WEAVE track's page: ten boxes, T1 to T8, COND and THROW; T2's lit while its key is held, its weave T1 P1, rhythm" title="Weaving">
+<img src="img/screen-weave.png" width="240" alt="ARP's Weave page on T2: T2 weaves with T1, by rhythm: T2 P1's rhythm, T1 P1's pitch; rows for T2 P1's steps, T1 P1's, and what plays; on, it plays woven" title="A weave set up"> <img src="img/screen-woven.png" width="240" alt="The WEAVE track&#x27;s page: ten boxes, T1 to T8, COND and THROW; T2&#x27;s marked while its key is held, its weave T1 P1, rhythm" title="Weaving">
 
 ## Recording
 
@@ -545,7 +555,8 @@ LOCKS), a track's sound (or T2 to T8 after RANDOMIZE PRESETS), the master, or th
 
 ## Sounds
 
-Press **EDIT**. The Engine page shows the track's engine and a picture of it. The picture moves as you turn the
+Press **EDIT**. The Engine page shows the track's engine and a drawing of it, an imagined 1980s machine whose own
+controls are the four knobs (the circled numbers match). The drawing moves as you turn the
 knobs, and while the track plays it follows their motion and locks too. Below it are the four knobs, with values
 from 00 to 99. Turn **PRESETS** to step to the engine's next sound. You get its factory presets first, then any
 user presets you saved from it. The message tells you what the sound is for and where you are in the list, for
@@ -590,7 +601,7 @@ the same chord:
 Harmony and ch. deg need a chord. Until the conductor has played one, they behave like diatonic. A step whose
 tonality is **ignore** follows nothing.
 
-<img src="img/screen-engine.png" width="240" alt="The Engine page on T2: the engine, its picture, the preset name, and its four knobs from 00 to 99" title="The Engine page"> <img src="img/screen-play.png" width="240" alt="Play: voice mode, portamento, bend range and volume" title="The Play page">
+<img src="img/screen-engine.png" width="240" alt="The Engine page on T2, knit, drawn as a synthesiser whose four numbered controls are the page&#x27;s four knobs" title="The Engine page"> <img src="img/screen-play.png" width="240" alt="Play: voice mode, portamento, bend range and volume" title="The Play page">
 
 | Engine | Knobs | Presets |
 | --- | --- | --- |
@@ -611,7 +622,7 @@ page.
 
 ### Knit
 
-<img src="img/screen-engine-knit.png" width="240" alt="Engine on T3 knit, the ribbon preset: two square waves of the unison drawn; knobs wave 50, detune 20, voices 2, width 63" title="Knit">
+<img src="img/screen-engine-knit.png" width="240" alt="Engine on T3 knit, the ribbon preset: a synthesiser with its keyboard and four numbered controls; knobs wave 50, detune 20, voices 2, width 63" title="Knit">
 
 Knit is the everyday subtractive voice. Use it for basses, brass, strings, stabs and pads. **wave** sweeps from a
 saw through a square to a narrow pulse. Put an LFO on it for PWM. **voices** stacks one to seven copies of that wave
@@ -630,7 +641,7 @@ to seven. A new note beyond that takes over the oldest one.
 
 ### Rayon
 
-<img src="img/screen-engine-rayon.png" width="240" alt="Engine on T3 rayon, the glass bell preset: the carrier's circle with the modulator turning on it; knobs bright 47, ratio 3.5:1, edge 00, tine 23" title="Rayon">
+<img src="img/screen-engine-rayon.png" width="240" alt="Engine on T3 rayon, the glass bell preset: a keyboard instrument with its ratio display; knobs bright 47, ratio 3.5:1, edge 00, tine 23" title="Rayon">
 
 Rayon is two-operator FM in the DX style. Use it for e-pianos, bells, mallets and basses. **bright** sets how much
 the modulator moves the carrier, and a soft note gets less. **ratio** sets the modulator's pitch relative to the
@@ -644,7 +655,7 @@ sets how much brightness is left, and **keyscale** makes high notes less bright.
 
 ### Jacquard and bellows
 
-<img src="img/screen-engine-jacquard.png" width="240" alt="Engine on T3 jacquard, the spiral pad preset: the wave drawn; knobs table spiral, scan 39, bend 08, ripple 16" title="Jacquard"> <img src="img/screen-engine-bellows.png" width="240" alt="Engine on T3 bellows, the gospel preset: six drawbars, the 8-foot one lit, and the rotor; knobs stops 4, pedal 3, rotor 6, rate 7" title="Bellows">
+<img src="img/screen-engine-jacquard.png" width="240" alt="Engine on T3 jacquard, the spiral pad preset: a rack module with a screen drawing the wave; knobs table spiral, scan 39, bend 08, ripple 16" title="Jacquard"> <img src="img/screen-engine-bellows.png" width="240" alt="Engine on T3 bellows, the gospel preset: an organ with six drawbars and a rotating speaker; knobs stops 4, pedal 3, rotor 6, rate 7" title="Bellows">
 
 **Jacquard** plays wavetables. **table** picks one of nine: shapes, nasal, grit, vocal, spiral, fold, octaves,
 glass and chirp. **scan** moves through the table's frames, and **bend** bends the shape of the wave. **ripple**
@@ -662,7 +673,7 @@ fourth knob is LOOM-8's own.
 
 **Voile** plays the voices.
 
-<img src="img/screen-engine-voile.png" width="240" alt="Engine on T3 voile, the ooh choir preset: the voice's formants drawn as peaks; knobs model choir, timbre 78, color 23, breath 23" title="Voile">
+<img src="img/screen-engine-voile.png" width="240" alt="Engine on T3 voile, the ooh choir preset: a voice machine with a microphone; knobs model choir, timbre 78, color 23, breath 23" title="Voile">
 
 | Model | timbre | color |
 | --- | --- | --- |
@@ -695,8 +706,7 @@ hold the 303's knobs. Each Devilfish knob starts where the stock 303 has it.
 | Filter | **cutoff** goes from 60 Hz to 2.4 kHz, before the envelope opens it. The top half is the stock 303's range, from 870 Hz. The bottom half goes darker than a 303 can, which stops at 314 Hz. **reso** is the resonance. **env mod** sets how far each note opens the filter. **low cut** sets how much bass stays in the resonance, from 350 down to 100 Hz. |
 | Sub | **drive** and its **type**: off, soft or rat (a distortion pedal's clipping). **shaper** sets how square the square wave is. It works only with wave on square, and most of its change is in the bottom third of the knob. |
 
-The picture on the Envelope page draws three seconds of the filter opening and closing. An accented note's curve is
-drawn dimmer, and the held note's level is a line. An acid track has no filter envelope page, and its filter type is
+The Envelope page draws the shape on a chart recorder beside four sliders that are its knobs. An acid track has no filter envelope page, and its filter type is
 the 303's own. It plays one note at a time, whatever the Play page's mode says.
 
 Accents, slides and ties come from the steps:
@@ -713,7 +723,7 @@ Two acid tracks can play at once. A third takes over the oldest one.
 
 ### Sequin
 
-<img src="img/screen-engine-sequin.png" width="240" alt="Engine on T2 sequin, its first preset: a handheld game machine whose screen shows a quarter pulse; knobs wave pulse, duty 1/4, crush 00, sweep 00" title="Sequin">
+<img src="img/screen-engine-sequin.png" width="240" alt="Engine on T3 sequin, its first preset: a handheld game machine whose screen shows the wave; knobs wave pulse, duty 1/4, crush 00, sweep 00" title="Sequin">
 
 **Sequin** is a chip voice: the sound chip of an imagined 1980s home computer or handheld. It is Felucca-Engines'
 LOFI engine by Leo Kuroshita. Use it for chiptune leads, basses, arpeggios and noise drums. The picture is a handheld
@@ -743,7 +753,7 @@ clap, shaker, tambourine, string (a plucked string), conga, tom, fm or sample. I
 snare G3, low tom C3, high tom G3, conga C4, string C3, fm C5. To pick the key the knobs edit, press a black key or
 turn **PRESETS**. The four knobs on the Engine page belong to that key's model:
 
-<img src="img/screen-drum-engine.png" width="240" alt="Engine on T1 kit: the eleven keys as pads, the snare picked; its knobs pitch, length, wires, punch" title="A drum key&#x27;s knobs"> <img src="img/screen-drum-key.png" width="240" alt="The Key page: the snare&#x27;s model, random, pan and volume" title="The Key page"> <img src="img/screen-drum-envelope.png" width="240" alt="ENV&#x27;s Kit env page on a drum track: lag, attack, random and length for the whole kit" title="The kit&#x27;s envelope">
+<img src="img/screen-drum-engine.png" width="240" alt="Engine on T1 kit: the eleven keys as pads, the snare picked; its knobs pitch, length, wires, punch" title="A drum key&#x27;s knobs"> <img src="img/screen-drum-key.png" width="240" alt="The Key page: the snare&#x27;s model, random, pan and volume" title="The Key page"> <img src="img/screen-drum-envelope.png" width="240" alt="ENV&#x27;s Kit env page on a drum track: four sliders for lag, attack, random and length for the whole kit, and a chart of the shape" title="The kit&#x27;s envelope">
 
 | Model | Knobs |
 | --- | --- |
@@ -848,8 +858,7 @@ with the user presets, and a backup includes them too.
   name.
 - **Filter**: cutoff (50 Hz to 20 kHz), resonance, env and drive. Env sets how far the key's envelope moves the
   cutoff, up or down, so with a decay set you get a sweep on every hit. Drive squares off the key while keeping its
-  level. **PRESETS** picks the type: off, low-pass, high-pass or band-pass. The picture draws the curve, and shows
-  faintly where the envelope takes it.
+  level. **PRESETS** picks the type: off, low-pass, high-pass or band-pass. The picture draws the curve.
 
 A key left at its defaults sounds like its model alone and costs nothing extra. The defaults are attack, hold and
 lag at 0, decay off, no filter and no drive. The next two pages are for the whole kit:
@@ -868,7 +877,7 @@ You can lock a key's own settings too. Hold a step and press **ENV**, and the kn
 step's key. Turn **SELECT** for its filter. If the step plays the key shown, that is the one you edit. Otherwise it
 is the first key the step plays. The line above the knobs names it.
 
-<img src="img/screen-drum-key-envelope.png" width="240" alt="ENV on T1 kit: the snare&#x27;s own envelope, attack 3 ms, hold 4 ms, decay 550 ms, lag 0, its shape drawn" title="A key&#x27;s envelope"> <img src="img/screen-drum-key-filter.png" width="240" alt="ENV&#x27;s Filter page on T1 kit: the snare through a low-pass at 1.2 kHz, resonance 71 %, the envelope opening it, drive 24 %" title="A key&#x27;s filter">
+<img src="img/screen-drum-key-envelope.png" width="240" alt="ENV on T1 kit: the snare&#x27;s own envelope, attack 3 ms, hold 4 ms, decay 550 ms, lag 0, its sliders beside a chart recorder drawing the shape" title="A key&#x27;s envelope"> <img src="img/screen-drum-key-filter.png" width="240" alt="ENV&#x27;s Filter page on T1 kit: the snare through a low-pass at 1.2 kHz, resonance 71 %, the envelope opening it, drive 24 %" title="A key&#x27;s filter">
 
 The **sample** model plays a sample from the bank on the key. The bank is described below. sample picks the sample,
 pitch tunes it up to 24 semitones either way from its own rate, start makes it begin later, and reverse plays it
@@ -926,7 +935,7 @@ filter, character and LFO shape the sound as they do for any engine. There are e
 - orch hit and dark hit, which is an octave down.
 - vinyl is the run-out groove, riser is the noise sweep, and boom is the kick, low and long.
 
-<img src="img/screen-sample-engine.png" width="240" alt="Engine on T3 sample: the piano&#x27;s waveform, its root C4, in loop mode; knobs sample, start, length, mode" title="The sample engine">
+<img src="img/screen-sample-engine.png" width="240" alt="Engine on T3 sample: the piano&#x27;s waveform, in one-shot mode, on a sampler; knobs sample, start, length, mode" title="The sample engine">
 
 ### Slice
 
@@ -975,7 +984,7 @@ the waveform are the loop's name and bars, and the slice count or the slice play
 - hits plays classic's eighths one at a time, short, so you can play them as a kit.
 - ghosts plays classic's sixteenths, soft and short, to sit under another beat.
 
-<img src="img/screen-slice-engine.png" width="240" alt="Engine on T3 slice: the classic break&#x27;s waveform (1 bar) cut in eight, slice 5 playing; knobs sample classic, slices 8, pitch 0 st, gate 100 %" title="The slice engine">
+<img src="img/screen-slice-engine.png" width="240" alt="Engine on T3 slice: a turntable with the break; knobs sample classic, slices 8, pitch 0 st, gate 100 %" title="The slice engine">
 
 **Your own samples.** Connect the FM-1, running LOOM-8, to a computer by USB. Open the Samples page,
 <https://charlesvestal.github.io/fm1-loom/samples/>, in Chrome or Edge, and press Connect to read the samples on
@@ -1038,7 +1047,7 @@ own channel: T1 on channel 1, up to T8 on channel 8. They go out whether or not 
 
 It has eight knobs, four on the Engine page and four more on Engine 2. To reach Engine 2, press **EDIT** and turn
 **SELECT**. Each knob sends a CC on the track's channel whenever it moves, whether you turn it, a step's lock
-moves it, or recorded motion plays it back. The picture shows all eight as bars, with the page's four bright and
+moves it, or recorded motion plays it back. The picture shows the page's four knobs with
 each one's CC number under it. To change which CC a knob sends, press **SEL** and turn KNOB 1 CC to KNOB 8 CC (0
 to 119). They start as 74, 71, 73 and 72, which are cutoff, resonance, attack and release on most synths. The
 next four are 1, 75, 91 and 93: mod wheel, decay, reverb and chorus.
@@ -1055,7 +1064,7 @@ On the Engine page, turn **SELECT** for the Play page. It sets poly, mono or leg
 octave, from two down to two up. Bass presets come an octave or two down. This moves every note the track plays,
 including the steps. On knit and rayon, turn once more for Sub.
 
-<img src="img/screen-envelope.png" width="240" alt="ENV: the amp envelope&#x27;s attack, decay, sustain and release, drawn" title="The Envelope page"> <img src="img/screen-filter.png" width="240" alt="ENV&#x27;s Filter page: an lp24 filter at 481 Hz, its curve drawn; PRESETS turns the type" title="The Filter page"> <img src="img/screen-lfo.png" width="240" alt="LFO: a wave LFO at 1/4 moving the filter cutoff, its shape drawn" title="The LFO page">
+<img src="img/screen-envelope.png" width="240" alt="ENV: a generator module with four sliders for attack, decay, sustain and release, beside a chart recorder drawing the shape" title="The Envelope page"> <img src="img/screen-filter.png" width="240" alt="ENV&#x27;s Filter page: an lp24 filter at 481 Hz, its faceplate and its response curve drawn; PRESETS turns the type" title="The Filter page"> <img src="img/screen-lfo.png" width="240" alt="LFO: a wave LFO at 1/4 moving the filter cutoff, drawn as a function generator with a round scope" title="The LFO page">
 
 **ENV** opens on the amp envelope. Next comes the filter, with cutoff in Hz, resonance, envelope amount and key
 tracking. Turn **PRESETS** to change its type (lp24, ladder, lp12, hp12, bp12, off). Last is the filter's
@@ -1084,12 +1093,12 @@ A destination marked "free" keeps running instead of restarting on each note.
 
 Each voice of a synth track has its own effect after the filter and before the sends. This is its character.
 Every voice is shaped on its own, so a chord driven hard still sounds like a chord. Press **FX** to open the
-Character page. It shows the type and what it does, with a picture of either the curve a sample goes through or
-what it does to a wave. The faint line is the sound without it. Turn **PRESETS** to change the type. The knobs
+Character page. It shows the type and what it does, drawn as a small machine: a guitar pedal for drive, a patch module for fold,
+a display box for crush, a ring modulator, a tilt equaliser, a tape deck and a sampler keyboard. Turn **PRESETS** to change the type. The knobs
 are type, amount, tone and mix, from dry to wet, and at mix 0 the character is off. Each factory preset has its
 own character, so a preset is a whole sound.
 
-<img src="img/screen-character.png" width="240" alt="FX&#x27;s Character page on T2: drive, a soft saturation, its curve drawn; knobs type, amount, tone and mix" title="The Character page">
+<img src="img/screen-character.png" width="240" alt="FX&#x27;s Character page on T2: drive, drawn as a guitar pedal; knobs type, amount, tone and mix" title="The Character page">
 
 | Type | Amount | Tone |
 | --- | --- | --- |
@@ -1111,7 +1120,7 @@ tape has no wow.
 
 Press **ARP** and turn **KNOB 1** to pick the player: off, arp, strum, hold or random.
 
-<img src="img/screen-players.png" width="240" alt="Players: the arp at 1/16, up, one octave, with C4 E4 G4 held" title="The arp">
+<img src="img/screen-players.png" width="240" alt="Players: the arp at 1/16, up, one octave, with C4 E4 G4 held, drawn as a step box" title="The arp">
 
 - **arp** plays the held notes one after another. Page 1 has the speed (1/4 to 1/64, with triplets), the pattern
   (up, down, up down 1, up down 2, as played, random) and the range. Page 2 has the note length, a style, glide
@@ -1197,7 +1206,7 @@ and press white keys 1 to 11. A lit key means that sound is playing. The first f
 sound mutes, and the row shows how many are off. A muted sound still drives the pump, and its key still plays when
 you press it. To change scenes from any page, hold **HOME** and turn **PRESETS**.
 
-<img src="img/screen-song.png" width="240" alt="The Song page: S1, S1 and S2 in a row, a bar each, looping" title="The song">
+<img src="img/screen-song.png" width="240" alt="The Song page: a route map of S1, S1 and S2, with section letters A A B and the train at the playing position" title="The song">
 
 The knobs on Arrange:
 
@@ -1249,7 +1258,7 @@ locks, it says so and changes nothing. One undo takes it all back.
 Turn **ALGORITHM** past T8 to reach the aux tracks. Each one has its own page under **EDIT** and its own steps
 under **SEQ**.
 
-<img src="img/screen-fx1.png" width="240" alt="FX&#x27;s FX I page: the delay with time, fine, repeats and tone" title="An effect"> <img src="img/screen-fx2-hall.png" width="240" alt="FX&#x27;s FX II page: the reverb in its hall mode, with size, decay, tone and damp" title="The reverb, hall">
+<img src="img/screen-fx1.png" width="240" alt="FX&#x27;s FX I page: the delay drawn as a tape echo, with time, fine, repeats and tone" title="An effect"> <img src="img/screen-fx2-hall.png" width="240" alt="FX&#x27;s FX II page: the reverb in its hall mode, a hall drawn in section, with size, decay, tone and damp" title="The reverb, hall">
 
 - **COND** is the conductor. Its knobs are key, scale and link. Link picks an instrument track that also plays
   the conductor's keys. Play a chord on its keys and the tracks that follow move to it. Its steps hold the chords
@@ -1332,6 +1341,13 @@ under **SEQ**.
   Chaos echo almost never stops, and one echo is a single repeat. **lush** is a smooth, wide plate based on Jon
   Dattorro's, and a new project starts with it.
 
+  Each effect is drawn as a machine: the chorus, delay, lofi and phaser as units, the plate as a bright metal plate
+  in its frame, lush as a rack unit with a decay display, and room, studio and hall as rooms of growing size. The
+  four echo reverbs are drawn as derelict Cold War signal stations: one echo is a radar scope in a dead desk, half
+  echo a horn facing a concrete sound mirror, space echo a dish on its lattice with a satellite, and chaos echo a
+  search radar fallen off its cabin. The chorus has three voices on each side, swung a third of a turn apart, so
+  that their sum stays level.
+
   The console modes keep their grain, because they run at half the sample rate, as lush does. On these, **size**
   stretches their delays, from small and metallic at 0 to the console's own at the top. A mode you've just picked
   starts at the top. **decay** sets how long the tail lasts, with the console's own in the middle. **tone** darkens
@@ -1358,19 +1374,18 @@ Turn **SELECT** for more pages:
   these pages lists their knobs, page by page, along with what the pump follows, its release and accent, and the
   master level.
 
-On Setup, the knobs set the lights, the MIDI clock, sending MIDI notes and the theme. The clock is internal, receive
-or send (see MIDI, below). Sending notes is on to start with. The theme is b/w to start with, or tape deck or
-blueprint. The page also shows where the tempo comes from (LOOM-8, or a MIDI clock coming in), the USB audio level,
+On Setup, the knobs set the lights, the MIDI clock and sending MIDI notes. The clock is internal, receive
+or send (see MIDI, below). Sending notes is on to start with. The page also shows where the tempo comes from (LOOM-8, or a MIDI clock coming in), the USB audio level,
 the autosave and Bluetooth MIDI (see Bluetooth, below). The version is on the next page,
 Debug. The **SEL** list on Setup has the FM-1's own settings, in three groups:
 
 - Bluetooth: BT MIDI.
 - USB and MIDI: the USB audio level, USB PORT, CLOCK, NOTES, CC IN, CC OUT and SCENES OUT.
-- LOOM-8: LIGHTS, BEAT FLASH, THEME, AUTOSAVE and LOOP THROWS. BEAT FLASH (on by default) tints the card of Steps and the
+- LOOM-8: LIGHTS, BEAT FLASH, AUTOSAVE and LOOP THROWS. BEAT FLASH (on by default) tints the card of Steps and the
   boxes of Bar coral on every beat while the sequencer plays, the bar's first beat a little more; above 180 BPM
   every second beat. It follows the sequencer's own clock, an external MIDI clock too.
 
-All of Setup's settings, the theme too, belong to the FM-1, not the project. Every project you load or start keeps
+All of Setup's settings belong to the FM-1, not the project. Every project you load or start keeps
 them as you left them. On every page, the header shows the scene playing ("S3") before the tempo. You'll find the
 projects in **HOME**'s **SEL** list and the count-in on **REC**'s knobs.
 
@@ -1421,7 +1436,7 @@ to a beat nobody hears. At 0 it is off, and a new project starts there. Its **SE
 This pump works on the whole mix. A track's own pump LFO (above) still ducks just that track. Use it for a bass that
 gets out of the kick's way while the rest plays on.
 
-<img src="img/screen-mix.png" width="240" alt="Mix: a meter for each track while playing; knobs fx I, fx II, pan and level" title="The mixer"> <img src="img/screen-sends.png" width="240" alt="FX&#x27;s Sends page: the track&#x27;s sends to FX I (delay) and FX II (reverb lush), its pan and level" title="The sends"> <img src="img/screen-master.png" width="240" alt="Master EQ: low, mid and high, flat at 64" title="Master EQ"> <img src="img/screen-master-out.png" width="240" alt="Master out: bars for drums, melodic, comp and pump; knobs drums 100, melodic 100, comp 30, pump 4.0 dB" title="Master out">
+<img src="img/screen-mix.png" width="240" alt="Mix: a desk with a fader and a meter for each track; knobs fx I, fx II, pan and level" title="The mixer"> <img src="img/screen-sends.png" width="240" alt="FX&#x27;s Sends page: the track&#x27;s sends to FX I (delay) and FX II (reverb lush) drawn as a signal path, its pan and level" title="The sends"> <img src="img/screen-master.png" width="240" alt="Master EQ: a rack equaliser, low, mid and high, flat at 64" title="Master EQ"> <img src="img/screen-master-out.png" width="240" alt="Master out: a gain-reduction meter and the pump&#x27;s lamps; knobs drums 100, melodic 100, comp 30, pump 0.0 dB" title="Master out">
 
 ### Bluetooth
 
@@ -1638,7 +1653,7 @@ user preset.
 | GLO, SELECT | Master color | color | amount | tone | mix | |
 | GLO, SELECT | Master out | drums | melodic | comp | pump | SEL: pump by, release, accent, level |
 | GLO, SELECT | LFO | shape | rate | amount | dest | black: the tracks it moves; white 1-11: a kit's sound, 12 all |
-| GLO, SELECT | Setup | lights | clock | notes | theme | SEL: Bluetooth MIDI, USB audio, USB port, loop throws, autosave, CC out, scenes out |
+| GLO, SELECT | Setup | lights | clock | notes | | SEL: Bluetooth MIDI, USB audio, USB port, loop throws, autosave, CC out, scenes out |
 
 The aux tracks have their own **EDIT** pages:
 
@@ -1658,7 +1673,8 @@ If LOOM-8 crashes, it shows a red CRASH screen and restarts by itself a few seco
 problem, include the numbers on that screen (a photo is easiest) and what you were doing.
 
 If LOOM-8 crashes twice in a row while starting, it starts in SAFE MODE instead. There's no sound, but USB works,
-so the web installer can reach it. Install LOOM-8 again, or put the stock firmware back from the same page. Press
+so the web installer can reach it. Install LOOM-8 again, or put the stock firmware back from the same page. (The web installer installs official
+LOOM-8; to install this build again, use `base/tools/fm1_install.py` as the README says.) Press
 **PLAY** to try starting LOOM-8 normally again. If even safe mode fails twice, the FM-1 drops into the chip's own
 update mode, and only the rescue below can reach it.
 
