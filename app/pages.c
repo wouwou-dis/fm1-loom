@@ -213,7 +213,6 @@ static const char *const LIGHTS_NAME[3] = {"off", "on", "keys"};
 static const char *const CLOCK_NAME[SEQ_NCLK] = {"internal", "receive", "send"};
 static const uint8_t CLOCK_POS[SEQ_NCLK] = {0, 2, 1};                  /* SEQ_CLK_* -> the knob's position */
 static const uint8_t CLOCK_AT[SEQ_NCLK] = {SEQ_CLK_INTERNAL, SEQ_CLK_RECEIVE, SEQ_CLK_SEND};
-static const char *const CLOCK_ROW[SEQ_NCLK] = {"internal", "sends", "receives"};
 static const char *const METRO_NAME[3] = {"off", "rec", "on"};
 static const char *const ONOFF[2] = {"off", "on"};
 static const char *const LINK_NAME[9] = {"off", "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"};
@@ -8016,9 +8015,6 @@ static void draw_glfo(void)
     }
     cv_blit(0, MAIN_Y);
 }
-/* Setup: a specification sheet (the sheet's Setup): its rows with dotted leaders to their values in bold, and a small
- * drawing of the instrument: the USB port (a line), the Bluetooth link (dashed, solid while a device is joined), the
- * lights (the four pads filled when on), the version and the battery under it */
 static void spec_row_fit(int32_t x1, int32_t x2, int32_t y, const char *label, const char *val)   /* a long value goes to XS */
 {
     int32_t room = x2 - x1 - text_w(&FONT_XS, label) - 10;
@@ -8030,61 +8026,118 @@ static void spec_row_fit(int32_t x1, int32_t x2, int32_t y, const char *label, c
         (void)e;
     }
 }
+/* Setup (the drawing "A, rear panel"): the instrument's back, a card with a screw at each corner. Along the top the USB-C
+ * socket and USB audio's setting; 2 CLOCK, a three-position slide switch (int, recv, send: the knob's order), the
+ * slider over the live position, its word in bold ink, the others dim, and while a MIDI clock drives the tempo an
+ * inked EXT beside it; 3 NOTES, a toggle, the lever leaning right for on. Under a dotted rule: 1 LIGHTS, four lamps
+ * (all filled on, two for keys only, rings off); BT MIDI, an antenna (its arcs while on: one while connecting) over
+ * the Bluetooth device's text; and the rating plate: LOOM-8 and the version, autosave, the battery's bars (on a USB
+ * host's power: USB; nothing read: no row) */
+static void st_word(int32_t cx, int32_t y, const char *s, int live)   /* a switch's position: the live one bold */
+{
+    if (live)
+        text_c(cx, y, F_XB, s, K_TEXT);
+    else
+        text_c(cx, y - 1, &FONT_XS, s, K_DIM);   /* (XS one row lower: the same baseline) */
+}
 static void draw_setup(void)
 {
-    char td[24], tb[24];
-    uint32_t h = hash_u(2166136261u + proj.clock, 0x5E700u | (uint32_t)proj_slot | (uint32_t)proj.usb_full << 4 | (uint32_t)seq.ext << 8 |
-                                          (uint32_t)proj.rsv[0] << 12 | (uint32_t)proj.send_notes << 17 |
-                                          (uint32_t)(proj.rsv[2] & AUTOSAVE_OFF) << 26 | (uint32_t)(plat_battery() + 1) << 27);
-    int bt_on, bat = plat_battery();
-    const int32_t IX = 166, IY = 36;
+    static const char *const POS[SEQ_NCLK] = {"int", "recv", "send"};
+    char td[24], tv[24];
+    int bat = plat_battery(), ck = CLOCK_POS[proj.clock % SEQ_NCLK], arcs, ext = seq.ext != 0;
+    uint32_t h = hash_u(hash_u(2166136261u, 0x5E700u), (uint32_t)proj.lights | (uint32_t)proj.usb_full << 4 |
+                                           (uint32_t)ext << 8 | (uint32_t)p2_touch() << 12 | (uint32_t)proj.send_notes << 16 |
+                                           (uint32_t)ck << 20 | (uint32_t)(proj.rsv[2] & AUTOSAVE_OFF) << 24 | (uint32_t)(bat + 1) << 28);
     bt_dev_text(td, "on", "off");
     h = hash_s(h, td);
-    h = hash_u(h, proj.lights);
     if (!begin_main(h))
         return;
-    bt_on = td[0] != 'o' || td[1] != 'f';
-    tr_text(9, 3, F_LAB, "SPECIFICATIONS", K_DIM, 1);
-    spec_row_fit(8, 156, 19, "tempo from", seq.ext ? "MIDI clock in" : "LOOM-8");
-    spec_row_fit(8, 156, 33, "clock", CLOCK_ROW[proj.clock % SEQ_NCLK]);
-    spec_row_fit(8, 156, 47, "sends notes", proj.send_notes ? "yes" : "no");
-    spec_row_fit(8, 156, 61, "USB audio", USBA_NAME[proj.usb_full & 1u]);
-    spec_row_fit(8, 156, 75, "autosave", proj.rsv[2] & AUTOSAVE_OFF ? "off: SAVE saves" : "on");
-    spec_row_fit(8, 156, 89, "BT MIDI", td);
-    {   /* the instrument */
-        cv_frame(IX, IY, 64, 42, 4, K_TEXT, K_CARD);
-        cv_rect(IX + 5, IY + 5, 15, 15, K_TEXT);
-        for (int i = 0; i < 4; i++) {
-            float kx = (float)(IX + 28 + i * 9);
-            cv_disc(kx, (float)IY + 9.5f, 3.2f, K_BG);
-            cv_ring(kx, (float)IY + 9.5f, 3.4f, 0.9f, K_TEXT);
-            cv_linef(kx, (float)IY + 9.5f, kx + 1.8f, (float)IY + 7.5f, K_TEXT, 0.8f);
-            cv_frame(IX + 25 + i * 9, IY + 15, 7, 5, 1, K_TEXT, proj.lights ? K_TEXT : K_BG);
-        }
-        for (int i = 0; i < 16; i++)
-            cv_rect(IX + 5 + i * 3 + (i * 5 >> 4), IY + 25, 3, 12, K_BG);
-        cv_frame(IX + 4, IY + 24, 56, 14, 0, K_TEXT, K_BG);
-        for (int i = 0; i < 14; i++)
-            cv_rect(IX + 5 + i * 4, IY + 25, 1, 12, K_TEXT);
-        for (int i = 0; i < 14; i++)
-            if ((0x6B5u >> (i % 7)) & 1u && i % 7 != 2 && i % 7 != 6)
-                cv_rect(IX + 5 + i * 4 + 3, IY + 25, 2, 7, K_TEXT);
-        cv_linef((float)IX + 12.0f, (float)IY, (float)IX + 12.0f, (float)IY - 9.0f, K_TEXT, 1.0f);   /* USB */
-        tr_text(IX + 12 - tr_w(F_LAB, "USB", 0) / 2, IY - 21, F_LAB, "USB", K_TEXT, 0);
-        if (bt_on)
-            cv_linef((float)IX + 52.0f, (float)IY, (float)IX + 52.0f, (float)IY - 9.0f, K_TEXT, 1.0f);   /* the link: joined = solid */
+    arcs = td[0] == 'o' && td[1] == 'f' ? 0 : td[0] == 'c' && td[1] == 'o' && td[2] == 'n' ? 1 : 2;
+    if (td[0] == 'c' && td[1] == 'o' && td[2] == 'm')
+        td[8] = 0;                                   /* "computer connected": "computer" */
+    cv_frame(8, 0, 224, 118, 5, K_TEXT, K_CARD);     /* the panel, its screws */
+    p2_screw(15.0f, 7.0f), p2_screw(225.0f, 7.0f), p2_screw(15.0f, 111.0f), p2_screw(225.0f, 111.0f);
+    tr_text(48 - tr_w(F_LAB, "USB AUDIO", 1) / 2, 5, F_LAB, "USB AUDIO", K_DIM, 1);   /* USB audio: a USB-C socket */
+    cv_frame(33, 23, 30, 13, 6, K_TEXT, K_CARD);
+    cv_rect(39, 28, 18, 3, K_TEXT);
+    text_c(48, 41, F_XB, USBA_NAME[proj.usb_full & 1u], K_TEXT);
+    p2_callout(94, 12, 2, 0, K_TEXT);                /* 2 CLOCK: the slide switch */
+    tr_text(103, 6, F_LAB, "CLOCK", K_DIM, 1);
+    if (ext) {                                       /* (a MIDI clock drives the tempo) */
+        cv_round(141, 4, 23, 13, 2, K_TEXT);
+        cv_text(144, 5, F_LAB, "EXT", K_CARD);
+    }
+    cv_frame(88, 24, 75, 12, 2, K_TEXT, K_CARD);
+    {
+        int32_t sx = 99 + 26 * ck - 9;
+        cv_rect(sx, 21, 18, 18, K_TEXT);
+        for (int i = 0; i < 3; i++)
+            cv_rect(sx + 6 + 3 * i, 25, 1, 10, K_CARD);
+    }
+    for (int i = 0; i < SEQ_NCLK; i++)
+        st_word(99 + 26 * i, 41, POS[i], i == ck);
+    p2_callout(175, 12, 3, 0, K_TEXT);               /* 3 NOTES: the toggle */
+    tr_text(184, 6, F_LAB, "NOTES", K_DIM, 1);
+    {
+        float d = proj.send_notes ? 1.0f : -1.0f;
+        cv_ring(196.0f, 32.0f, 6.5f, 1.4f, K_TEXT);
+        cv_linef(196.0f, 32.0f, 196.0f + 7.0f * d, 23.0f, K_TEXT, 3.0f);
+        cv_disc(196.0f + 8.0f * d, 22.0f, 2.6f, K_TEXT);
+    }
+    st_word(183, 41, "off", !proj.send_notes);
+    st_word(208, 41, "on", proj.send_notes != 0);
+    cv_leader(16, 224, 60, K_LINE);
+    p2_callout(24, 72, 1, 0, K_TEXT);                /* 1 LIGHTS: four lamps */
+    tr_text(33, 66, F_LAB, "LIGHTS", K_DIM, 1);
+    for (int i = 0; i < 4; i++) {
+        float lx = 25.0f + 14.0f * (float)i;
+        if (proj.lights == 1 || (proj.lights == 2 && i < 2))
+            cv_disc(lx, 89.0f, 4.5f, K_TEXT);
         else
-            cv_dash((float)IX + 52.0f, (float)IY, (float)IX + 52.0f, (float)IY - 9.0f, 2.0f, 2.0f, 1.0f, K_TEXT);
-        tr_text(IX + 52 - tr_w(F_LAB, "BT", 0) / 2, IY - 21, F_LAB, "BT", bt_on ? K_TEXT : K_DIM, 0);
-        s_cat(s_cat(tb, "LOOM-8 "), APP_VERSION);
-        text_c(IX + 32, IY + 47, &FONT_XS, tb, K_DIM);
-        if (bat >= 0) {
-            if (bat == 4)
-                s_cat(tb, "on USB power");
-            else
-                s_cat(num_s((uint32_t)(bat > 3 ? 3 : bat), s_cat(tb, "battery ")), " of 3");
-            text_c(IX + 32, IY + 60, &FONT_XS, tb, bat <= 1 ? K_REC : K_DIM);
+            cv_ring(lx, 89.0f, 4.5f, 1.2f, K_TEXT);
+    }
+    cv_text(21, 99, F_XB, LIGHTS_NAME[proj.lights % 3], K_TEXT);
+    {                                                /* BT MIDI: an antenna */
+        const int32_t BX = 106, RW = 60;
+        const felucca_font_t *f = text_w(F_XB, td) <= RW ? F_XB : &FONT_XS;
+        uint32_t n = 0;
+        tr_text(BX - tr_w(F_LAB, "BT MIDI", 1) / 2, 66, F_LAB, "BT MIDI", K_DIM, 1);
+        for (int i = 0; i < arcs; i++)
+            ellipse_arc((float)BX, 89.0f, 6.0f + 4.5f * (float)i, 6.0f + 4.5f * (float)i, 0.61f, 0.89f, 1.3f, K_TEXT);
+        cv_linef((float)BX, 89.0f, (float)BX, 99.0f, K_TEXT, 1.3f);
+        cv_disc((float)BX, 89.0f, 2.0f, K_TEXT);
+        cv_rect(BX - 6, 98, 12, 3, K_TEXT);
+        while (td[n])
+            n++;
+        while (n > 2 && text_w(f, td) > RW)          /* (a long device name: cut, a stop for what is gone) */
+            td[--n] = 0, td[n - 1] = '.';
+        text_c(BX, f == F_XB ? 102 : 101, f, td, K_TEXT);
+    }
+    cv_frame(141, 66, 80, 47, 2, K_TEXT, K_CARD);    /* the rating plate */
+    {
+        int32_t e = cv_text(146, 68, F_XB, "LOOM-8", K_TEXT), room = 216 - e - 4;
+        uint32_t n = 0;
+        s_cat(tv, APP_VERSION);
+        if (text_w(&FONT_XS, tv) > room) {           /* (a long version: to its first letter after a dash, then the dash) */
+            while (tv[n] && tv[n] != '-')
+                n++;
+            if (tv[n])
+                tv[n + 2 < sizeof tv ? n + 2 : n] = 0;
+            if (text_w(&FONT_XS, tv) > room)
+                tv[n] = 0;
         }
+        text_r(216, 67, &FONT_XS, tv, K_DIM);
+    }
+    cv_rect(146, 83, 70, 1, K_TEXT);
+    cv_text(146, 83, &FONT_XS, "autosave", K_DIM);
+    text_r(216, 84, F_XB, proj.rsv[2] & AUTOSAVE_OFF ? "off" : "on", K_TEXT);
+    if (bat >= 0) {
+        cv_text(146, 95, &FONT_XS, "battery", K_DIM);
+        if (bat == 4)
+            text_r(216, 96, F_XB, "USB", K_TEXT);
+        else
+            for (int i = 0; i < 3; i++)
+                cv_frame(198 + 7 * i, 99, 4, 8, 0, K_TEXT, i < bat ? K_TEXT : K_CARD);
     }
     cv_blit(0, MAIN_Y);
 }
