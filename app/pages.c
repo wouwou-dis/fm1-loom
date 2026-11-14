@@ -5975,15 +5975,16 @@ static void draw_sub(void)
 }
 /* a drum key's own envelope: its lag (flat), the attack's rise, the hold, the decay's fall (or, off, the level
  * held to the right edge: the sound's own length rules), the key's colour under it */
-/* the envelope figures (the sheet's FIG. "Envelope"): on graph paper, the curve's area hatched in the track's ink, the
- * curve in ink with its corners circled, the base line; under it a dimension line for each stage, broken by its knob's
- * circled number. A stage at its least is still drawn EF_MIN wide, so each callout has room: a schematic, not to
- * scale, as a manual's figure */
-#define EF_X0 14.0f
-#define EF_TOP 30.0f
-#define EF_BASE 90.0f
-#define EF_DIM 106
-#define EF_MIN 26.0f
+/* the envelope figures: an envelope generator, a module of four sliders (the page's four knobs, numbered, their caps
+ * at the live values) beside the window of its chart recorder, which plots the shape on its paper roll: the curve's
+ * area hatched in the track's ink, the curve in ink with its corners circled, the pen at its end; under it a
+ * dimension line for each stage, broken by its knob's circled number. A stage at its least is still drawn EF_MIN
+ * wide, so each callout has room: a schematic, not to scale */
+#define EF_X0 108.0f
+#define EF_TOP 40.0f
+#define EF_BASE 84.0f
+#define EF_DIM 100
+#define EF_MIN 15.0f
 typedef struct { float x[64], y[64]; int n, dash; } curve_t;   /* (dash: the points from there on dashed) */
 static void ef_pt(curve_t *c, float x, float y)
 {
@@ -6000,13 +6001,12 @@ static void ef_curve(const curve_t *c)
     float poly[2 * 66];
     pen_t pn = {0};
     int n = 0;
-    cv_grid(8, 20, 224, 76, 8, MAIN_Y, K_GRID);
     for (int i = 0; i < c->n; i++)
         poly[2 * n] = c->x[i], poly[2 * n + 1] = c->y[i], n++;
     poly[2 * n] = c->x[c->n - 1], poly[2 * n + 1] = EF_BASE, n++;
     poly[2 * n] = c->x[0], poly[2 * n + 1] = EF_BASE, n++;
     cv_poly(poly, n, K_NOW, 150u, 6);                /* the area under it, hatched in the track's ink */
-    cv_rect(8, (int32_t)EF_BASE, 224, 1, K_TEXT);
+    cv_rect(102, (int32_t)EF_BASE, 124, 1, K_TEXT);
     pn.w = 2.0f;
     for (int i = 0; i < c->n; i++) {
         if (c->dash && i > c->dash && (i & 1))       /* (dashed: every other step left out) */
@@ -6029,7 +6029,7 @@ static void ef_dim(float a, float b, int knob)        /* a stage's dimension, it
 }
 /* the stages of a figure whose curve spans its full width (EF_X0 .. 222): each EF_MIN wide at least (room for its
  * callout), the rest shared by weight e[i] (the knobs' values, each stage a little even at 0) */
-#define EF_SPAN 208.0f
+#define EF_SPAN 110.0f
 static void ef_stages(float *w, const float *e, int n)
 {
     float sum = 0.0f, rest = EF_SPAN - (float)n * EF_MIN;
@@ -6045,6 +6045,23 @@ static void ef_break(float x, float y)
     cv_linef(x - 2.5f, y + 4.0f, x + 0.5f, y - 4.0f, K_TEXT, 1.3f);
     cv_linef(x + 0.5f, y + 4.0f, x + 3.5f, y - 4.0f, K_TEXT, 1.3f);
 }
+/* the module: its panel, the four sliders at v (0..127, knob k's at v[k]), the recorder's window, its paper and its
+ * sprocket holes, the pen's carriage on its rail at the plot's end (the end of the release, or the break) */
+static void ef_module(int v0, int v1, int v2, int v3, float pen, float py)
+{
+    int v[4] = {v0, v1, v2, v3};
+    p2_panel(8, 18, 224, 98, K_PANEL2);
+    for (int k = 0; k < 4; k++)
+        p2_vslider(22 + k * 20, 40, 66, (float)v[k] / 127.0f, k + 1);
+    p2_panel(100, 22, 128, 90, K_CARD);
+    cv_grid(102, 32, 124, 60, 8, MAIN_Y, K_GRID);
+    for (int k = 0; k < 15; k++)
+        cv_rect(104 + k * 8, 25, 3, 3, K_LINE), cv_rect(104 + k * 8, 107, 3, 3, K_LINE);
+    cv_rect(100, 30, 128, 2, K_TEXT);                /* the rail, the carriage, the pen down on the paper */
+    cv_rect((int32_t)pen - 4, 26, 9, 8, K_TEXT);
+    cv_linef(pen, 34.0f, pen, py - 8.0f, K_TEXT, 0.8f);
+    cv_tri(pen - 2.5f, py - 9.0f, pen + 2.5f, py - 9.0f, pen, py - 3.0f, K_TEXT);
+}
 /* a kit key's envelope: lag (4), attack (1), hold (2), decay (3); decay off: the sound's own length, dashed */
 static void draw_key_env(void)
 {
@@ -6057,11 +6074,12 @@ static void draw_key_env(void)
     uint32_t h = hash_u(hash_u(2166136261u, 0xE8u), (uint32_t)trk | (uint32_t)key << 4 | (uint32_t)p[DP_ATTACK] << 8 |
                                           (uint32_t)p[DP_HOLD] << 16 | (uint32_t)p[DP_DECAY] << 24);
     curve_t c = {{0}, {0}, 0, 0};
-    h = hash_u(h, p[DP_LAG] | (uint32_t)p[DP_MODEL] << 8 | (uint32_t)k_now << 16);
+    h = hash_u(h, p[DP_LAG] | (uint32_t)p[DP_MODEL] << 8 | (uint32_t)k_now << 16 | (uint32_t)p2_touch() << 28);
     if (!begin_main(h))
         return;
     ef_stages(sw, ew, 4);
     x1 = EF_X0 + sw[0], x2 = x1 + sw[1], x3 = x2 + sw[2];
+    ef_module(p[DP_ATTACK], p[DP_HOLD], p[DP_DECAY], p[DP_LAG], x4, open ? EF_TOP : EF_BASE);
     ef_pt(&c, EF_X0, EF_BASE);
     ef_pt(&c, x1, EF_BASE);
     ef_pt(&c, x2, EF_TOP);
@@ -6110,40 +6128,57 @@ static float filt_y(float db, int32_t y0, int32_t hh)
         return (float)y0 + 22.0f - 22.0f * (1.0f - fm_exp2f(-db * s * (1.0f / 22.0f) * 1.4427f));
     return (float)y0 + 22.0f - db * s;
 }
-/* the filter figures (the sheet's language): a title (the type), a line of what it is, the four knobs' callouts at the
- * left; at the right a response on graph paper (frequency across, level up; an octave 22 px, 0 dB dashed): the curve
- * with its area tinted, the cutoff a dotted line (callout 1), the resonance the peak's height (callout 2), the
- * envelope's reach an arrow with the curve it moves dimmed (callout 3). Off: a flat line, and the way to turn it on */
-#define FG_X 108
-#define FG_W 120
-#define FG_Y 8
-#define FG_H 88
+/* the filter figures: a filter box. At the left its faceplate, a different one for each type (the 24 dB a plain grey
+ * plate, the ladder's with its ladder, the 12 dB a lighter one, the high-pass striped at the top, the band-pass across
+ * the middle, the bus filter at the foot; off: blank, its knobs unnumbered): the cutoff a big dial (1), resonance,
+ * envelope and the fourth knob small (2-4), at the live values. At the right its screen in a dark bezel shows the
+ * response (frequency across, level up; an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a
+ * dotted line (1), the resonance the peak's height (2), the envelope's reach an arrow with the curve it moves dimmed
+ * (3). Off: the screen dead, a flat line, the way to turn it on */
+#define FG_X 110
+#define FG_W 116
+#define FG_Y 10
+#define FG_H 78
 static void filt_fig(const char *title, const char *desc, const uint8_t *par, const int *tps, int cut, int res, int hp, int bp,
                      int steep, int env, int off, const char *offmsg, int band, int hi)
 {
     float q = 0.7f + (float)res * 6.0f / 127.0f, ys[FG_W + 1], ye[FG_W + 1];
     int32_t fc = FG_X + 10 + cut * (FG_W - 20) / 127, y0 = FG_Y + 22, i;
     float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
-    {   /* the left: the title, what it is, the four callouts */
-        const felucca_font_t *f = text_w(&FONT_L, title) <= 92 ? &FONT_L : text_w(F_VAL, title) <= 92 ? F_VAL : &FONT_B;
+    int face = band ? 6 : off ? 5 : hp ? 3 : bp ? 4 : steep == 2 ? 1 : steep ? 0 : 2;
+    {   /* the left: the title, what it is; the faceplate, its knobs */
+        const felucca_font_t *f = text_w(&FONT_L, title) <= 96 ? &FONT_L : text_w(F_VAL, title) <= 96 ? F_VAL : &FONT_B;
         cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, title, K_TEXT);
         if (tr_w(F_LAB, desc, 1) <= 92)
             tr_text(9, 37, F_LAB, desc, K_DIM, 1);
         else
             text_fit(9, 37, F_LAB, desc, 92, K_DIM);
+        p2_panel(8, 52, 94, 64, face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2);
+        if (face == 1)                               /* the ladder */
+            for (int k = 0; k < 9; k++)
+                cv_rect(k ? 52 : 50, 56 + k * 7, k ? 8 : 2, k ? 1 : 56, K_TEXT), cv_rect(60, 56, 2, 56, K_TEXT);
+        if (face == 3 || face == 4)                  /* the stripe: high at the top, the band across; the bus's ears */
+            cv_rect(9, face == 3 ? 53 : 82, 92, 4, K_TEXT);
+        if (face == 6)
+            cv_rect(9, 53, 3, 62, K_TEXT), cv_rect(98, 53, 3, 62, K_TEXT);
+        p2_screw(13.0f, 57.0f), p2_screw(13.0f, 111.0f);
         for (int k = 0; k < 4; k++) {
-            char c[2] = {(char)('1' + k), 0};
             const tp_info_t *in = tps[k] >= 0 ? tp_info_par(tps[k], par) : 0;
+            float u = in ? p2_u(par, tps[k]) : 0.0f;
             if (!in || !in->name || !in->name[0])
                 continue;
-            circ_num(13, 58 + k * 15, c, off ? K_DIM : K_TEXT, K_BG);
-            cv_text(22, 51 + k * 15, &FONT_XS, in->name, off ? K_DIM : K_TEXT);
+            if (k == 0)
+                fxm_ticks(34.0f, 84.0f, 15.0f, 18.0f, 11), p2_knob(34.0f, 84.0f, 12.5f, u, off ? 0 : 1, 0, -26);
+            else
+                p2_knob(76.0f, (float)(44 + k * 20), 6.5f, u, off ? 0 : k + 1, 15, 0);
         }
     }
-    cv_frame(FG_X - 1, FG_Y - 1, FG_W + 2, FG_H + 2, 0, K_TEXT, K_BG);
-    cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_GRID);
-    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_LINE);
-    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 3, F_LAB, "FREQ", K_DIM, 1);
+    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, 7, K_TEXT);   /* the screen in its bezel */
+    cv_rect(FG_X, FG_Y, FG_W, FG_H, off ? K_PANEL2 : K_PANEL);
+    if (!off)
+        cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_LINE);
+    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
+    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 8, F_LAB, "FREQ", K_DIM, 1);
     if (off) {
         cv_rect(FG_X, y0, FG_W, 2, K_DIM);
         text_c(FG_X + FG_W / 2, y0 + 12, &FONT_XS, offmsg, K_DIM);
@@ -6189,8 +6224,9 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
     }
     {   /* 1: the cutoff */
         int32_t cx = fc - FG_X < 0 ? 0 : fc - FG_X > FG_W ? FG_W : fc - FG_X;
+        int32_t nx = fc < FG_X + 8 ? FG_X + 8 : fc > FG_X + FG_W - 8 ? FG_X + FG_W - 8 : fc;
         dot_line((float)fc, (float)FG_Y + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
-        circ_num(fc, FG_Y + 9, "1", K_TEXT, K_BG);
+        circ_num(nx, FG_Y + 9, "1", K_TEXT, K_BG);
     }
     {   /* 2: the resonance: the peak's height over 0 dB */
         float top = (float)y0;
@@ -6204,7 +6240,12 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
             dim_line((float)dx, (float)y0, (float)dx, top, 3.0f, 3.0f, K_TEXT);
             circ_num(dx + (hp ? 9 : -9), (int32_t)((float)y0 + top) / 2 + 1, "2", K_TEXT, K_BG);
         } else
-            circ_num(fc + (hp ? 12 : -12), y0 - 10, "2", K_TEXT, K_BG);
+        {   /* (pushed in from the screen's edge; under the 0 dB line when that would sit it on 1) */
+            int32_t nx = fc + (hp ? 12 : -12), ny = y0 - 10;
+            if (nx < FG_X + 8 || nx > FG_X + FG_W - 8)
+                nx = clampi(nx, FG_X + 8, FG_X + FG_W - 8), ny = y0 + 6;
+            circ_num(nx, ny, "2", K_TEXT, K_BG);
+        }
     }
     if (env != 64 && (reach > 5.0f || reach < -5.0f)) {   /* 3: the envelope's reach */
         float ay = (float)(FG_Y + FG_H - 12), xa = (float)fc, xb = (float)fc + reach;
@@ -6223,7 +6264,7 @@ static void draw_key_filter(void)
                                           (uint32_t)p[DP_CUT] << 12 | (uint32_t)p[DP_RES] << 20);
     int tps[4] = {TP_DRUM(key, DP_CUT), TP_DRUM(key, DP_RES), TP_DRUM(key, DP_FENV), TP_DRUM(key, DP_DRIVE)};
     char t[40];
-    h = hash_u(h, p[DP_FENV] | (uint32_t)p[DP_DRIVE] << 8);
+    h = hash_u(h, p[DP_FENV] | (uint32_t)p[DP_DRIVE] << 8 | (uint32_t)p2_touch() << 16);
     if (!begin_main(h))
         return;
     s_cat(t, ft == DF_OFF ? "NO FILTER" : ft == DF_LP ? "LOW-PASS" : ft == DF_HP ? "HIGH-PASS" : "BAND-PASS");
@@ -6237,8 +6278,8 @@ static void draw_env(int filter)
     const uint8_t *p = par_now(trk);
     uint32_t h = hash_u(hash_u(2166136261u, 0xE7u), (uint32_t)trk | (uint32_t)filter << 4 | (uint32_t)p[b] << 8 |
                                           (uint32_t)p[b + 1] << 16 | (uint32_t)p[b + 2] << 24);
-    float x0 = 16.0f, hh = 84.0f, base = 16.0f + hh;
-    h = hash_u(h, p[b + 3] | (uint32_t)drum << 8);
+    float x0 = EF_X0, hh = EF_BASE - EF_TOP + 4.0f, base = EF_BASE;
+    h = hash_u(h, p[b + 3] | (uint32_t)drum << 8 | (uint32_t)p2_touch() << 12);
     if (is_acid(trk) && !filter) {                   /* the 303's: over 3 s, the filter's opening (its attack's rise,
                                                       * its decay), an accented note's dimmer, the held note's level */
         const float ta = 0.3f * fm_exp2f(p[TP_A] * (13.28771238f / 127.0f)), td = 200.0f * fm_exp2f(p[TP_D] * (3.321928095f / 127.0f));
@@ -6246,9 +6287,10 @@ static void draw_env(int filter)
         pen_t pa = {0}, pc = {0}, pl = {0};
         if (!begin_main(hash_u(h, 0xAC1Du)))
             return;
-        cv_rect(16, 16 + 84, 208, 1, K_LINE);
-        for (int32_t xi = 0; xi <= 208; xi++) {
-            float ms = (float)xi * (3000.0f / 208.0f);
+        ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], EF_X0 + EF_SPAN, base);
+        ef_head("ACID", "filter; dim: accented; line: level");
+        for (int32_t xi = 0; xi <= (int32_t)EF_SPAN; xi++) {
+            float ms = (float)xi * (3000.0f / EF_SPAN);
             float rise = 1.0f - fm_expf(-ms / ta), fl = rise * fm_expf(-ms / td), ac = fm_expf(-ms / tc);
             pen_to(&pl, x0 + (float)xi, base - hh * 0.9f * fm_expf(-ms / tl), K_LINE);
             pen_to(&pc, x0 + (float)xi, base - hh * ac * (1.0f - fm_expf(-ms / 15.0f)), K_DIM);
@@ -6256,7 +6298,6 @@ static void draw_env(int filter)
                 cv_rect((int32_t)x0 + xi, (int32_t)(base - hh * fl + 1.5f), 1, (int32_t)(hh * fl), K_TINT);
             pen_to(&pa, x0 + (float)xi, base - hh * fl, K_NOW);
         }
-        cv_text(16, 16 + 84 + 3, &FONT_XS, "filter; dim: accented; line: the note's level", K_DIM);
         cv_blit(0, MAIN_Y);
         return;
     }
@@ -6268,6 +6309,7 @@ static void draw_env(int filter)
         curve_t c = {{0}, {0}, 0, 0};
         ef_stages(sw, ew, 3);
         x1 = EF_X0 + sw[0], x2 = x1 + sw[1];
+        ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], x3, EF_BASE);
         ef_pt(&c, EF_X0, EF_BASE);
         ef_pt(&c, x1, EF_BASE);
         for (int i = 1; i <= 12; i++) {
@@ -6286,10 +6328,11 @@ static void draw_env(int filter)
         return;
     }
     {   /* attack (1), decay (2) to the sustain's level (3, its height), the note held, release (4) */
-        float a = EF_MIN + (float)p[b] * 28.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 28.0f / 127.0f;
-        float r = EF_MIN + (float)p[b + 3] * 28.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
-        float x1 = EF_X0 + a, x2 = x1 + d, x4 = 222.0f, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
+        float a = EF_MIN + (float)p[b] * 16.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 16.0f / 127.0f;
+        float r = EF_MIN + (float)p[b + 3] * 16.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
+        float x1 = EF_X0 + a, x2 = x1 + d, x4 = EF_X0 + EF_SPAN, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
         curve_t c = {{0}, {0}, 0, 0};
+        ef_module(p[b], p[b + 1], p[b + 2], p[b + 3], x4, EF_BASE);
         ef_pt(&c, EF_X0, EF_BASE);
         for (int i = 1; i <= 12; i++) {
             float t = (float)i / 12.0f;
@@ -6334,7 +6377,7 @@ static void draw_filter(void)
         draw_key_filter();
         return;
     }
-    h = hash_u(h, p[TP_FENV] | (uint32_t)drum << 8);
+    h = hash_u(h, p[TP_FENV] | (uint32_t)drum << 8 | (uint32_t)p2_touch() << 12);
     if (!begin_main(h))
         return;
     if (drum && dyn)
@@ -6344,7 +6387,7 @@ static void draw_filter(void)
                  drum ? "PRESET turns it on" : "PRESET picks a filter", 0, 0);
     else {
         s_cat(t, DESC[ft]);
-        filt_fig(tp_info_par(TP_FTYPE, p)->names[ft], t, p, TPS, cut, res, ft == FT_HP12, ft == FT_BP12, ft == FT_LP24 || ft == FT_LADDER,
+        filt_fig(tp_info_par(TP_FTYPE, p)->names[ft], t, p, TPS, cut, res, ft == FT_HP12, ft == FT_BP12, ft == FT_LADDER ? 2 : ft == FT_LP24,
                  p[TP_FENV], 0, "", 0, 0);
     }
     cv_blit(0, MAIN_Y);
