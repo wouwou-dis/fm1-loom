@@ -107,8 +107,8 @@ second.
 - **Scene** (S1 to S32): which pattern each track plays, plus the mutes (a kit's individual sounds too) and the
   conductor's key.
 - **Song**: a chain of scenes, each played for a number of bars.
-- **Engine**: the way a track makes its sound. There are seven synths (knit, rayon, jacquard, bellows, cane, voile
-  and acid), two sample engines (sample and slice) and the kit, a drum synth.
+- **Engine**: the way a track makes its sound. There are seven synths (knit, rayon, jacquard, bellows, voile, acid
+  and sequin), two sample engines (sample and slice) and the kit, a drum synth.
 - **Preset**: a sound to load. 93 come with LOOM-8, from seven to eighteen for each engine, and 16 are your own.
 - **Player**: what the keys do on a track: arp, strum, hold or random.
 - **Conductor**: an aux track that sets the key, scale and chords for the other tracks. It plays its own chords,
@@ -200,7 +200,7 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | **SEL** | Opens a list of this page's settings and actions. Hold a step and press it to see the step's notes. When LOOM-8 asks a question, **SEL** means yes. |
 | **HOME** | Opens Arrange. On Arrange, it opens the Song page. Hold it as a shift key for buttons and knobs: undo and redo, fine tempo, and the scenes on **PRESETS**. When LOOM-8 asks a question, **HOME** means no. |
 | **SEQ** | Opens Steps; page 2 is Bar. Hold it on Steps and the keys play the track and set what a step writes (**PRESETS** sets the track's sound, and **OCT** moves the whole pattern an octave). Hold it on Bar and black keys 1 to 4 jump to a bar or loop bars. Hold it on Steps or Bar and press **PLAY** to start from the bar on screen. |
-| **EDIT** | Opens Engine. Page 2 is Play and page 3 is Play 2 (the octave). The knit, rayon and acid engines have a page 4, Sub, with the engine's second set of knobs. A sample track in a loop mode has its Loop page second. On a drum track, page 2 holds the key's model, random, pan and volume, and page 3 its sends. On the conductor, the pages are its key, the routing and Follow. |
+| **EDIT** | Opens Engine. Page 2 is Play and page 3 is Play 2 (the octave). The knit, rayon, acid and sequin engines have a page 4, Sub, with the engine's second set of knobs. A sample track in a loop mode has its Loop page second. On a drum track, page 2 holds the key's model, random, pan and volume, and page 3 its sends. On the conductor, the pages are its key, the routing and Follow. |
 | **ENV** | Opens Envelope (on a drum track: lag, attack, random, length), then Filter, then the filter's envelope. |
 | **FX** | Opens Character, the track's own effect. Next come Sends, the track's sends to FX I and FX II, and then FX I and FX II, the two effects. |
 | **LFO** | Opens LFO. Page 2 has the type's fourth and fifth knobs. |
@@ -585,15 +585,16 @@ tonality is **ignore** follows nothing.
 | rayon | bright, ratio, edge, tine | 10 |
 | jacquard | table, scan, bend, ripple | 11 |
 | bellows | stops, pedal, rotor, rate | 9 |
-| cane | model, timbre, color, damp | 8 |
 | voile | model, timbre, color, breath | 7 |
 | sample | sample, start, length, mode | 18 |
 | slice | sample, slices, pitch, gate | 11 |
 | acid | wave, accent, slide, tune | 8 |
+| sequin | wave, duty, crush, sweep | 10 |
 | kit | the model knobs of the key shown | |
 | midi | eight knobs, each sending a CC | |
 
-Knit and rayon have a second set of knobs. To reach them, press **EDIT** and turn **SELECT** to the Sub page.
+Knit, rayon, acid and sequin have a second set of knobs. To reach them, press **EDIT** and turn **SELECT** to the Sub
+page.
 
 ### Knit
 
@@ -640,30 +641,11 @@ wobbles the wave with a second oscillator, slowly at first and then as fast as t
 transistor, combo, jazz, gospel, rock, theater, pipe or church. **pedal** adds the low 16' bar, and 1 leaves it out.
 **rotor** sets how deeply the rotating speaker swirls, with none at 1, and **rate** sets how fast it turns.
 
-### Cane and voile
+### Voile
 
-These two engines come from Mutable Instruments' Braids, Émilie Gillet's macro oscillator. Each one is a family of
-Braids models, and **model** picks one. **timbre** and **color** are Braids' own two knobs, and what they do depends
-on the model. The fourth knob is LOOM-8's own.
-
-**Cane** plays the physical models. These are instruments built from their parts, such as a string, a tube or a bell.
-
-<img src="img/screen-engine-cane.png" width="240" alt="Engine on T3 cane, the koto preset: the string drawn between its two ends; knobs model pluck, timbre 55, color 23, damp 43" title="Cane">
-
-| Model | timbre | color |
-| --- | --- | --- |
-| pluck | how long the string rings | how wide the pluck is, from hollow to full |
-| bow | how hard the bow presses | where it crosses the string |
-| reed | how steady the breath is (less noise) | the tone of the body |
-| flute | how breathy it is; high is clean | how hard it is blown |
-| bell | how long it rings; at the top it never stops | how far apart the partials are pulled |
-| drum | how long it rings | from tone to rattle |
-
-**damp** darkens the sound. The pluck gets softer, the bridge or bore duller, and on the bell and the drum the
-upper partials die first. The pluck and the strikes play once on each note. The bow and the breath start again on
-each note, and when you play legato they carry on while the pitch moves. Cane plays at most four voices at once,
-because each voice keeps its own strings and tubes in memory. A new note beyond that takes over the oldest one. If a
-note is too low for the bow or the flute, you hear it an octave up.
+Voile comes from Mutable Instruments' Braids, Émilie Gillet's macro oscillator. It is a family of Braids models, and
+**model** picks one. **timbre** and **color** are Braids' own two knobs, and what they do depends on the model. The
+fourth knob is LOOM-8's own.
 
 **Voile** plays the voices.
 
@@ -680,8 +662,12 @@ note is too low for the bow or the flute, you hear it an octave up.
 consonant at the start of each note, from none to long. On whisper, it sets the balance of noise against a buzz.
 Turn it all the way up for a pure whisper.
 
-Most of these models cost about as much as any other voice, or less. Cane's bell, with its eleven partials, costs
-about a third more.
+Most of these models cost about as much as any other voice, or less. The choir costs about half as much again.
+
+Cane, the physical models that came from Braids too, was retired in 2026-11 to make room for sequin. A project or a
+user preset that used it still loads: each cane sound becomes the nearest sound another engine has, by its model. A
+pluck becomes knit's pluck, a bowed string knit's ribbon, a reed or a flute bellows' flute stop, a bell rayon's tubular
+bell and a drum rayon's marimba. The track keeps its notes, its mix, its sends, its volume and its octave.
 
 ### Acid
 
@@ -711,6 +697,29 @@ Accents, slides and ties come from the steps:
   followed by a step on the same note with **glide** sounds as one.
 
 Two acid tracks can play at once. A third takes over the oldest one.
+
+### Sequin
+
+<img src="img/screen-engine-sequin.png" width="240" alt="Engine on T2 sequin, its first preset: a handheld game machine whose screen shows a quarter pulse; knobs wave pulse, duty 1/4, crush 00, sweep 00" title="Sequin">
+
+**Sequin** is a chip voice: the sound chip of an imagined 1980s home computer or handheld. It is Felucca-Engines'
+LOFI engine by Leo Kuroshita. Use it for chiptune leads, basses, arpeggios and noise drums. The picture is a handheld
+whose screen shows one cycle of the wave as the chip holds it.
+
+| Knob | What it does |
+| --- | --- |
+| **wave** | pulse, tri, saw, noise or table. Noise is a 15-bit shift register, clocked once each cycle of the note, so it has a pitch. Table plays the wave memory: sixteen waves of 32 steps, 4 bits each. |
+| **duty** | the pulse's width: 1/8, 1/4, 3/8 or 1/2. On table, it picks the table: sq 50, sq 25, sq 12, sine, tri, saw, saw 2, bass 1, bass 2, organ, hollow, vox a, vox o, vox e, buzz or stair. |
+| **crush** | holds each sample for longer, from 1 to 16 samples, for a lower and grainier rate. Past the middle, it also cuts the wave to 16 steps. |
+| **sweep** | makes the pitch fall from the start of each note, in 16 speeds. Use it for zaps, lasers and chip kicks. At 0 the pitch stays. |
+
+On the Sub page, **chip** sets the bit depth: 4 bit, 4 bit lo (half the rate as well), 8 bit, 1 bit (the noise then
+hisses at the full rate) or step. Step is a games console's chip: the pulse widths become 1/8, 1/4, 1/2 and 3/4, the
+triangle becomes a staircase of 32 steps, and the Envelope page's envelope moves in 16 steps, 230 times a second.
+**arp** breaks each note into a fast chord, about 49 steps a second: off, octave, major or minor. **vib** is the chip's
+own vibrato, at 5.4 Hz. **tone** is the chip's own low-pass, and the track's filter comes after it.
+
+Sequin's voice is light, so it can play as many voices as any engine.
 
 ### Kit
 
@@ -1297,9 +1306,10 @@ under **SEQ**.
 
   The effects return only the sound they make. The track's own sound stays on the track.
 
-  The reverb has eleven modes, and **PRESETS** steps through them after the phaser. **plate** is LOOM-8's own.
-  Nine come from the PlayStation's sound chip, the reverbs its games used: **room**, **studio S**, **studio M** and
-  **studio L** (small, medium and large), **hall**, **half echo**, **space echo**, **chaos echo** and **one echo**.
+  The reverb has nine modes, and **PRESETS** steps through them after the phaser. **plate** is LOOM-8's own.
+  Seven come from the PlayStation's sound chip, the reverbs its games used: **room**, **studio** and **hall** (from
+  small to large), **half echo**, **space echo**, **chaos echo** and **one echo**. A project saved with the small or
+  the large studio, which were retired in 2026-11, loads with the studio.
   Chaos echo almost never stops, and one echo is a single repeat. **lush** is a smooth, wide plate based on Jon
   Dattorro's, and a new project starts with it.
 
@@ -1671,7 +1681,8 @@ LOOM-8's way of working owes a great deal to teenage engineering's OP-XY. LOOM-8
 engineering. It is built on fm1-base and felucca-bsp, from Felucca by Leo Kuroshita (Hügelton Instruments), and it
 borrows Polly's menus and X0X's sequencer discipline.
 
-Cane and voile are Mutable Instruments Braids by Émilie Gillet (MIT). Acid is X0X's 303, from Open303 by Robin
+Voile is Mutable Instruments Braids by Émilie Gillet (MIT). Sequin is Felucca-Engines' LOFI by Leo Kuroshita
+(Hügelton Instruments, MIT). Acid is X0X's 303, from Open303 by Robin
 Schmidt (MIT), with jc303's Devilfish ranges by midilab and dm-Rat's RAT drive by Dave Mollen (GPL-3.0). That
 makes LOOM-8 GPL-3.0 as a whole. The plate reverb is after 9W9 by athousanddetails, and its PlayStation modes are
 PSXVerb's.

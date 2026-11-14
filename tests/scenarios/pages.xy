@@ -196,9 +196,9 @@ wait 40
 shot fx2.png
 shot fx2_lush.png
 # the reverb's SPU modes: the longest names on the page, its title and its list (from the plate: lush is the default)
-turn PRESET -10
+turn PRESET -8
 expect par12.0 4
-turn PRESET 7
+turn PRESET 5
 wait 40
 expect par12.0 11
 shot fx2_space_echo.png
@@ -209,6 +209,6 @@ tap SEL
 wait 40
 shot fx2_list.png
 tap HOME
-turn PRESET -8
+turn PRESET -6
 expect par12.0 4
 expect trk 1

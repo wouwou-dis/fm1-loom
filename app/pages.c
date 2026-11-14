@@ -636,7 +636,7 @@ static int kit_x_page(int t)                         /* a kit whose key shown ha
 static int x_page(int t)                             /* the engine has a second page of knobs (TP_X1..X4) */
 {
     int e = t < NTRK ? proj.trk[t].par[TP_ENGINE] : -1, m = t < NTRK ? proj.trk[t].par[TP_E4] % NSM : 0;
-    return e == EG_RAYON || e == EG_KNIT || e == EG_MIDI || e == EG_ACID || (e == EG_SAMPLE && (m == SM_LOOP || m == SM_PINGPONG)) ||   /* (the
+    return e == EG_RAYON || e == EG_KNIT || e == EG_MIDI || e == EG_ACID || e == EG_SEQUIN || (e == EG_SAMPLE && (m == SM_LOOP || m == SM_PINGPONG)) ||   /* (the
                                                                                      * sample's loop page: looping) */
            kit_x_page(t);
 }
@@ -4353,8 +4353,9 @@ static void draw_bar(void)
  * top left, the preset's role, place and name at the top right. knit: a wood-cheeked polysynth with a slider bank;
  * rayon: a flat digital slab with membrane buttons, a display and a cartridge half in; jacquard: a rack unit with a
  * wave display and a big table selector; bellows: a combo organ on legs, its drawbars out, a rotary cabinet beside;
- * cane: a long modular case with patch cables hanging; voile: a wedge case with sliders and a gooseneck microphone;
- * acid: a small box with a row of knobs and a one-octave button keyboard, its cable coiled; kit: a drum machine, its
+ * voile: a wedge case with sliders and a gooseneck microphone;
+ * acid: a small box with a row of knobs and a one-octave button keyboard, its cable coiled; sequin: a handheld game
+ * machine, its LCD showing the chip's wave; kit: a drum machine, its
  * eleven pads (the sounds, named) and sixteen step buttons (the selected sound's steps in this bar); sample: a rack
  * sampler with a floppy disk half in and the real sample in its window; slice: a turntable and the real loop cut into
  * its slices; MIDI: a plain box, its DIN cable coiling off the page */
@@ -4632,35 +4633,6 @@ static void m_bellows(const uint8_t *p)
     p2_knob(210.0f, 102.0f, 6.0f, p2_u(p, TP_E4), 4, 0, -16);
     cv_rect(170, 116, 6, 2, K_TEXT), cv_rect(218, 116, 6, 2, K_TEXT);   /* its feet */
 }
-/* cane: a long modular case, its rails and screws, four modules: the model's rotary switch (1), timbre and color (2,
- * 3), damp (4) and a module of jacks; patch cables hanging across */
-static void m_cane(const uint8_t *p)
-{
-    p2_panel(8, 40, 224, 70, K_PANEL);
-    cv_rect(8, 44, 224, 1, K_TEXT), cv_rect(8, 105, 224, 1, K_TEXT);   /* the rails */
-    for (int k = 0; k < 8; k++)
-        p2_screw(16.0f + (float)k * 30.0f, 42.0f), p2_screw(16.0f + (float)k * 30.0f, 108.0f);
-    p2_panel(12, 46, 58, 58, K_CARD);                /* the model: a rotary switch */
-    {
-        int n = tp_info_par(TP_E1, p)->hi + 1;
-        for (int k = 0; k < n && n <= 12; k++) {
-            float t = 0.375f + 0.75f * (float)k / (float)(n - 1);
-            cv_disc(41.0f + 17.0f * fm_sin_turns(t + 0.25f), 72.0f + 17.0f * fm_sin_turns(t), 1.3f, K_TEXT);
-        }
-        p2_knob(41.0f, 72.0f, 11.0f, p2_u(p, TP_E1), 1, -20, -20);
-    }
-    p2_panel(72, 46, 40, 58, K_CARD);
-    p2_knob(92.0f, 62.0f, 8.0f, p2_u(p, TP_E2), 2, -14, -10);
-    p2_knob(92.0f, 88.0f, 8.0f, p2_u(p, TP_E3), 3, -14, -10);
-    p2_panel(114, 46, 30, 58, K_CARD);
-    p2_knob(129.0f, 62.0f, 6.5f, p2_u(p, TP_E4), 4, 0, 14);
-    p2_panel(146, 46, 82, 58, K_CARD);               /* the jacks */
-    for (int k = 0; k < 8; k++)
-        cv_ring(158.0f + (float)(k % 4) * 20.0f, 60.0f + (float)(k / 4) * 22.0f, 3.2f, 1.2f, K_TEXT);
-    p2_cable(129.0f, 92.0f, 158.0f, 60.0f, 26.0f, K_TEXT);
-    p2_cable(178.0f, 82.0f, 218.0f, 60.0f, 22.0f, K_NOW);
-    p2_cable(198.0f, 82.0f, 41.0f, 96.0f, 18.0f, K_DIM);
-}
 /* voile: a wedge case (its back higher than its front), four sliders (model, timbre, color, breath), a gooseneck
  * microphone rising from it, its lead patched into the front */
 static void m_voile(const uint8_t *p)
@@ -4688,6 +4660,75 @@ static void m_voile(const uint8_t *p)
             cv_rect(206, 31 + k * 3, 13, 1, K_CARD);
         p2_cable(178.0f, 111.0f, 204.0f, 112.0f, 8.0f, K_DIM);
         cv_linef(204.0f, 112.0f, 232.0f, 112.0f, K_DIM, 1.6f);
+    }
+}
+/* sequin: a handheld game machine, landscape, its corners rounded: an LCD with the chip's wave as it holds it (a cycle
+ * in 32 steps: the wave, its duty or table, the hold, the bits). The Engine page's controls: the wave's five-way switch
+ * at its left, a glyph at each stop (1), the duty and crush wheels at its right (2, 3), the sweep's slider under the
+ * screen (4). The Sub page's: the chip's lamps under the LCD, its own lit (1: 4 bit, 4 bit lo, 8 bit, 1 bit, step), the
+ * D-pad (2: the arp, an arm lit: up the octave, right major, left minor), the wheels as vib and tone (3, 4). Two buttons
+ * and a speaker's slots, quiet; its wrist strap looped off the corner */
+static void m_sequin(const uint8_t *p, int sub)
+{
+    static const float GLY[5][8] = {                 /* the switch's glyphs, 4 points each in a 10 x 5 box: pulse, tri, */
+        {0, 5, 0, 0, 5, 0, 5, 5}, {0, 5, 5, 0, 5, 0, 10, 5}, {0, 5, 8, 0, 8, 5, 10, 5},   /* saw */
+        {0, 3, 3, 1, 6, 4, 10, 2}, {0, 5, 3, 5, 3, 1, 10, 1}};                               /* noise, table */
+    float y[32];
+    int wv = p[TP_E1] < 5 ? p[TP_E1] : 4, ch = p[TP_X1] < 5 ? p[TP_X1] : 4, ar = p[TP_X2] & 3;
+    cv_frame(24, 40, 192, 76, 12, K_TEXT, K_CARD);   /* the body */
+    cv_round(26, 106, 188, 8, 6, K_PANEL);           /* its grip's shading */
+    cv_frame(74, 45, 92, 46, 5, K_TEXT, K_TEXT);     /* the screen's bezel, its stripes, the LCD in it */
+    cv_rect(80, 48, 80, 1, K_DIM);
+    for (int k = 0; k < 5; k++)                      /* the chip's lamps under the LCD, the chip's lit (Sub: 1) */
+        cv_rect(84 + k * 16, 87, 8, 2, k == ch ? K_CARD : K_DIM);
+    cv_rect(80, 50, 80, 36, K_PANEL);
+    cv_rect(80, 68, 80, 1, K_LINE);
+    chip_picture(p, y);
+    for (int k = 0; k < 32; k++) {                   /* the wave: the held steps as the LCD's dots, joined */
+        float x = 80.0f + 2.5f * (float)k, yy = 68.0f - y[k] * 13.0f;
+        cv_rect((int32_t)x, (int32_t)yy - 1, 3, 2, K_TEXT);
+        if (k && y[k] != y[k - 1])
+            cv_linef(x + 0.5f, 68.0f - y[k - 1] * 13.0f, x + 0.5f, yy, K_TEXT, 1.0f);
+    }
+    cv_rect(36, 47, 2, 40, K_TEXT);                  /* the wave's switch: its slot, a stop each, its cap (1) */
+    for (int k = 0; k < 5; k++) {
+        float gx = 43.0f, gy = 47.0f + (float)k * 9.0f;
+        for (int i = 0; i < 3; i++)
+            cv_linef(gx + GLY[k][2 * i], gy + GLY[k][2 * i + 1], gx + GLY[k][2 * i + 2], gy + GLY[k][2 * i + 3],
+                     k == wv ? K_TEXT : K_LINE, 1.0f);
+    }
+    cv_rect(32, 46 + wv * 9, 10, 7, K_TEXT);
+    cv_rect(33, 47 + wv * 9, 8, 5, K_CARD);
+    cv_rect(33, 49 + wv * 9, 8, 1, K_TEXT);
+    {   /* the D-pad: its arms outlined, the arp's lit (up: octave, right: major, left: minor) */
+        static const int8_t ARM[4][2] = {{0, 0}, {0, -6}, {6, 0}, {-6, 0}};
+        cv_rect(44, 98, 18, 6, K_TEXT), cv_rect(50, 92, 6, 18, K_TEXT);
+        cv_rect(45, 99, 16, 4, K_CARD), cv_rect(51, 93, 4, 16, K_CARD);
+        if (ar)
+            cv_rect(51 + ARM[ar][0], 99 + ARM[ar][1], 4, 4, K_TEXT);
+        cv_disc(53.0f, 101.0f, 1.2f, K_TEXT);
+    }
+    p2_hslider(84, 101, 64, p2_u(p, TP_E4), sub ? 0 : 4);   /* the sweep (4) */
+    p2_knob(184.0f, 55.0f, 7.0f, p2_u(p, sub ? TP_X3 : TP_E2), sub ? 3 : 2, 0, 15);   /* duty and crush; vib and tone */
+    p2_knob(204.0f, 55.0f, 7.0f, p2_u(p, sub ? TP_X4 : TP_E3), sub ? 4 : 3, 0, 15);
+    if (sub) {
+        p2_callout(66, 86, 1, 0, K_TEXT);
+        p2_callout(34, 101, 2, 0, K_TEXT);
+    } else {
+        p2_callout(14, 66, 1, 0, K_TEXT);
+        cv_linef(20.0f, 66.0f, 31.0f, (float)(49 + wv * 9), K_TEXT, 0.7f);
+    }
+    cv_disc(186.0f, 93.0f, 5.0f, K_TEXT), cv_disc(203.0f, 87.0f, 5.0f, K_TEXT);   /* the buttons, quiet */
+    for (int k = 0; k < 4; k++)                      /* the speaker's slots */
+        cv_linef(192.0f + (float)k * 5.0f, 112.0f, 198.0f + (float)k * 5.0f, 101.0f, K_TEXT, 1.4f);
+    {   /* the wrist strap, looped off the top right corner */
+        pen_t st = {0};
+        st.w = 1.4f;
+        for (int i = 0; i <= 16; i++) {
+            float t = (float)i / 16.0f;
+            pen_to(&st, 213.0f + 13.0f * fm_sin_turns(t * 0.5f), 45.0f + 22.0f * t - 4.0f * fm_sin_turns(t * 0.5f), K_TEXT);
+        }
+        cv_rect(210, 44, 6, 4, K_TEXT);
     }
 }
 /* acid: a small silver box: knobs in a row (wave a switch, accent, slide, tune), a row of lamps, a one-octave button
@@ -4932,9 +4973,9 @@ static void draw_engine(void)
     case EG_RAYON: m_rayon(p); break;
     case EG_JACQUARD: m_jacquard(p); break;
     case EG_BELLOWS: m_bellows(p); break;
-    case EG_CANE: m_cane(p); break;
     case EG_VOILE: m_voile(p); break;
     case EG_ACID: m_acid(p); break;
+    case EG_SEQUIN: m_sequin(p, ui.page == P_SUB); break;
     case EG_SAMPLE: m_sample(p); break;
     case EG_SLICE: m_slice(p, trk); break;
     case EG_MIDI: m_midi(p, trk, ui.page == P_SUB, eng_midi_hit[trk]); break;
@@ -5130,7 +5171,7 @@ static void draw_punch(void)
  * whose size follows knob 1 (its floor dimensioned, callout 1); rings spreading on its floor, as many and as lasting as
  * knob 2 lets them (the plate's: its damping, less damping more rings); callouts 2-4 at the left with their knobs'
  * names, 2's dashed leader to the rings. The source and the first ring vermilion while the effect sounds */
-static const char *const RV_DESC[NRV] = {"BRIGHT METAL PLATE", "A SMALL ROOM", "SMALL STUDIO", "MEDIUM STUDIO", "LARGE STUDIO",
+static const char *const RV_DESC[NRV] = {"BRIGHT METAL PLATE", "A SMALL ROOM", "A STUDIO", "A STUDIO", "A STUDIO",
                                          "A CONCERT HALL", "ROOM WITH ECHO", "ECHOES IN SPACE", "ALMOST ENDLESS",
                                          "A SINGLE ECHO", "SMOOTH, WIDE PLATE"};
 /* ---- P3 helpers (the fx, character, sends, LFO, players and setup pages): a fine dotted line, a dotted curve ---- */
@@ -5899,9 +5940,9 @@ static void draw_sub(void)
         draw_rayon_fall();
     else if (eg == EG_ACID)
         draw_acid_x();
-    else if (eg == EG_SAMPLE || eg == EG_MIDI)
+    else if (eg == EG_SAMPLE || eg == EG_MIDI || eg == EG_SEQUIN)
         draw_engine();                           /* (the sample's loop page: the waveform, its loop marked; MIDI's
-                                                  * knobs 5..8: its eight bars) */
+                                                  * knobs 5..8: its eight bars; sequin's machine, its Sub controls) */
     else
         draw_knit_x();
 }

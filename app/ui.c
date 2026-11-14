@@ -2581,7 +2581,10 @@ static void list_change_do(int32_t e)
     }
     case LK_PICK:
         switch (lst.row[lst.sel].id) {
-        case A_ENGINE: ui.pick_engine = (uint8_t)clampi(ui.pick_engine + d, 0, NENGINE - 1); break;
+        case A_ENGINE:                           /* (past a retired engine's number) */
+            for (int n = d < 0 ? -d : d; n > 0; n--)
+                ui.pick_engine = (uint8_t)eg_step(ui.pick_engine, d > 0 ? 1 : -1);
+            break;
         case A_CLEAR: ui.pick_clear = (uint8_t)clampi(ui.pick_clear % 3u + d, 0, 2); break;
         case A_ROTATE: case A_SHIFT: {           /* how far: never 0 (left / down past 1 goes to -1) */
             int8_t *v = lst.row[lst.sel].id == A_ROTATE ? &ui.pick_rot : &ui.pick_shift;
@@ -4266,7 +4269,7 @@ static void input(void)
         if (lst.open)
             list_change(e);
         else if (page_btn_held(B_EDIT) && !is_aux(sel_trk())) {   /* EDIT held: ALGORITHM picks the engine */
-            ui.pick_engine = (uint8_t)clampi(proj.trk[sel_trk()].par[TP_ENGINE] + (e > 0 ? 1 : -1), 0, NENGINE - 1);
+            ui.pick_engine = (uint8_t)eg_step(proj.trk[sel_trk()].par[TP_ENGINE], e > 0 ? 1 : -1);
             if (ui.pick_engine != proj.trk[sel_trk()].par[TP_ENGINE])
                 action_run(A_ENGINE);
         } else

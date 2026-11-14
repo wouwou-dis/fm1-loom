@@ -236,7 +236,7 @@ void project_device_put(void)
 
 void project_defaults(void)
 {
-    static const uint8_t ORDER[NTRK] = {EG_DRUMLINE, EG_KNIT, EG_RAYON, EG_JACQUARD, EG_KNIT, EG_BELLOWS, EG_CANE,
+    static const uint8_t ORDER[NTRK] = {EG_DRUMLINE, EG_KNIT, EG_RAYON, EG_JACQUARD, EG_KNIT, EG_BELLOWS, EG_SEQUIN,
                                         EG_VOILE};
     int t, k;
     uint8_t *z = (uint8_t *)&proj, keep = proj.magic == PROJ_MAGIC;   /* (a project before it: the FM-1's settings
@@ -337,6 +337,29 @@ static void keys_fix(uint8_t *p, int dev)
     }
 }
 
+/* a retired engine's sound (synth.h eg_retired: its number is kept, nothing plays it) as the nearest sound another engine
+ * has, by what the retired one was set to: cane's models (E1) a factory preset each, its pluck knit's, its bow knit's
+ * strings, its reed and flute bellows' flute stop, its bell rayon's tubular bell, its drum rayon's marimba. The preset
+ * gives the sound; the part's own play mode, glide, bend, volume, sends and octave stay, as the name (a lock on an engine
+ * knob now moves the new engine's: patterns_clamp keeps it in its range) */
+static void engine_retire(uint8_t *p)
+{
+    static const uint8_t CANE_TO[6] = {EG_KNIT, EG_KNIT, EG_BELLOWS, EG_BELLOWS, EG_RAYON, EG_RAYON};
+    static const char *const CANE_AS[6] = {"pluck", "ribbon", "flute", "flute", "tubular", "marimba"};
+    static const uint8_t KEEP[] = {TP_VMODE, TP_PORTA, TP_BEND, TP_VOLUME, TP_SEND1, TP_SEND2, TP_OCT};
+    uint8_t keep[sizeof KEEP];
+    int m = p[TP_E1] < 6 ? p[TP_E1] : 0, k = preset_named(CANE_TO[m], CANE_AS[m]), i;
+    if (!eg_retired(p[TP_ENGINE]))
+        return;
+    for (i = 0; i < (int)sizeof KEEP; i++)
+        keep[i] = p[KEEP[i]];
+    for (i = 0; i < NTP_SOUND; i++)               /* the sound part only: the mix, the player, the kit's keys stay */
+        p[i] = k >= 0 ? PRESETS[k].par[i] : tp_info(i, CANE_TO[m])->def;
+    for (i = 0; i < (int)sizeof KEEP; i++)
+        p[KEEP[i]] = keep[i];
+    p[TP_ENGINE] = CANE_TO[m];
+}
+
 static int settings_valid(settings_t *s)
 {
     int t, k;
@@ -354,6 +377,13 @@ static int settings_valid(settings_t *s)
             return 0;
         if (t >= AUX_FX1 && p[TP_ENGINE] >= NFXPICK)
             return 0;
+        if (t < NTRK && eg_retired(p[TP_ENGINE])) {   /* a retired engine: the nearest sound of another */
+            engine_retire(p);
+            p[TP_O2FINE] = 64;
+        }
+        if (t >= AUX_FX1 && fx_pick_retired(p[TP_ENGINE]))   /* a retired reverb mode (studio S, L): the studio, its
+                                                                 * knobs as they were (the SPU modes share them) */
+            p[TP_ENGINE] = FXT_REVERB + RV_STUDIO;
         if (t < NTRK)
             keys_fix(p, s->format < 17u);
         if (t < NTRK)
@@ -988,6 +1018,17 @@ int presets_load(void)
         user_presets[k].name[NAME_LEN - 1] = 0;
         if (user_presets[k].engine >= NENGINE)
             user_presets[k].name[0] = 0;
+        else if (eg_retired(user_presets[k].engine)) {    /* a retired engine's: the nearest sound of another */
+            static uint8_t par[NTP];
+            for (i = 0; i < NTP_SOUND; i++)
+                par[i] = user_presets[k].par[i];
+            par[TP_ENGINE] = user_presets[k].engine;
+            engine_retire(par);
+            for (i = 0; i < NTP_SOUND; i++)
+                user_presets[k].par[i] = par[i];
+            user_presets[k].engine = par[TP_ENGINE];
+            user_presets[k].o2fine = 64;
+        }
     }
     if (fmt >= 8u)
         for (k = 0; k < (fmt == PRESETS_FORMAT ? NUSER_KITS : (int)OLD_KITS); k++) {

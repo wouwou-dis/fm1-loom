@@ -1,0 +1,71 @@
+# sequin's pages for the contact sheet (tools/contact_sheet.py): the engine picked from SEL's list, its first preset,
+# a note playing, the knobs at their ends, the table and the noise, the Sub page at its ends, a drum preset
+#   app/build/host/loom_host tools/p2/sequin.xy OUT
+wait 300
+spin ALGO 1
+tap EDIT
+tap SEL
+row ENGINE
+turn ALGO 9 30
+wait 300
+shot 01_List-engine-acid.png
+turn ALGO 1
+wait 300
+shot 02_List-engine-sequin.png
+tap SEL
+wait 2500
+shot 03_Engine-sequin.png
+play 2 60 on 110
+wait 300
+shot 04_Engine-playing.png
+play 2 60 off
+wait 300
+knob 2 e1 0
+knob 2 e2 0
+knob 2 e3 0
+knob 2 e4 0
+wait 2500
+shot 05_Engine-knobs-min.png
+knob 2 e1 127
+knob 2 e2 127
+knob 2 e3 127
+knob 2 e4 127
+wait 2500
+shot 06_Engine-knobs-max.png
+knob 2 e2 92
+knob 2 e3 20
+knob 2 e4 30
+wait 2500
+shot 07_Engine-table-vox.png
+knob 2 e1 noise
+knob 2 e3 0
+wait 2500
+shot 08_Engine-noise.png
+turn SELECT 3
+wait 2500
+shot 09_Sub.png
+knob 2 x1 0
+knob 2 x2 0
+knob 2 x3 0
+knob 2 x4 0
+wait 2500
+shot 10_Sub-knobs-min.png
+knob 2 x1 127
+knob 2 x2 127
+knob 2 x3 127
+knob 2 x4 127
+wait 2500
+shot 11_Sub-knobs-max.png
+turn SELECT 1
+preset 2 chip_kick sequin
+wait 2500
+shot 12_Engine-chip-kick.png
+step 2 1 1 60 110
+step 2 1 5 60 110
+step 2 1 9 60 110
+step 2 1 13 60 110
+tap PLAY
+bars 0.05
+shot 13_Engine-kick-playing.png
+bars 1
+tap PLAY

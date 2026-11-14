@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 /* LOOM-8 effects: the two send-effect tracks (fx I, fx II: one of chorus, delay, lofi, phaser, reverb each,
- * four knobs of its own; the reverb in one of eleven modes: the plate, or one of the PlayStation's SPU
+ * four knobs of its own; the reverb in one of nine modes: the plate, lush, or one of the PlayStation's SPU
  * reverbs) and the master section (3-band EQ with blend, compressor, limiter, group
  * levels).
  *
@@ -12,17 +12,25 @@
 enum { FXT_CHORUS, FXT_DELAY, FXT_LOFI, FXT_PHASER, FXT_REVERB, NFXT };
 extern const char *const FXT_NAME[NFXT];
 /* the reverb's modes: the plate (a feedback delay network), then the SPU reverbs of the PlayStation (psx-spx's register
- * sets, as in schwung-psxverb): room, studio small / medium / large, hall, half echo, space echo, chaos echo
- * (almost endless), delay (one echo); then lush, Dattorro's plate at 22.05 kHz (saved by number: a new mode at the end) */
-enum { RV_PLATE, RV_ROOM, RV_STUDIO_S, RV_STUDIO_M, RV_STUDIO_L, RV_HALL, RV_HALF_ECHO, RV_SPACE_ECHO,
+ * sets, as in schwung-psxverb): room, studio, hall, half echo, space echo, chaos echo (almost endless), delay (one
+ * echo); then lush, Dattorro's plate at 22.05 kHz (saved by number: a new mode at the end). The small and the large
+ * studio were retired 2026-11 (room, studio, hall: one size series): their numbers stay taken and play as the studio
+ * (the medium one, as it was), nothing picks them (fx_has), a project that saved one loads with the studio (project.c) */
+enum { RV_PLATE, RV_ROOM, RV_STUDIO_S, RV_STUDIO, RV_STUDIO_L, RV_HALL, RV_HALF_ECHO, RV_SPACE_ECHO,
        RV_CHAOS_ECHO, RV_ECHO_ONE, RV_LUSH, NRV };
 #define NSPU RV_ECHO_ONE                           /* the SPU modes: RV_ROOM .. RV_ECHO_ONE */
-extern const char *const RV_NAME[NRV];         /* "plate", "room", "studio S", ... */
+extern const char *const RV_NAME[NRV];         /* "plate", "room", "studio", ... */
 /* a track's TP_ENGINE byte names the effect and, for the reverb, its mode: the "pick", 0..NFXPICK-1:
  * chorus, delay, lofi, phaser, then the reverb's modes in order (FXT_REVERB + mode) */
 #define NFXPICK (FXT_REVERB + NRV)
 static inline int fx_pick_type(int pick) { return pick < FXT_REVERB ? (pick < 0 ? 0 : pick) : FXT_REVERB; }
-static inline int fx_pick_mode(int pick) { return pick < FXT_REVERB ? 0 : pick - FXT_REVERB < NRV ? pick - FXT_REVERB : 0; }
+static inline int fx_rv_retired(int m) { return m == RV_STUDIO_S || m == RV_STUDIO_L; }
+static inline int fx_pick_retired(int pick) { return pick >= FXT_REVERB && fx_rv_retired(pick - FXT_REVERB); }
+static inline int fx_pick_mode(int pick)       /* (a retired mode: the studio) */
+{
+    int m = pick < FXT_REVERB ? 0 : pick - FXT_REVERB < NRV ? pick - FXT_REVERB : 0;
+    return fx_rv_retired(m) ? RV_STUDIO : m;
+}
 const char *fx_pick_name(int pick);            /* "chorus" .. "phaser", "plate" .. "one echo" (the mode's name) */
 const char *fx_knob_name(int pick, int k);     /* the four knobs' names (the plate's and the SPU modes' differ) */
 /* the knobs and their defaults (stored 0..127), and what the defaults sound like:

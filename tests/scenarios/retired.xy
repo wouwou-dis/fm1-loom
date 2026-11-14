@@ -1,0 +1,33 @@
+# a project saved before cane and the small and large studios were retired (2026-11; tests/fixtures/make_v20_cane.xy)
+# loads: each cane track the nearest sound of another engine by its model (T3's bowed string knit's ribbon, T7's bell
+# rayon's tubular bell), its notes, mix, volume and sends as they were; FX I (studio L) and FX II (studio S) the studio,
+# their knobs kept; a cane user preset (U3, a koto: a pluck) knit's pluck; the project plays and saves
+storeload tests/fixtures/store_v20_cane.bin
+reboot
+wait 400
+expect tempo 103
+expect par3.engine 0
+expect par7.engine 1
+expect par7.send2 50
+expect par7.volume 90
+expect par11.engine 7
+expect par12.engine 7
+expect par12.e2 40
+expect note 7 1 1 60
+expect note 7 1 5 67
+expect note 7 1 9 72
+tap PLAY
+bars 0.3
+expect playing 1
+expect voices >0
+bars 1
+tap PLAY
+preset 5 U3
+expect par5.engine 0
+projsave 1
+reboot
+wait 400
+expect par3.engine 0
+expect par7.engine 1
+expect par12.engine 7
+expect note 7 1 5 67

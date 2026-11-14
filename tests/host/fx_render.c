@@ -233,6 +233,8 @@ int main(void)
     wav("reverb_dry.wav", src_l, src_r, LEN, "the phrase alone");
     for (m = 0; m < NRV; m++) {
         int pick = FXT_REVERB + m;
+        if (fx_pick_retired(pick))                /* (studio S and L: retired) */
+            continue;
         snprintf(name, sizeof name, "reverb_%02d_%s.wav", m, fx_pick_name(pick));
         for (i = 0; name[i]; i++)
             if (name[i] == ' ')

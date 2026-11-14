@@ -1792,13 +1792,13 @@ int main(void)
     /* the engines' plain defaults (INIT), names and displays */
     {
         static const uint8_t DEF[EG_DRUMLINE][4] = {{0, 20, 1, 0},  {40, 25, 0, 0}, {0, 40, 0, 0},  {3, 4, 2, 5},
-                                                    {0, 64, 64, 0}, {2, 0, 64, 0},  {5, 0, 127, SM_ONESHOT},
+                                                    {0, 0, 0, 0},   {2, 0, 64, 0},  {5, 0, 127, SM_ONESHOT},
                                                     {SMP_BREAK, 1, 64, 127}};
         static const char *const NAMES[EG_DRUMLINE] = {"knit", "rayon", "jacquard", "bellows", "cane", "voile", "sample",
                                                        "slice"};
         static const char *const KNOBS[EG_DRUMLINE][4] = {
             {"wave", "detune", "voices", "width"}, {"bright", "ratio", "edge", "tine"},    {"table", "scan", "bend", "ripple"},
-            {"stops", "pedal", "rotor", "rate"},   {"model", "timbre", "color", "damp"},  {"model", "timbre", "color", "breath"},
+            {"stops", "pedal", "rotor", "rate"},   {"-", "-", "-", "-"},                  {"model", "timbre", "color", "breath"},
             {"sample", "start", "length", "mode"}, {"sample", "slices", "pitch", "gate"}};
         int ok = 1, names = 1;
         for (e = 0; e < EG_DRUMLINE; e++) {
@@ -1814,7 +1814,12 @@ int main(void)
             }
         }
         check("the engines' defaults are their plain sounds", ok);
-        check("the engines and their knobs have their names", names && !strcmp(EG_NAME[EG_DRUMLINE], "kit"));
+        check("the engines and their knobs have their names", names && !strcmp(EG_NAME[EG_DRUMLINE], "kit") &&
+                                                                  !strcmp(EG_NAME[EG_SEQUIN], "sequin") &&
+                                                                  !strcmp(EG_KNOB[EG_SEQUIN][3], "sweep"));
+        check("cane is retired: no voice engine, no presets, the pickers step past it",
+              eg_retired(EG_CANE) && !eg_synth(EG_CANE) && preset_first(EG_CANE) < 0 && eg_step(EG_BELLOWS, 1) == EG_VOILE &&
+              eg_step(EG_VOILE, -1) == EG_BELLOWS && eg_step(EG_SEQUIN, 1) == EG_SEQUIN && eg_step(EG_KNIT, -1) == EG_KNIT);
         tp_text(TP_E2, 40, EG_KNIT, num, unit);
         check("knit's detune 40 shows 31", !strcmp(num, "31"));
         tp_text(TP_E1, 51, EG_RAYON, num, unit);
@@ -2449,7 +2454,7 @@ int main(void)
         int same = 1, i;
         reset();
         for (t = 0; t < NTRK; t++) {
-            /* (cane keeps its models' state in slots outside the synth's, which this copies: knit on its track) */
+            /* (cane is retired, engine 4: knit on its track) */
             load_preset(t, preset_first(t == EG_CANE ? EG_KNIT : t) + 3);
             par[t][TP_LTYPE] = (uint8_t)(t & 1 ? LT_WOBBLE : LT_WAVE);
             par[t][TP_LDEST] = (uint8_t)(t & 1 ? 100 : LD_FILTER);

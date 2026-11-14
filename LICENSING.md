@@ -49,7 +49,8 @@ endorsed by or derived from teenage engineering; the name is only used descripti
 | The idea of building the code that never runs per sample for size (`tools/size_fns.py`) | Melodee's (`tools/size_fns.py` there); no code from it | credit only |
 | What the second core and the tests' timing learned on the device | Melodee's dual-core audio (keremimo) and Jangada (zednaked); no code from them in LOOM-8 (fm1-base's second core is keremimo's, by his agreement: felucca-bsp#5) | credit only |
 | knit's unison in `app/dsp/synth.c` (the detune offsets and curve, the pans, the keytracked high-pass) | after [NuSaw](https://github.com/charlesvestal/nusaw-plugin) (the plugin's `dsp/nusaw_engine.cpp`, through its FM-1 port fm1-nusaw), Copyright (c) 2026 Charles Vestal | MIT (below) |
-| `app/dsp/braids.h` (the engines cane and voile: their models) | ported from [Mutable Instruments Braids](https://github.com/pichenettes/eurorack/tree/master/braids) (`digital_oscillator.cc`, `macro_oscillator.cc`, the tables of `resources/`), Copyright 2012 Emilie Gillet | MIT (below) |
+| `app/dsp/chip.h` (the engine sequin: the chip voice; its wave memory's sixteen tables) | ported from [Felucca-Engines](https://github.com/hugelton/Felucca-Engines)' LOFI engine (`src/eng_lofi.c`, with what it takes from `src/dsp.c`), Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments | MIT (below) |
+| `app/dsp/braids.h` (the engine voile: its models; cane's, retired 2026-11, went with it) | ported from [Mutable Instruments Braids](https://github.com/pichenettes/eurorack/tree/master/braids) (`digital_oscillator.cc`, `macro_oscillator.cc`, the tables of `resources/`), Copyright 2012 Emilie Gillet | MIT (below) |
 | `app/dsp/psxrev.h` (the reverb's PlayStation modes) | ported from [schwung-psxverb](https://github.com/charlesvestal/move-everything-psxverb), Copyright (c) 2025 Charles Vestal; the register sets and the resampling filter are psx-spx's documentation of the PlayStation's SPU | MIT (below) |
 | The x models in `app/dsp/drumline.c` (x kick, x snare, x hat, x clap, x tom, x rim, x fm, x noise: `x_start`, `x_render`) | ported from [MACHINEDRUM](https://github.com/Omodaka9375/machinedrum) (`src/drums.js`, `src/audio.js`), Copyright (c) 2026 Branislav Đalić | MIT (below) |
 | sophie in `app/dsp/drumline.c` (`sophie_start`, `sophie_render`) | ported from [Sophie](https://github.com/mestela/schwung-sophie) (`src/dsp/sophie.c`), Copyright (c) 2026 Matt Estela and the digisophie contributors, through SPH-16's port | MIT (below) |
@@ -193,7 +194,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-- The Braids engines (`app/dsp/braids.h`) are ported from Mutable Instruments Braids, under the MIT License:
+- The chip voice (`app/dsp/chip.h`, the engine sequin) is ported from Felucca-Engines' LOFI engine, under the MIT
+  License:
+
+```
+MIT License
+
+Copyright (c) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+- The Braids engine (`app/dsp/braids.h`, voile) is ported from Mutable Instruments Braids, under the MIT License:
 
 ```
 Copyright 2012 Emilie Gillet.

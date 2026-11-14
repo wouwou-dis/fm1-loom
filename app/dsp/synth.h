@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MPL-2.0 */
-/* LOOM-8 synth: a pool of voices playing eight engines (knit, rayon, jacquard, bellows, cane, voile, sample and slice),
+/* LOOM-8 synth: a pool of voices playing its engines (knit, rayon, jacquard, bellows, voile, sample, slice, acid, sequin),
  * each voice with two ADSRs, a state-variable filter, a character stage, an LFO and sends. (The kit, EG_DRUMLINE, is
  * dsp/drumline.c's.)
  *
@@ -38,20 +38,33 @@
  * envelopes are left out (the character stage, the LFO, the sends and the mix are as on any track). A note of
  * velocity ACID_ACCENT or more is accented; a note that starts while the last one is still held slides to it, and so
  * does a note with a glide (a step's glide trick, the arp's glide) after a short one: on the same pitch, a tie. */
+/* EG_SEQUIN (2026-11): a chip voice, Felucca-Engines' LOFI (dsp/chip.h, MIT): pulse, triangle, saw, a shift
+ * register's noise and a wave memory of 32 x 4-bit steps; E1..E4 wave, duty, crush, sweep, its Sub page chip (the
+ * bit depth, step: the envelope stepped), arp, vib, tone */
+/* EG_CANE (Braids' physical models) was retired 2026-11 to make room: its number stays taken, so no other engine's moves
+ * and a project that saved it still loads (project.c engine_retire: the nearest sound of another engine, by its model);
+ * nothing picks it, plays it or shows it */
 enum { EG_KNIT, EG_RAYON, EG_JACQUARD, EG_BELLOWS, EG_CANE, EG_VOILE, EG_SAMPLE, EG_SLICE, EG_DRUMLINE, EG_MIDI,
-       EG_ACID, NENGINE };                           /* (saved by number: PROJ_FORMAT 10 renumbered them; a new one
-                                                      * goes last) */
+       EG_ACID, EG_SEQUIN, NENGINE };                /* (saved by number: PROJ_FORMAT 10 renumbered them; a new one
+                                                      * goes last, a retired one keeps its number) */
 #define NACID 2
 #define ACID_ACCENT 112
-/* the Braids engines (dsp/braids.h, after Mutable Instruments Braids, MIT): E1 the model, E2 Braids' timbre, E3 its
- * color, E4 cane's damp, voile's breath. cane: pluck, bow, reed, flute, bell, drum, at most CN_SLOTS of its voices
- * (each a slot of CN_LEN int16 for its lines); voile: vosim, vowel, choir, whisper */
-#define NCANE 6
+/* the Braids engine (dsp/braids.h, after Mutable Instruments Braids, MIT): E1 the model, E2 Braids' timbre, E3 its
+ * color, E4 voile's breath. voile: vosim, vowel, choir, whisper */
 #define NVOILE 4
-#define CN_SLOTS 4
-#define CN_LEN 1536
-static inline int eg_synth(int e) { return e >= 0 && e < NENGINE && e != EG_DRUMLINE && e != EG_MIDI; }   /* a voice
-                                                                                                         * engine */
+static inline int eg_retired(int e) { return e == EG_CANE; }   /* a number no engine plays any more */
+static inline int eg_synth(int e)                              /* a voice engine */
+{
+    return e >= 0 && e < NENGINE && e != EG_DRUMLINE && e != EG_MIDI && !eg_retired(e);
+}
+/* the engine d (+-1) along from e, past a retired one, held at the ends (the pickers) */
+static inline int eg_step(int e, int d)
+{
+    int n = e + d;
+    if (n >= 0 && n < NENGINE && eg_retired(n))
+        n += d;
+    return n < 0 || n >= NENGINE ? e : n;
+}
 enum { SM_ONESHOT, SM_LOOP, SM_REVERSE, SM_PINGPONG, NSM };   /* the sample engine's modes (TP_E4) */
 #define SL_NCOUNT 4                                  /* the slice engine's counts: 4 << TP_E2 */
 static inline int sl_count(int v) { return 4 << (v < 0 ? 0 : v >= SL_NCOUNT ? SL_NCOUNT - 1 : v); }
@@ -239,6 +252,9 @@ void char_bus(chbus_t *c, const uint8_t *par, float *l, float *r, int n);
 /* the Engine page's picture of the organ: the six drawbars' levels (16' 8' 4' 2 2/3' 2' 1 1/3', 0..1, the loudest 1) that
  * stops and pedal set (organ_prep's registration) */
 void organ_bars(const uint8_t *par, float bars[6]);
+/* the Engine page's picture of sequin's chip: a cycle of its wave as the chip holds it (wave, duty or table, crush, chip),
+ * 32 steps, each -1..1 (dsp/chip.h) */
+void chip_picture(const uint8_t *par, float y[32]);
 /* a track's level (TP_LEVEL) as a gain: a fader's law, cubic (60 dB over 0..100: half way -18 dB), 100 = 0 dB,
  * 127 = +6.2 dB, 0 = off. The drums and the FX returns take it as is; the synth's voices with 100/127 under it
  * (their headroom: synth.c) */
@@ -329,8 +345,8 @@ int synth_lock_value(const synth_t *s, int trk, int param);   /* a lock's value 
 void synth_load_hint(synth_t *s, uint32_t pct);              /* the last block's load, %: the note-start check */
 extern uint32_t synth_load_steals;                            /* notes that took a sounding voice by the load check */
 /* what voice vi costs to render, in rough units for the cores' split (engine.c split_at): 0 silent, 4 an
- * ordinary voice (bellows 5), knit 3 + its unison (+ 1 osc 2, + 1 sub or noise); the Braids engines by their model
- * (braids.h: 3 .. 8, cane's bell the most) */
+ * ordinary voice (bellows 5), knit 3 + its unison (+ 1 osc 2, + 1 sub or noise); voile by its model (braids.h: 4 .. 6),
+ * sequin 3 */
 int synth_voice_cost(const synth_t *s, int vi);
 extern volatile uint16_t synth_peak[NTRK];                     /* per track meters, Q14, decaying (UI) */
 /* the profiler (samples.c SB_PROF, tools/perf_read.py): the time each voice took, by its engine, in synth_clock's
