@@ -248,6 +248,7 @@ static struct {
     uint8_t pick_kit, pick_kslot;                    /* a kit track's KIT (0..3 factory, 4.. user) and SAVE KIT */
     uint8_t pick_bt;                                 /* Bluetooth audio's FORGET: the remembered device */
     uint8_t pick_clear, pick_paste, pick_move;       /* (pick_move: HOME's MOVE SLOT, 0 earlier, 1 later) */
+    uint8_t pick_hits, pick_erot;                    /* EUCLID HITS (1..16; 0: 4) and its rotation (0..15) */
     int8_t pick_shift, pick_rot;                     /* SHIFT NOTES' semitones (-24..24) and ROTATE's steps (-16 left ..
                                                       * 16 right), never 0 (0: the first's, 1) */        /* Steps' CLEAR (notes, locks, both), ROTATE (forward, back),
                                                       * PASTE (the copy, its locks only): kept from list to list */
@@ -272,7 +273,8 @@ enum { A_CLEAR_NOTES, A_CLEAR_LOCKS, A_CLEAR_BOTH, A_COPY_PAT, A_PASTE_PAT, A_RO
        A_KIT, A_SAVE_KIT, A_MIDI_CC, A_USB_HOST, A_BT_MIDI, A_BT_AUDIO, A_BT_ADEV, A_BT_DEVICE, A_BT_DEV, A_BT_LOOK,
        A_BT_FORGET, A_BT_DISCONNECT, A_CLEAR, A_ROTATE, A_PASTE, A_COPY_EMPTY, A_CLEAR_BAR,
        A_COPY_SOUND, A_PASTE_SOUND, A_COPY_KEY, A_PASTE_KEY, A_COPY_SCENE, A_PASTE_SCENE, A_DUP_SLOT, A_KIT_FILTER,
-       A_SHIFT, A_CC_IN, A_FX_WIDTH, A_NEW_SECTION, A_MOVE_SLOT, A_COPY_ALL, A_PASTE_ALL, A_CLEAR_ALL, NACTIONS };
+       A_SHIFT, A_CC_IN, A_FX_WIDTH, A_NEW_SECTION, A_MOVE_SLOT, A_COPY_ALL, A_PASTE_ALL, A_CLEAR_ALL,
+       A_EUCLID, A_EUCLID_ROT, A_VARY, A_DUP_SECTION, NACTIONS };
 static const char *const ACTION_NAME[NACTIONS] = {
     "CLEAR NOTES", "CLEAR LOCKS", "CLEAR NOTES AND LOCKS", "COPY PATTERN", "PASTE PATTERN", "ROTATE FORWARD",
     "ROTATE BACK", "DUPLICATE BAR", "ENGINE", "PRESET", "SCRAMBLE", "SAVE AS PRESET", "RESET SOUND", "FOLLOWS CONDUCTOR",
@@ -284,7 +286,8 @@ static const char *const ACTION_NAME[NACTIONS] = {
     "USB PORT", "BT MIDI", "BT AUDIO", "AUDIO DEVICE", "MIDI DEVICE", "DEVICE", "LOOK AGAIN", "FORGET", "DISCONNECT",
     "CLEAR", "ROTATE", "PASTE", "COPY TO EMPTY", "CLEAR BAR", "COPY SOUND", "PASTE SOUND", "COPY DRUM", "PASTE DRUM",
     "COPY SCENE", "PASTE SCENE", "DUPLICATE SLOT", "KIT FILTER", "SHIFT NOTES", "CC IN", "PING WIDTH",
-    "NEW SECTION", "MOVE SLOT", "COPY BAR, ALL TRACKS", "PASTE BAR, ALL TRACKS", "CLEAR ALL PATTERNS"};
+    "NEW SECTION", "MOVE SLOT", "COPY BAR, ALL TRACKS", "PASTE BAR, ALL TRACKS", "CLEAR ALL PATTERNS",
+    "EUCLID HITS", "EUCLID ROTATE", "VARY BAR", "DUPLICATE SECTION"};
 static const char *const CLEAR_WHAT[3] = {"notes", "locks", "notes and locks"};
 /* a pick ALGORITHM sets at once (a setting: SEL only leaves the list), as against a choice SEL then carries out */
 static int pick_sets(int a)
@@ -294,6 +297,18 @@ static int pick_sets(int a)
     case A_FX_HP: case A_FX_LP: case A_FX_SEND: case A_PUMP_BY: case A_PUMP_REL: case A_PUMP_ACC: case A_LEVEL:
     case A_SCENE_AT: case A_AUTOSAVE: case A_MIDI_OUT: case A_LOOP_FREE: case A_CC_OUT: case A_SCENES_OUT: case A_MIDI_CC:
     case A_USB_HOST: case A_KIT_FILTER: case A_CC_IN: case A_FX_WIDTH:
+        return 1;
+    default:
+        return 0;
+    }
+}
+/* the rows a list never opens on, whichever was used last (a stray SEL would run them): one place for them all */
+static int act_destructive(int a)
+{
+    switch (a) {
+    case A_NEW_PROJ: case A_CLEAR_ALL: case A_CLEAR_SONG: case A_CLEAR_SCENE: case A_DELETE_SLOT: case A_LOAD_PROJ:
+    case A_CLEAR: case A_CLEAR_BAR: case A_CLEAR_NOTES: case A_CLEAR_LOCKS: case A_CLEAR_BOTH: case A_INIT:
+    case A_RANDOM_SOUNDS:
         return 1;
     default:
         return 0;
@@ -314,13 +329,15 @@ static struct {
     struct { const char *name; char val[24]; uint8_t kind, id; } row[LIST_ROWS];
 } lst;
 
-/* the undo: one stage, whatever was changed last (HOME + REC swaps it back, HOME + PLAY swaps again: redo): a
- * pattern with its locks, a track's sound (or T2-T8 at once), the master, or the arrangement (song, scenes, weave) */
+/* the undo: two stages, the last two things changed (HOME + REC swaps the last one back, again the one before; HOME +
+ * PLAY swaps them again, oldest first: redo): a pattern with its locks, a track's sound (or T2-T8 at once), the master,
+ * or the arrangement (song, scenes, weave). ustg[0] is the older stage; the first un_c of them are done (the newest
+ * of them is `undo`), those from un_c to un_n - 1 are undone (the redo side, gone with the next edit) */
 enum { U_PAT, U_SOUND, U_MASTER, U_ARR, U_BARS };
 #define UNDO_LANES 13                     /* (a pattern's 12 locks and its random pool) */
 #define UB_LANES 30                       /* PASTE BAR, ALL TRACKS' undo: the bar's lanes it keeps (fits the arrangement's room) */
-static struct {
-    uint8_t valid, redo, kind, trk, n, pt, nl, rsv;
+typedef struct {
+    uint8_t kind, trk, n, pt, nl, rsv[3];
     uint32_t t;
     union {
         struct { tpat_t pat; lane_t lane[UNDO_LANES]; } p;
@@ -336,7 +353,10 @@ static struct {
                  step_t st[NSEQT][16];
                  struct { uint8_t i, rsv; uint16_t param; uint8_t v[16]; } l[UB_LANES]; } b;
     } u;
-} undo PLAT_POOL;
+} undo_t;
+static undo_t ustg[2] PLAT_POOL;
+static uint8_t un_c, un_n, un_cur, un_fresh;      /* stages done, stages kept, the stage `undo` is, the next edit is a stage of its own */
+#define undo (ustg[un_cur])
 enum { CK_PAT, CK_BAR, CK_STEP };
 static uint8_t clip_ok, clip_trk, clip_pat, clip_kind, clip_from;   /* COPY PATTERN / BAR / STEP: which (CK_*: the
                                                  * bar's or the step's first step), read at PASTE (no copy kept: the
@@ -1390,12 +1410,13 @@ static void hits_gc(void)
             for (int i = 0; i < NSTEP; i++)
                 if (pats.lane[k].val[i] < NHIT)
                     used |= 1ull << pats.lane[k].val[i];
-    if (undo.valid && undo.kind == U_PAT && undo.nl != 0xFFu)
-        for (int k = 0; k < undo.nl && k < UNDO_LANES; k++)
-            if (lane_is_hit(undo.u.p.lane[k].param))
-                for (int i = 0; i < NSTEP; i++)
-                    if (undo.u.p.lane[k].val[i] < NHIT)
-                        used |= 1ull << undo.u.p.lane[k].val[i];
+    for (int u = 0; u < un_n; u++)
+        if (ustg[u].kind == U_PAT && ustg[u].nl != 0xFFu)
+            for (int k = 0; k < ustg[u].nl && k < UNDO_LANES; k++)
+                if (lane_is_hit(ustg[u].u.p.lane[k].param))
+                    for (int i = 0; i < NSTEP; i++)
+                        if (ustg[u].u.p.lane[k].val[i] < NHIT)
+                            used |= 1ull << ustg[u].u.p.lane[k].val[i];
     for (int k = 0; k < NHIT; k++)
         if (!(used >> k & 1u))
             memset(&pats.hit[k], 0, sizeof pats.hit[k]);
@@ -2687,11 +2708,16 @@ static void list_page_section(int p)              /* a page's knobs under its na
     if (lst.n == n + 1)
         lst.n = (uint8_t)n;
 }
-static int pick_amount(int v) { return v ? v : 1; }   /* SHIFT NOTES', ROTATE's amount (never 0) */
+static int pick_amount(int v) { return v ? v : 1; }
+static int bar_steps(int trk)                     /* the steps the bar shown has (the pattern's end may cut it short) */
+{
+    return clampi(tpat(trk)->len - (ui.bar % NBAR) * 16, 1, 16);
+}
+static int eucl_hits(int nb) { int h = ui.pick_hits ? ui.pick_hits : 4; return h < nb ? h : nb; }   /* EUCLID HITS' pick (1..16) */   /* SHIFT NOTES', ROTATE's amount (never 0) */
 /* Steps and Bar: the pattern's actions, then the bar's */
 static void list_steps(int trk)
 {
-    static char empty_t[16], bar_t[8], rot_t[8], sh_t[8], all_t[8];
+    static char empty_t[16], bar_t[8], rot_t[8], sh_t[8], all_t[8], eh_t[12], er_t[8];
     int to = pat_first_empty(trk), paste = clip_ok && clip_kind != CK_STEP;   /* (a step pastes onto steps held) */
     list_head("pattern");
     if (to >= 0)
@@ -2726,17 +2752,33 @@ static void list_steps(int trk)
     }
     list_add(ACTION_NAME[A_CLEAR_BAR], 0, LK_ACTION, A_CLEAR_BAR);
     list_add(ACTION_NAME[A_DUP_BAR], 0, LK_ACTION, A_DUP_BAR);
+    {                                            /* the fills: N hits over the bar's steps, turned; a variation */
+        int nb = bar_steps(trk), h = eucl_hits(nb);
+        num_s((uint32_t)nb, s_cat(num_s((uint32_t)h, eh_t), " of "));
+        list_add(ACTION_NAME[A_EUCLID], eh_t, LK_PICK, A_EUCLID);
+        num_s((uint32_t)(ui.pick_erot % 16u), s_cat(er_t, "by "));
+        list_add(ACTION_NAME[A_EUCLID_ROT], er_t, LK_PICK, A_EUCLID_ROT);
+        list_add(ACTION_NAME[A_VARY], 0, LK_ACTION, A_VARY);
+    }
 }
 /* HOME: the page's own first (Song: the song; Arrange: the scenes), then the projects */
 static void list_home(int keep)
 {
-    static char slot_t[24], save_t[24], scl_t[12], new_t[12];
+    static char slot_t[24], save_t[24], scl_t[12], new_t[12], dup_t[12];
     for (int i = 0; i < 2; i++)
         if ((i == 0) == (keep == P_SONG)) {
             list_head("song");
             list_add(ACTION_NAME[A_PLAY_SONG], 0, LK_ACTION, A_PLAY_SONG);
             list_add(ACTION_NAME[A_INSERT_SLOT], 0, LK_ACTION, A_INSERT_SLOT);
             list_add(ACTION_NAME[A_DUP_SLOT], 0, LK_ACTION, A_DUP_SLOT);
+            {                                    /* DUPLICATE SECTION: the scene it makes (the first empty one) */
+                int ns = scene_first_empty();
+                if (ns >= 0)
+                    num_s((uint32_t)ns + 1u, s_cat(dup_t, "new S"));
+                else
+                    s_cat(dup_t, "none empty");
+                list_add(ACTION_NAME[A_DUP_SECTION], dup_t, LK_ACTION, A_DUP_SECTION);
+            }
             list_add(ACTION_NAME[A_MOVE_SLOT], ui.pick_move & 1u ? "later" : "earlier", LK_PICK, A_MOVE_SLOT);
             list_add(ACTION_NAME[A_DELETE_SLOT], 0, LK_ACTION, A_DELETE_SLOT);
             list_add(ACTION_NAME[A_CLEAR_SONG], 0, LK_ACTION, A_CLEAR_SONG);

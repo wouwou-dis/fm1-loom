@@ -413,18 +413,32 @@ static void swap_bytes(void *a, void *b, size_t n)
 static int undo_run(int kind, int trk, int n, int pt, uint32_t ms)   /* 1: the stage there goes on (kept as it is) */
 {
     uint32_t now = plat_ms();
-    if (undo.valid && !undo.redo && undo.kind == kind && undo.trk == trk && undo.n == n && undo.pt == pt && now - undo.t < ms) {
-        undo.t = now;
-        return 1;
+    if (un_c && un_c == un_n && !un_fresh) {
+        undo_t *u = &ustg[un_c - 1];
+        if (u->kind == kind && u->trk == trk && u->n == n && u->pt == pt && now - u->t < ms) {
+            u->t = now;
+            un_cur = (uint8_t)(un_c - 1);
+            return 1;
+        }
     }
+    un_fresh = 0;
+    if (un_c == 2) {                             /* (the oldest goes) */
+        ustg[0] = ustg[1];
+        un_c = 1;
+    }
+    un_cur = un_c++;                             /* (an edit after an undo: the redo side goes) */
+    un_n = un_c;
     undo.kind = (uint8_t)kind;
     undo.trk = (uint8_t)trk;
     undo.n = (uint8_t)n;
     undo.pt = (uint8_t)pt;
-    undo.valid = 1;
-    undo.redo = 0;
     undo.t = now;
     return 0;
+}
+static void undo_fresh(void) { un_fresh = 1; }   /* the next edit is a stage of its own */
+static void undo_clear(void)                     /* nothing to undo (another project) */
+{
+    un_c = un_n = un_cur = 0;
 }
 static int lanes_get(int trk, int pt, lane_t *out, int max)   /* a pattern's lanes: how many (-1: more than max) */
 {
@@ -493,10 +507,11 @@ static void pat_empty(int trk, int pt);
 static void do_undo(int redo)
 {
     char t[24];
-    if (!undo.valid || (redo && !undo.redo) || (!redo && undo.redo)) {
+    if (redo ? un_c >= un_n : !un_c) {
         say_no(redo ? "NOTHING TO REDO" : "NOTHING TO UNDO", 0);
         return;
     }
+    un_cur = (uint8_t)(redo ? un_c : un_c - 1);
     switch (undo.kind) {
     case U_PAT: {
         tpat_t tmp = pats.pat[undo.trk][undo.pt];
@@ -565,7 +580,7 @@ static void do_undo(int redo)
     default: {
         scene_t live = pats.scene[cur_scene()];
         int ns = undo.u.a.ns;                    /* NEW SECTION: back to the scene it was made from, its copies emptied */
-        if (ns && !redo) {
+        if (ns == 1 && !redo) {
             engine_scene(undo.u.a.ns_from % NSCENE, SCENE_NOW);
             proj.scene = (uint8_t)(undo.u.a.ns_from % NSCENE);
         }
@@ -579,11 +594,11 @@ static void do_undo(int redo)
                 else
                     pat_empty(tr, undo.u.a.ns_made[tr]);
             }
-        if (ns && redo) {
+        if (ns == 1 && redo) {
             engine_scene(undo.u.a.ns_to % NSCENE, playing() ? SCENE_BAR : SCENE_NOW);
             proj.scene = (uint8_t)(undo.u.a.ns_to % NSCENE);
         }
-        if (!ns) {                               /* the scene playing keeps its patterns and mutes: they are live */
+        if (ns != 1) {                           /* the scene playing keeps its patterns and mutes: they are live */
             scene_t *c = &pats.scene[cur_scene()];
             memcpy(c->pat, live.pat, sizeof c->pat);
             c->mute = live.mute;
@@ -597,12 +612,13 @@ static void do_undo(int redo)
             ui.name_slot = pats.song.len;
         for (int tr = 0; tr < NSEQT; tr++)
             weave_apply(tr);
-        s_cat(t, ns ? "new section" : "song and scenes");
+        s_cat(t, ns == 1 ? "new section" : ns ? "duplicate" : "song and scenes");
         break;
     }
     }
-    undo.redo = (uint8_t)!redo;
-    undo.t = 0;
+    un_c = (uint8_t)(un_c + (redo ? 1 : -1));
+    un_cur = (uint8_t)(un_c ? un_c - 1 : 0);
+    undo_fresh();
     mark_dirty();
     say(redo ? "REDO" : "UNDO", t);
 }
@@ -618,7 +634,7 @@ static void rec_begin(void)                      /* a take: one undo for it (and
 }
 static void rec_end(void)
 {
-    undo.t = plat_ms();
+    undo.t = plat_ms();                          /* (the take's stage, the newest: un_cur) */
     seq_rec(&seq, 0);
 }
 static void rec_off(void)
@@ -761,6 +777,19 @@ static void step_fresh_if_empty(step_t *st)      /* a step with no notes left fo
         st->vel = 100;
     }
 }
+/* a step gets the note or chord remembered (a random slot: its register; PUNCH: the effect) */
+static void step_put_rem(int trk, step_t *st)
+{
+    uint8_t one = 0;
+    if (trk == AUX_PUNCH)
+        one = ui.rem_fx;
+    else if (pl_type(trk) == PL_RAND)
+        one = ui.nrem ? ui.rem[0] : 60;          /* (a random slot's note only sets its register: the pitch is drawn) */
+    if (one)
+        step_set_notes(st, &one, 1, 100);
+    else
+        step_set_notes(st, ui.rem, ui.nrem ? ui.nrem : 1, 100);
+}
 static void step_toggle(int i)
 {
     int trk = sel_trk(), s = step_shown(i);
@@ -777,19 +806,11 @@ static void step_toggle(int i)
         step_fresh_if_empty(st);
         step_say(s, kit_has(st, ui.dsound + 1));
     } else if (step_empty(st)) {
-        uint8_t one = 0;
-        if (trk == AUX_PUNCH) {
-            if (!ui.rem_fx) {
-                say_no("NO EFFECT YET", "play a key on EDIT");
-                return;
-            }
-            one = ui.rem_fx;
-        } else if (pl_type(trk) == PL_RAND)
-            one = ui.nrem ? ui.rem[0] : 60;      /* (a random slot's note only sets its register: the pitch is drawn) */
-        if (one)
-            step_set_notes(st, &one, 1, 100);
-        else
-            step_set_notes(st, ui.rem, ui.nrem ? ui.nrem : 1, 100);
+        if (trk == AUX_PUNCH && !ui.rem_fx) {
+            say_no("NO EFFECT YET", "play a key on EDIT");
+            return;
+        }
+        step_put_rem(trk, st);
         step_say(s, 1);
     } else {
         memset(st, 0, sizeof *st);
@@ -2527,7 +2548,8 @@ static void list_open(void)
         return;
     }
     k = list_key();
-    if (k >= 0 && lst_mem[k].ok)                 /* the row used last */
+    if (k >= 0 && lst_mem[k].ok &&               /* the row used last (never one that clears or loads: the first row) */
+        !((lst_mem[k].kind == LK_ACTION || lst_mem[k].kind == LK_PICK) && act_destructive(lst_mem[k].id)))
         for (int r = 0; r < lst.n && a < 0; r++)
             if (lst.row[r].kind == lst_mem[k].kind && lst.row[r].id == lst_mem[k].id &&
                 (lst.row[r].name == lst_mem[k].name || s_eq(lst.row[r].name, lst_mem[k].name)))
@@ -2591,6 +2613,8 @@ static void list_change_do(int32_t e)
             *v = (int8_t)clampi(n, -m, m);
             break;
         }
+        case A_EUCLID: ui.pick_hits = (uint8_t)clampi((ui.pick_hits ? ui.pick_hits : 4) + d, 1, 16); break;
+        case A_EUCLID_ROT: ui.pick_erot = (uint8_t)clampi(ui.pick_erot % 16 + d, 0, 15); break;
         case A_PASTE: ui.pick_paste = (uint8_t)(d > 0); break;
         case A_MOVE_SLOT: ui.pick_move = (uint8_t)(d > 0); break;
         case A_EFFECT: {
@@ -3028,17 +3052,26 @@ static int pat_unused(int trk)
  * track with notes gets its own copy (locks, motion, loop) in an empty pattern, so editing the new section leaves the
  * one it came from as it was. A track with no notes shares its pattern; one with no empty pattern or no lanes left for
  * its locks shares it too (said: how many). Switches as a scene key does; one undo takes it all back */
-static void act_new_section(void)
+/* the scene FROM's patterns copied for scene TO (the scene made, mode 1: NEW SECTION, 2: DUPLICATE SECTION: the undo's
+ * ns), as NEW SECTION says above; a track that can't have its own: shared (strict: nothing done, and the number of
+ * tracks that can't is returned negative). The song's slot is the caller's */
+static int section_copy(int from, int to, int mode, int strict, int *copied)
 {
-    int from = cur_scene(), to = scene_first_empty(), shared = 0, copied = 0;
-    char t[16], d[28];
-    if (to < 0) {
-        say_no("NO EMPTY SCENE", "clear one first");
-        return;
+    int shared = 0, need = 0;
+    if (strict) {                                /* (all or nothing: each track's room, the locks' room together) */
+        for (int tr = 0; tr < NSEQT; tr++) {
+            int src = pats.scene[from].pat[tr] % NPATT;
+            if (pat_steps_empty(&pats.pat[tr][src]))
+                continue;
+            need += pat_lanes(tr, src);
+            shared += pat_unused(tr) < 0 || need > NLANE - lane_count(pats.lane);
+        }
+        if (shared)
+            return -shared;
     }
-    undo.valid = 0;                              /* (an undo stage of its own) */
+    undo_fresh();                                /* (an undo stage of its own) */
     undo_arr();
-    undo.u.a.ns = 1;
+    undo.u.a.ns = (uint8_t)mode;
     undo.u.a.ns_from = (uint8_t)from;
     undo.u.a.ns_to = (uint8_t)to;
     pats.scene[to] = pats.scene[from];
@@ -3057,8 +3090,19 @@ static void act_new_section(void)
         pat_copy(tr, src, dst);
         pats.scene[to].pat[tr] = (uint8_t)dst;
         undo.u.a.ns_made[tr] = (uint8_t)dst;
-        copied++;
+        ++*copied;
     }
+    return shared;
+}
+static void act_new_section(void)
+{
+    int from = cur_scene(), to = scene_first_empty(), shared, copied = 0;
+    char t[16], d[28];
+    if (to < 0) {
+        say_no("NO EMPTY SCENE", "clear one first");
+        return;
+    }
+    shared = section_copy(from, to, 1, 0, &copied);
     engine_scene(to, playing() ? (proj.rsv[2] & SCENES_AT_END ? SCENE_END : SCENE_BAR) : SCENE_NOW);
     proj.scene = (uint8_t)to;
     mark_dirty();
@@ -3068,6 +3112,44 @@ static void act_new_section(void)
         say_no(t, d);
     } else
         say(t, copied ? "its own patterns" : "nothing to copy");
+}
+/* DUPLICATE SECTION (the Song's SEL): the slot picked's scene copied as NEW SECTION does (its own patterns, locks, motion,
+ * loops), into the first empty scene, which becomes the next slot with the same bars; nothing switches (a song playing
+ * goes on). All or nothing: no empty scene, no room in the song, or a track with notes with no empty pattern (or the
+ * lanes for its locks) says so and changes nothing. One undo */
+static void act_dup_section(void)
+{
+    song_t *sg = &pats.song;
+    int cur = ui.name_slot <= sg->len ? ui.name_slot : sg->len, to = scene_first_empty(), copied = 0, r;
+    char t[16], d[28];
+    if (cur >= sg->len) {
+        say_no("NO SLOT HERE", "KNOB 1 picks one");
+        return;
+    }
+    if (sg->len >= NSONG) {
+        say_no("SONG FULL", "64 slots");
+        return;
+    }
+    if (to < 0) {
+        say_no("NO EMPTY SCENE", "clear one first");
+        return;
+    }
+    r = section_copy(sg->slot[cur].scene % NSCENE, to, 2, 1, &copied);
+    if (r < 0) {
+        s_cat(num_s((uint32_t)-r, d), r == -1 ? " track has no room" : " tracks have no room");
+        say_no("NOT COPIED", d);
+        return;
+    }
+    for (int i = sg->len; i > cur + 1; i--)
+        sg->slot[i] = sg->slot[i - 1];
+    sg->slot[cur + 1].scene = (uint8_t)to;
+    sg->slot[cur + 1].rep = sg->slot[cur].rep;
+    sg->len++;
+    song_edited(cur + 1, 1);
+    ui.name_slot = (uint8_t)(cur + 1);
+    mark_dirty();
+    num_s((uint32_t)to + 1u, s_cat(t, "NEW S"));
+    say("DUPLICATED", t);
 }
 /* MOVE SLOT: the slot picked swapped with the one before (d -1) or after (1); a song playing goes on from where it
  * was (the slot playing keeps playing where it now is) */
@@ -3153,7 +3235,6 @@ static void act_paste_all(void)
         say_no("TOO MANY LOCKS", "to undo: paste track by track");
         return;
     }
-    undo.valid = 0;
     undo_run(U_BARS, 0, n, 0, 0);
     undo.u.b.bar = (uint8_t)b;
     undo.u.b.nl = 0;
@@ -3210,6 +3291,126 @@ static void act_clear_bar(void)
     mark_dirty();
     num_s((uint32_t)b + 1u, s_cat(t, "bar "));
     say("CLEARED", t);
+}
+/* the fills (Steps' list: EUCLID, VARY BAR): a bar's hits of one unit, a kit's sound shown (snd 0..) or a synth track's
+ * whole step (snd -1), with the locks that go with them (a kit's velocity and hit settings of that sound) */
+static int fill_has(const step_t *st, int snd) { return snd >= 0 ? kit_has(st, snd + 1) : !step_empty(st); }
+static int fill_lane(const lane_t *l, int trk, int pt, int snd)
+{
+    return l->used && l->trk == trk && l->pat == pt && !lane_is_pool(l->param) &&
+           (snd < 0 || l->param == LANE_VEL0 + (unsigned)snd || l->param == LANE_HIT0 + (unsigned)snd);
+}
+static void fill_off(int trk, int pt, int s, int snd)
+{
+    step_t *st = &pats.pat[trk][pt].st[s];
+    if (snd >= 0 && kit_has(st, snd + 1))
+        kit_toggle(st, snd + 1);
+    else if (snd < 0)
+        memset(st, 0, sizeof *st);
+    step_fresh_if_empty(st);
+    for (int k = 0; k < NLANE; k++)
+        if (fill_lane(&pats.lane[k], trk, pt, snd)) {
+            pats.lane[k].val[s] = LOCK_NONE;
+            lane_drop_empty(k);
+        }
+}
+static void fill_move(int trk, int pt, int from, int to, int snd)   /* (the step to is free of the unit) */
+{
+    step_t *a = &pats.pat[trk][pt].st[from], *b = &pats.pat[trk][pt].st[to];
+    if (snd >= 0) {
+        if (step_empty(b)) {
+            memset(b, 0, sizeof *b);
+            b->vel = a->vel;
+        }
+        kit_add(b, snd + 1);
+        kit_toggle(a, snd + 1);
+        step_fresh_if_empty(a);
+    } else {
+        *b = *a;
+        memset(a, 0, sizeof *a);
+        a->vel = 100;
+    }
+    for (int k = 0; k < NLANE; k++)
+        if (fill_lane(&pats.lane[k], trk, pt, snd)) {
+            pats.lane[k].val[to] = pats.lane[k].val[from];
+            pats.lane[k].val[from] = LOCK_NONE;
+        }
+}
+/* EUCLID: the bar's steps cleared of the unit, then N hits spread evenly over them (hit i on step i * steps / N), turned
+ * forward by the rotation (0..15 steps); a kit's sound shown, or the note or chord remembered. One undo */
+static void act_euclid(void)
+{
+    int trk = sel_trk(), pt = cur_pat(trk), b = ui.bar % NBAR, nb = bar_steps(trk), n = eucl_hits(nb), rot = ui.pick_erot % 16;
+    int snd = is_drum(trk) ? ui.dsound % NDRUM : -1;
+    char t[24];
+    if (!is_seqt(trk))
+        return;
+    if (trk == AUX_PUNCH && !ui.rem_fx) {
+        say_no("NO EFFECT YET", "play a key on EDIT");
+        return;
+    }
+    undo_pat(trk, pt, 0);
+    for (int i = 0; i < nb; i++)
+        fill_off(trk, pt, b * 16 + i, snd);
+    for (int h = 0; h < n; h++) {
+        step_t *st = &pats.pat[trk][pt].st[b * 16 + (h * nb / n + rot) % nb];
+        if (snd >= 0)
+            kit_add(st, snd + 1);
+        else
+            step_put_rem(trk, st);
+    }
+    mark_dirty();
+    num_s((uint32_t)rot, s_cat(num_s((uint32_t)nb, s_cat(num_s((uint32_t)n, t), " of ")), ", turn "));
+    say("EUCLID", t);
+}
+/* VARY BAR: the bar's hits (of the sound shown on a kit) varied, different each time: off the beat (steps 1 5 9 13 are
+ * the beats) a hit may be dropped (never the last one) or moved a step, onto another step off the beat; every hit's
+ * velocity nudged (the beats' less). One undo */
+static void act_vary(void)
+{
+    static uint32_t rng;
+    int trk = sel_trk(), pt = cur_pat(trk), b = ui.bar % NBAR, nb = bar_steps(trk), left = 0;
+    int snd = is_drum(trk) ? ui.dsound % NDRUM : -1;
+    uint16_t done = 0;
+    char t[8];
+    tpat_t *tp = &pats.pat[trk][pt];
+    if (!is_seqt(trk))
+        return;
+    for (int i = 0; i < nb; i++)
+        left += fill_has(&tp->st[b * 16 + i], snd);
+    if (!left) {
+        say_no("NOTHING TO VARY", "empty bar");
+        return;
+    }
+    undo_pat(trk, pt, 0);
+    for (int i = 0; i < nb; i++) {
+        step_t *st = &tp->st[b * 16 + i];
+        uint32_t r;
+        int d, p = i;
+        rng = rng * 1664525u + 1013904223u + plat_ms();
+        r = rng >> 12;
+        if ((done >> i & 1u) || !fill_has(st, snd))
+            continue;
+        if (i % 4) {
+            int to = i + (r >> 4 & 1u ? 1 : -1);
+            if (r % 7 == 0 && left > 1) {
+                fill_off(trk, pt, b * 16 + i, snd);
+                left--;
+                continue;
+            }
+            if (r % 7 < 3 && to >= 0 && to < nb && to % 4 && !fill_has(&tp->st[b * 16 + to], snd)) {
+                fill_move(trk, pt, b * 16 + i, b * 16 + to, snd);
+                done |= (uint16_t)(1u << to);
+                p = to;
+            }
+        }
+        st = &tp->st[b * 16 + p];
+        d = 1 + (int)(r >> 5) % (i % 4 ? 12 : 5);
+        st->vel = (uint8_t)clampi(st->vel + (r >> 9 & 1u ? d : -d), 20, 127);
+    }
+    mark_dirty();
+    num_s((uint32_t)b + 1u, s_cat(t, "bar "));
+    say("VARIED", t);
 }
 static void kit_pack(const uint8_t *par, const char *name, uint8_t *img);
 static void kit_apply(int trk, const uint8_t *img, int dev);
@@ -3574,7 +3775,7 @@ static void after_load(void)
         weave_apply(t);
     engine_tempo(proj.tempo_x10);
     engine_groove(proj.groove);
-    undo.valid = 0;
+    undo_clear();
     ui.held = 0;
     ui.trickpg = 0;
     ui.lockpg = 0;
@@ -3906,6 +4107,9 @@ static void action_run(int a)
         break;
     case A_COPY_EMPTY: act_copy_empty(); break;
     case A_NEW_SECTION: act_new_section(); break;
+    case A_DUP_SECTION: act_dup_section(); break;
+    case A_EUCLID: case A_EUCLID_ROT: act_euclid(); break;
+    case A_VARY: act_vary(); break;
     case A_MOVE_SLOT: act_move_slot(ui.pick_move & 1u ? 1 : -1); break;
     case A_COPY_ALL: ui.held_used = 1; act_copy_all(); break;
     case A_PASTE_ALL: ui.held_used = 1; act_paste_all(); break;
