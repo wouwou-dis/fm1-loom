@@ -1,0 +1,77 @@
+bpm 120
+hits 1 1 1 x...x...x...x...
+wait 300
+turn ALGO 1
+wait 200
+tap LFO
+wait 300
+knob 2 ltype 0
+wait 300
+shot 01_off.png
+knob 2 ltype 1
+knob 2 lamt 20
+knob 2 lspeed 4
+knob 2 ldest 2
+wait 300
+shot 02_wave_default.png
+knob 2 lx2 0
+wait 300
+shot 03_wave_shape0.png
+knob 2 lx2 1
+wait 300
+shot 04_wave_shape1.png
+knob 2 lx2 2
+wait 300
+shot 05_wave_shape2.png
+knob 2 lx2 3
+wait 300
+shot 06_wave_shape3.png
+knob 2 lamt 64
+wait 300
+shot 07_wave_lamt_64.png
+knob 2 lamt 0
+wait 300
+shot 08_wave_lamt_0.png
+knob 2 lamt 127
+wait 300
+shot 09_wave_lamt_127.png
+knob 2 lamt 20
+knob 2 lspeed 4
+knob 2 lspeed 0
+wait 300
+shot 10_wave_lspeed_0.png
+knob 2 lspeed 127
+wait 300
+shot 11_wave_lspeed_127.png
+knob 2 lamt 20
+knob 2 lspeed 4
+knob 2 ldest 6
+wait 300
+shot 12_wave_free.png
+knob 2 ltype 2
+knob 2 lamt 100
+wait 300
+shot 13_wobble.png
+knob 2 ltype 3
+knob 2 lamt 90
+wait 300
+shot 14_drift.png
+knob 2 ltype 4
+knob 2 lspeed 0
+knob 2 lamt 110
+wait 300
+shot 15_pump_still.png
+tap PLAY
+wait 530
+shot 16_pump_playing.png
+tap PLAY
+knob 2 ltype 1
+knob 2 ldest 2
+knob 2 lx2 1
+tap PLAY
+wait 400
+shot 17_wave_playing.png
+tap PLAY
+wait 400
+tap GLO
+wait 300

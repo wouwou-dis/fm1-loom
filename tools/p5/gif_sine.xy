@@ -1,0 +1,73 @@
+bpm 120
+hits 1 1 1 x...x...x...x...
+wait 300
+turn ALGO 1
+wait 200
+tap LFO
+wait 300
+knob 2 ltype 1
+knob 2 lx2 1
+knob 2 lamt 120
+knob 2 lspeed 3
+knob 2 ldest 6
+wait 300
+wait 80
+shot g00.png
+wait 80
+shot g01.png
+wait 80
+shot g02.png
+wait 80
+shot g03.png
+wait 80
+shot g04.png
+wait 80
+shot g05.png
+wait 80
+shot g06.png
+wait 80
+shot g07.png
+wait 80
+shot g08.png
+wait 80
+shot g09.png
+wait 80
+shot g10.png
+wait 80
+shot g11.png
+wait 80
+shot g12.png
+wait 80
+shot g13.png
+wait 80
+shot g14.png
+wait 80
+shot g15.png
+wait 80
+shot g16.png
+wait 80
+shot g17.png
+wait 80
+shot g18.png
+wait 80
+shot g19.png
+wait 80
+shot g20.png
+wait 80
+shot g21.png
+wait 80
+shot g22.png
+wait 80
+shot g23.png
+wait 80
+shot g24.png
+wait 80
+shot g25.png
+wait 80
+shot g26.png
+wait 80
+shot g27.png
+wait 80
+shot g28.png
+wait 80
+shot g29.png

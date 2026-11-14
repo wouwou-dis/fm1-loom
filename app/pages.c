@@ -6628,44 +6628,56 @@ static float lfo_shape_v(int shape, float ph)
     default: return fm_sin_turns(ph);
     }
 }
-/* the LFO page: a pendulum and one cycle of the real shape it draws on graph paper (the sheet's LFO): the bob swings as
- * the marker runs along the wave; the rate a dimension line under one cycle (its value beside it, callout 2), the
- * depth a vertical arrow at the crest (callout 3; a negative depth turns the wave over), the type the title
- * (callout 1), and what it moves a line of words (callout 4). Off: the pendulum hangs still, the wave a dashed
- * level line, and the words "LFO off" */
+/* the LFO page: a function generator. Its round scope draws one cycle of the real shape (a negative depth turns it
+ * over, the depth its height); the type (1) a selector, the rate (2) and the depth (3) its dials; its output jack's
+ * lead runs off the page to what it moves (4, the words at the top). The one moving drawing on the instrument (the
+ * owner's exception): the trace's bright dot runs along the shape at its rate while the LFO acts: free-running at
+ * once, else while the sequencer plays or the track sounds (its phase restarted at the track's notes as the
+ * engine's is: the meter's rise); the pump's dot drops down the duck from each hit of its source and climbs back.
+ * Off: the scope's line flat, the lead unplugged on the bench, nothing moves */
+static const float LFO_BEATS[LS_SYNC_N] = {8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f};
+static uint32_t lfo_t0;                          /* the last restart (a note on the track, a hit on the duck's source), ms */
+static uint8_t lfo_was;
 static void draw_lfo(void)
 {
     int trk = sel_trk();
     const uint8_t *p = par_now(trk);
-    int lt = p[TP_LTYPE] % NLT, sh = p[TP_LX2];
-    uint32_t h = hash_u(hash_u(2166136261u, 0x1Fu), (uint32_t)trk | (uint32_t)lt << 4 | (uint32_t)p[TP_LAMT] << 8 |
-                                          (uint32_t)sh << 16);
-    const int32_t GX = 118, GW = 112, GY = 10, GH = 84, CY = GY + GH / 2;
-    const float PX = 46.0f, PY = 60.0f, PL = 40.0f, P = 64.0f;
-    float v = fm_clampf(((float)p[TP_LAMT] - 64.0f) / 63.0f, -1.0f, 1.0f), A = 34.0f * (v < 0.0f ? -v : v);
-    float ph = 0.0f;
+    int lt = p[TP_LTYPE] % NLT, sh = p[TP_LX2], uni = lt == LT_DRIFT || lt == LT_PUMP;
+    uint32_t now = plat_ms(), h;
+    int hit = ui_peak[lt == LT_PUMP ? (p[TP_LSPEED] < NTRK ? p[TP_LSPEED] : 0) : trk < NTRK ? trk : 0] > 1500;
+    int fre = (lt == LT_WAVE || lt == LT_DRIFT) && p[TP_LDEST] >= LD_FREE, live;
+    float v = uni ? (float)p[TP_LAMT] / 127.0f : fm_clampf(((float)p[TP_LAMT] - 64.0f) / 63.0f, -1.0f, 1.0f);
+    float A = 22.0f * (v < 0.0f ? -v : v), sg = v < 0.0f ? -1.0f : 1.0f, ph = 0.25f, hz;
     char t[48], num[12], unit[6], ttl[16];
-    h = hash_u(h, (uint32_t)p[TP_LSPEED] << 8 | p[TP_LX] | (uint32_t)p[TP_LDEST] << 16);
-    ph = 0.25f;                                       /* (a still: the marker at the first crest, the bob at its depth) */
-    ph -= fm_floorf(ph);
+    if (hit && !lfo_was)
+        lfo_t0 = now;
+    lfo_was = (uint8_t)hit;
+    hz = lt == LT_PUMP ? 1000.0f / (float)(120 + 6 * (p[TP_LDEST] + p[TP_LX]))
+         : p[TP_LSPEED] < LS_SYNC_N ? seq.bpm * (1.0f / 60.0f) / LFO_BEATS[p[TP_LSPEED]]
+                                    : 0.1f * fm_exp2f((float)(p[TP_LSPEED] - LS_SYNC_N) * (8.22881869f / 119.0f));
+    live = lt && A > 0.5f && (lt == LT_PUMP ? (float)(now - lfo_t0) * hz < 1000.0f : fre || playing() || hit || ui_peak[trk < NTRK ? trk : 0] > 200);
+    if (live) {
+        now = now / 84u * 84u;                       /* (about 12 pictures a second) */
+        ph = (float)(fre ? now : now - lfo_t0) * 0.001f * hz;
+        ph = lt == LT_PUMP ? ph : ph - fm_floorf(ph);
+    }
+    h = hash_u(hash_u(2166136261u, 0x1Fu), (uint32_t)trk | (uint32_t)lt << 4 | (uint32_t)p[TP_LAMT] << 8 | (uint32_t)sh << 16);
+    h = hash_u(h, (uint32_t)p[TP_LSPEED] << 8 | p[TP_LX] | (uint32_t)p[TP_LDEST] << 16 | (uint32_t)p2_touch() << 24);
+    h = hash_u(h, live ? now : 0u);
     if (!begin_main(h))
         return;
 #define LFOV(u) (lt == LT_WAVE || lt == LT_WOBBLE ? lfo_shape_v(lt == LT_WAVE ? (sh & 3) == 1 ? 0 : (sh & 3) == 0 ? 3 : (sh & 3) == 2 ? 5 : 1 : sh, \
                  (u) - fm_floorf(u)) : lt == LT_DRIFT ? fm_sin_turns((u) * 0.9f) * 0.8f + fm_sin_turns((u) * 2.3f + 0.3f) * 0.2f \
-                 : 1.0f - 2.0f * ease_exp((u) - fm_floorf(u)))
-    {   /* the title: the shape (wave, wobble), else the type */
+                 : 1.0f - 2.0f * ease_exp(u))
+    {   /* the title: the shape (wave, wobble), else the type; at the right what it moves (4) and the rate */
         const char *nm = lt == LT_OFF ? "off" : lt == LT_WAVE ? tp_info_par(TP_LX2, p)->names ? tp_info_par(TP_LX2, p)->names[sh & 3] : "wave"
                          : lt == LT_WOBBLE ? tp_info_par(TP_LX2, p)->names ? tp_info_par(TP_LX2, p)->names[sh % 5] : "wobble"
                          : tp_info_par(TP_LTYPE, p)->names[lt];
-        const felucca_font_t *f = text_w(&FONT_L, nm) <= 100 ? &FONT_L : text_w(F_VAL, nm) <= 100 ? F_VAL : &FONT_B;
         uint32_t i;
+        char *e = t;
         for (i = 0; i < sizeof ttl - 1u && nm[i]; i++)
             ttl[i] = nm[i];
         ttl[i] = 0;
-        cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, ttl, K_TEXT);
-    }
-    {   /* what it moves (callout 4) */
-        char *e = t;
         *t = 0;
         if (lt == LT_OFF)
             s_cat(t, "NOTHING MOVES");
@@ -6677,78 +6689,46 @@ static void draw_lfo(void)
             up_copy(t, t, sizeof t);
         } else
             s_cat(t, lt == LT_WOBBLE ? "A WOBBLE" : "DUCK AND SWELL");
-        circ_num(13, 43, "4", lt ? K_TEXT : K_DIM, K_BG);
-        if (tr_w(F_LAB, t, 1) <= 94)
-            tr_text(22, 37, F_LAB, t, K_DIM, 1);
-        else
-            text_fit(22, 37, F_LAB, t, 94, K_DIM);
-    }
-    {   /* the pendulum */
-        float th = lt ? 0.5f * LFOV(ph) * (v < 0.0f ? -1.0f : 1.0f) * (A > 1.0f ? A / 34.0f : 0.1f) : 0.0f;
-        float lim = 0.5f * (A > 1.0f ? A / 34.0f : 0.1f);
-        float bx = PX + PL * fm_sin_turns(th * 0.159155f), by = PY + PL * fm_sin_turns(0.25f - th * 0.159155f);
-        cv_rect((int32_t)PX - 14, (int32_t)PY - 4, 28, 4, K_TEXT);
-        circ_num(13, 62, "1", K_TEXT, K_BG);
-        if (lt) {   /* the two extremes, dotted, and the arc between */
-            for (int sd = -1; sd <= 1; sd += 2) {
-                float ex = PX + (float)sd * PL * fm_sin_turns(lim * 0.159155f), ey = PY + PL * fm_sin_turns(0.25f - lim * 0.159155f);
-                dot_line(PX, PY, ex, ey, 3.0f, K_DIM);
-                cv_disc(ex, ey, 5.0f, K_BG);
-                cv_ring(ex, ey, 5.0f, 0.9f, K_DIM);
-            }
-            ellipse_arc(PX, PY, PL, PL, 0.25f - lim * 0.159155f, 0.25f + lim * 0.159155f, 0.8f, K_LINE);
-        }
-        cv_linef(PX, PY, bx, by, K_TEXT, 1.2f);
-        cv_disc(bx, by, 6.0f, K_NOW);
-        cv_ring(bx, by, 6.0f, 1.1f, K_TEXT);
-    }
-    cv_frame(GX - 1, GY - 1, GW + 2, GH + 2, 0, K_TEXT, K_BG);
-    cv_grid(GX, GY, GW, GH, 8, MAIN_Y, K_GRID);
-    cv_rect(GX, CY, GW, 1, K_LINE);
-    if (lt == LT_OFF) {
-        cv_dash((float)GX, (float)CY, (float)(GX + GW), (float)CY, 3.0f, 3.0f, 1.2f, K_DIM);
-        text_c(GX + GW / 2, CY - 22, &FONT_S, "LFO off", K_DIM);
-    } else {
-        pen_t pn = {0};
-        float mk = 0.0f;
-        pn.w = 2.0f;
-        for (int32_t x = 0; x <= GW; x++) {
-            float u = (float)x / P, val = (float)LFOV(u) * (v < 0.0f ? -1.0f : 1.0f);
-            pen_to(&pn, (float)(GX + x), (float)CY - val * (A > 1.0f ? A : 3.0f), K_TEXT);
-        }
         {
-            float u = ph, val = (float)LFOV(u) * (v < 0.0f ? -1.0f : 1.0f);
-            mk = (float)GX + ph * P;
-            cv_disc(mk, (float)CY - val * (A > 1.0f ? A : 3.0f), 3.2f, K_NOW);
-            cv_ring(mk, (float)CY - val * (A > 1.0f ? A : 3.0f), 3.4f, 1.0f, K_TEXT);
-        }
-        {   /* the depth: an arrow from the centre line to the shape's crest (callout 3) */
-            int32_t bi = 0;
-            float best = -2.0f, vv;
-            for (int32_t x = 0; x < (int32_t)P; x++) {
-                vv = (float)LFOV((float)x / P) * (v < 0.0f ? -1.0f : 1.0f);
-                if (vv > best + 0.001f)
-                    best = vv, bi = x;
-            }
-            if (bi < 10)
-                bi = 10;
-            if (A > 5.0f) {
-                float ay = (float)CY - best * A;
-                cv_linef((float)(GX + bi), (float)CY, (float)(GX + bi), ay + 3.0f, K_TEXT, 1.0f);
-                arrow_head((float)(GX + bi), ay, 0.0f, best >= 0.0f ? -1.0f : 1.0f, K_TEXT);
-            }
-            circ_num(GX + bi + 11, CY - (int32_t)(best * A * 0.5f) - (int32_t)(A > 5.0f ? 0 : 8), "3", K_TEXT, K_BG);
+            char det[20];
+            tp_text_par(TP_LSPEED, p[TP_LSPEED], p, num, unit);
+            s_cat(s_cat(s_cat(det, num), unit[0] ? " " : ""), unit);
+            fxm_title(ttl, t, lt ? det : 0, 4, lt ? K_TEXT : K_DIM);
         }
     }
-    {   /* the rate: one cycle's width, dimensioned (callout 2), its value after it */
-        float x1 = (float)GX, x2 = (float)GX + P;
-        dim_line(x1, 104.0f, x2, 104.0f, 4.0f, 4.0f, K_TEXT);
-        cv_rect(GX + 25, 98, 14, 13, K_BG);
-        circ_num(GX + 32, 105, "2", K_TEXT, K_BG);
-        tp_text_par(TP_LSPEED, p[TP_LSPEED], p, num, unit);
-        s_cat(s_cat(s_cat(t, num), unit[0] ? " " : ""), unit);
-        cv_text(GX + 71, 98, &FONT_XS, t, K_TEXT);
+    p2_panel(8, 40, 224, 76, K_PANEL2);
+    p2_screw(14.0f, 46.0f), p2_screw(226.0f, 46.0f), p2_screw(14.0f, 110.0f), p2_screw(226.0f, 110.0f);
+    cv_disc(52.0f, 78.0f, 34.0f, K_PANEL);           /* the scope: its bezel, its face, the graticule */
+    cv_ring(52.0f, 78.0f, 34.0f, 1.2f, K_TEXT);
+    cv_disc(52.0f, 78.0f, 29.0f, K_TEXT);
+    cv_rect(24, 78, 57, 1, col_mix(K_TEXT, K_CARD, 5));
+    cv_rect(52, 50, 1, 57, col_mix(K_TEXT, K_CARD, 5));
+    if (lt == LT_OFF)
+        cv_rect(26, 78, 53, 2, K_DIM);
+    else {
+        pen_t pn = {0};
+        float pu = lt == LT_PUMP ? fm_minf(ph, 1.0f) : ph;
+        pn.w = 1.6f;
+        for (int x = 0; x <= 48; x += 2) {
+            float u = (float)x / 48.0f;
+            pen_to(&pn, 28.0f + (float)x, 78.0f - sg * (float)LFOV(u) * (A > 1.0f ? A : 1.0f), K_CARD);
+        }
+        cv_disc(28.0f + 48.0f * pu, 78.0f - sg * (float)LFOV(pu) * (A > 1.0f ? A : 1.0f), 3.0f, live ? K_REC : K_CARD);
     }
+    for (int k = 0; k < 3; k++) {                    /* the type, the rate, the depth */
+        float x = 112.0f + 38.0f * (float)k;
+        fxm_ticks(x, 72.0f, 12.0f, 14.5f, k == 0 ? NLT : k == 1 ? 8 : 9);
+        p2_knob(x, 72.0f, 9.5f, k == 0 ? (float)lt / (float)(NLT - 1) : p2_u(p, k == 1 ? TP_LSPEED : TP_LAMT), k + 1, 0, -24);
+    }
+    for (int k = 0; k < 3; k++)                      /* the vents */
+        cv_rect(100, 98 + k * 5, 98, 2, K_DIM);
+    cv_disc(214.0f, 72.0f, 4.0f, K_CARD);            /* the output: its lead off the page to what it moves; off: unplugged */
+    cv_ring(214.0f, 72.0f, 4.0f, 1.2f, K_TEXT);
+    if (lt) {
+        cv_disc(214.0f, 72.0f, 2.0f, K_TEXT);
+        fxm_lead(214.0f, 72.0f, 240.0f, 100.0f);
+    } else
+        cv_disc(214.0f, 72.0f, 1.5f, K_TEXT), p2_coil(204.0f, 104.0f, 3, 4.0f, K_TEXT);
 #undef LFOV
     cv_blit(0, MAIN_Y);
 }
