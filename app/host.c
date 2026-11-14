@@ -463,6 +463,10 @@ int app_expect(const char *what, int *got)
         for (int k = 0; k < NLANE; k++)
             *got += pats.lane[k].used && pats.lane[k].trk == t - 1 && pats.lane[k].pat == pt - 1 &&
                     !lane_is_pool(pats.lane[k].param) && pats.lane[k].val[st - 1] != LOCK_NONE;
+    } else if (!strcmp(what, "flash")) {              /* the beat flash now, 64ths of coral over the paper */
+        *got = fl_pct;
+    } else if (!strcmp(what, "flashes")) {            /* the pulses begun */
+        *got = (int)fl_count;
     } else if (!strcmp(what, "listopen"))             /* a SEL list up */
         *got = lst.open;
     else if (!strcmp(what, "slot_reads"))           /* project_exists's reads of the flash so far */

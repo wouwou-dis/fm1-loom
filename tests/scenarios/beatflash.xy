@@ -1,0 +1,59 @@
+# the beat flash (Steps and Bar, while playing): the paper tints toward coral on a beat, the downbeat more, and is plain
+# between beats; nothing when stopped, on another page, with a list open, or with Setup's BEAT FLASH off
+wait 300
+expect page Steps
+expect flash 0
+tap PLAY
+wait 5
+# the first sixteenth is the bar's downbeat: coral at once, 50 % at the peak (32 of 64; 20 a step on)
+expect flash >0
+expect flashes 1
+wait 250
+# between the beats: the plain paper
+expect flash 0
+shot beatflash_rest.png
+wait 220
+# the second beat (500 ms): 30 % at the peak, less as it fades
+expect flash >0
+expect flash <20
+expect flashes 2
+wait 300
+expect flash 0
+# another page: none, though the beats go on
+tap ENV
+wait 1200
+expect flash 0
+expect flashes 2
+tap SEQ
+wait 20
+# a list over Steps: none
+tap SEL
+expect listopen 1
+wait 1200
+expect flash 0
+tap SEL
+wait 20
+# Bar, the same
+turn SELECT 1
+expect page Bar
+wait 1100
+expect flashes >3
+# stopped
+tap PLAY
+wait 60
+expect playing 0
+expect flash 0
+# the setting, in Setup's list: off, no flash
+tap GLO
+turn SELECT 5
+expect page Setup
+tap SEL
+row BEAT FLASH
+turn ALGO -1
+tap HOME
+tap SEQ
+tap PLAY
+wait 2200
+expect flash 0
+expect flashes 4
+tap PLAY
