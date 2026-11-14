@@ -50,6 +50,9 @@ bodies are in the `draw_*` functions.
 - **The sequencer card pulses coral on the beat** (`626bff6`, `711d816`; merged in `991518c`). The paper of Steps and Bar
   tints on every beat while playing. It is a setting, BEAT FLASH on Setup's list, on by default. The Hold player now
   shows the notes held under the pedal (`c505260`).
+- **A second design pass** (merge `fbea914`): the envelope is a chart recorder, each filter type is its own machine, the
+  shared LFO is a modulation box, the kit pads carry pictograms, messages and questions are drawn as boxes, and the Mix
+  desk labels its tracks with tags. All of it is drawing code in `app/pages.c`; no sound changes.
 - **A new splash** (`94e9528`).
 
 ## Song building
