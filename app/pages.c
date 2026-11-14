@@ -6814,6 +6814,19 @@ static float lfo_shape_v(int shape, float ph)
  * while the sequencer plays or the track sounds; the pump's dot is its real duck (down the curve at each hit of its
  * source, climbing back; resting at the top once it has). The LFO is the track's, one for all its voices. Drift: the
  * dot rides the real wander. Off, or a depth of nothing: the scope's line flat or the dot at rest, nothing moves */
+/* the LFO's title: fxm_title's layout with more air (the long destinations, "FILTER FREE KEYTRACK", fill the line): the
+ * callout 7 px off the words, the rate 2 px lower under them. The name takes what the words leave (never below 15 px) */
+static void lfo_title(const char *nm, const char *desc, const char *det, uint16_t c)
+{
+    int32_t dw = tr_w(F_LAB, desc, 1) + 17, xw = det ? text_w(F_XB, det) : 0;
+    int32_t room = 212 - (dw > xw ? dw : xw), x = 232 - tr_w(F_LAB, desc, 1);
+    const felucca_font_t *f = text_w(&FONT_L, nm) <= room ? &FONT_L : text_w(F_VAL, nm) <= room ? F_VAL : &FONT_B;
+    cv_text(8, f == &FONT_L ? 0 : f == F_VAL ? 6 : 8, f, nm, c);
+    tr_text(x, 2, F_LAB, desc, K_DIM, 1);
+    p2_callout(x - 12, 8, 4, 0, K_TEXT);
+    if (det)
+        text_r(232, 19, F_XB, det, K_TEXT);
+}
 static uint32_t lfo_tick, lfo_pw;                /* the picture's clock (84 ms) and the dot's last pixel (hash) */
 static float lfo_ph_c, lfo_v_c;                  /* the real LFO as of that tick */
 static void draw_lfo(void)
@@ -6876,7 +6889,7 @@ static void draw_lfo(void)
             char det[20];
             tp_text_par(TP_LSPEED, p[TP_LSPEED], p, num, unit);
             s_cat(s_cat(s_cat(det, num), unit[0] ? " " : ""), unit);
-            fxm_title(ttl, t, lt ? det : 0, 4, lt ? K_TEXT : K_DIM);
+            lfo_title(ttl, t, lt ? det : 0, lt ? K_TEXT : K_DIM);
         }
     }
     p2_panel(8, 40, 224, 76, K_PANEL2);
@@ -7159,8 +7172,8 @@ static void draw_players(void)
             p2_coil(118.0f, 109.0f, 3, 4.0f, K_TEXT);
             fxm_ln(132.0f, 109.0f, 144.0f, 109.0f, 1.6f);
             cv_rect(112, 106, 7, 6, K_TEXT);
-            cv_text(118, 42, &FONT_XS, pr->nheld || pr->nsounding ? "held notes ring" : "the pedal is up", K_TEXT);
-            cv_text(118, 56, &FONT_XS, "until the next change", K_DIM);
+            cv_text(118, 38, &FONT_XS, pr->nheld || pr->nsounding ? "held notes ring" : "the pedal is up", K_TEXT);
+            cv_text(118, 55, &FONT_XS, "until the next change", K_DIM);   /* (17 px a line: air between the two) */
         } else {                                     /* random: the tumbler, its stand and crank; the slots it drops into */
             int pct = clampi(pp[TP_P1] * 100 / 127, 0, 100);
             for (i = 0; i < 6; i++) {
