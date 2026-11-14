@@ -1,0 +1,40 @@
+# the beat flash follows the sequencer's clock, and never flashes faster than three times a second: above 180 BPM
+# every second beat (the internal tempo, and an external MIDI clock's)
+wait 300
+expect page Steps
+bpm 120
+tap PLAY
+wait 2000
+# 120 BPM: a flash a beat (the downbeat's, then three), the fifth beat just coming
+expect flashes >3
+expect flashes <6
+tap PLAY
+wait 100
+expect flash 0
+bpm 240
+tap PLAY
+wait 2000
+# 240 BPM: 8 beats in two seconds, a flash on every second (4 or 5)
+expect flashes >7
+expect flashes <11
+tap PLAY
+wait 100
+expect flash 0
+# an external clock (24 a beat, 21 ms apart: 119 BPM): a beat each 504 ms
+midi USB FA
+clock 96 21
+expect playing 1
+expect flashes >11
+expect flashes <14
+midi USB FC
+clock 10 21
+expect playing 0
+expect flash 0
+# and a clock at 250 BPM, 10 ms apart: every second beat again
+midi USB FA
+clock 192 10
+expect flashes >14
+expect flashes <19
+midi USB FC
+wait 100
+expect flash 0
