@@ -907,6 +907,38 @@ int main(void)
     }
 
     printf("-- the reverb's SPU modes\n");
+    {   /* their 22.05 kHz output back to 44.1 kHz: tones under 5 kHz in, nothing (no images) above 12 kHz out. (Until
+         * 2026-11 the interpolator's two outputs went out in the wrong order, a ramp as 22, 21.5, 23, 22.5: every tone
+         * came back with its image at 22.05 kHz less it, 7 to 15 dB under) */
+        static const int modes[4] = {RV_ROOM, RV_HALL, RV_HALF_ECHO, RV_ECHO_ONE};
+        static float yl[SR / 2];
+        static const uint8_t kn[4] = {127, 64, 127, 0};   /* (tone at its top: the return's high-pass only, flat above) */
+        float worst = 0.0f;
+        int mi;
+        for (mi = 0; mi < 4; mi++) {
+            float img;
+            fx_init(fx, dly_l, dly_r, rv);
+            fx_set(fx, FXT_REVERB + modes[mi], kn);
+            for (b = 0; b < SR / BLK; b++) {
+                for (i = 0; i < BLK; i++) {
+                    float t = (float)(b * BLK + i) / SR;
+                    in[i] = 0.1f * (fm_sin_turns(t * 440.0f) + fm_sin_turns(t * 1210.0f) + fm_sin_turns(t * 2650.0f) +
+                                    fm_sin_turns(t * 4870.0f));
+                }
+                memset(ol, 0, sizeof ol);
+                memset(orr, 0, sizeof orr);
+                fx_process(fx, in, ol, orr, BLK);
+                if (b * BLK >= SR / 2)
+                    for (i = 0; i < BLK; i++)
+                        yl[b * BLK + i - SR / 2] = ol[i];
+            }
+            img = share_above(yl, SR / 4, SR / 4 + 1024, 12000.0f);
+            printf("  %-10s above 12 kHz: %.1f dB under the whole\n", fx_pick_name(FXT_REVERB + modes[mi]), (double)-db(fm_sqrtf(img)));
+            worst = fm_maxf(worst, img);
+        }
+        snprintf(name, sizeof name, "  tones under 5 kHz in: the images above 12 kHz at least 50 dB under (%.1f)", (double)-db(fm_sqrtf(worst)));
+        check(name, worst < 1e-5f);
+    }
     {
         int ok = 1;
         for (t = FXT_REVERB + RV_ROOM; t < NFXPICK; t++) {   /* each decays (the chaos echo: at decay 0) */

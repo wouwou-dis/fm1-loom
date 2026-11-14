@@ -836,11 +836,11 @@ static void do_spu(fxslot_t *f, const float *x, float *ol, float *orr, int m, in
             up_w = (up_w + 1u) & 31u;
             spu_interp(s->up[0], up_w, &o00, &o01);
             spu_interp(s->up[1], up_w, &o10, &o11);
-            yl = o01 * g;                     /* the output volume: -1 again, and the level */
+            yl = o00 * g;                     /* the output volume: -1 again, and the level. o00 lies between */
+            yr = o10 * g;                     /* the ticks 9.5 back: this frame; o01, the tick 9 back: the next */
+        } else {                              /* (the other way round until 2026-11: each tone's image 5 to 10 dB */
+            yl = o01 * g;                     /* under it) */
             yr = o11 * g;
-        } else {
-            yl = o00 * g;
-            yr = o10 * g;
         }
         phase ^= 1u;
         tl += tlk * (yl - tl);
