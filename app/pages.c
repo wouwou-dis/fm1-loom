@@ -5242,67 +5242,12 @@ static void dot_curve(float x0, float y0, float x1, float y1, float x2, float y2
  * p2_outline, p2_panel, p2_callout, p2_knob, p2_vslider, p2_screw, p2_coil), the same line weights (hairline 0.8,
  * regular 1.2, heavy 2) and callouts; to be de-duplicated with them at the merge ---- */
 #define FXU(v) ((float)(v) * (1.0f / 127.0f))
-static int fxm_touch(void) { return plat_ms() < ui.touch_until ? ui.touched + 1 : 0; }   /* the knob turned (1..4) */
 static void fxm_ln(float x0, float y0, float x1, float y1, float w) { cv_linef(x0, y0, x1, y1, K_TEXT, w); }
-static void fxm_outline(float x0, float y0, float x1, float y1, float w)
-{
-    fxm_ln(x0, y0, x1, y0, w);
-    fxm_ln(x1, y0, x1, y1, w);
-    fxm_ln(x1, y1, x0, y1, w);
-    fxm_ln(x0, y1, x0, y0, w);
-}
-static void fxm_panel(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t fill)   /* filled, an ink edge */
-{
-    cv_rect(x, y, w, h, fill);
-    fxm_outline((float)x + 0.5f, (float)y + 0.5f, (float)(x + w) - 0.5f, (float)(y + h) - 0.5f, 1.2f);
-}
-static void fxm_num(int32_t x, int32_t cy, int n)   /* knob n's circled number; the knob being turned: blue */
-{
-    char d[2] = {(char)('0' + n), 0};
-    if (fxm_touch() == n)
-        cv_disc((float)x, (float)cy - 0.5f, 6.0f, K_SEL), text_c(x + 1, cy - 6, F_LAB, d, K_BG);
-    else
-        circ_num(x, cy, d, K_TEXT, K_BG);
-}
-/* a knob: its cap, its pointer from 7 o'clock (0) to 5 o'clock (1); n > 0: its number at (cx + dx, cy + dy) */
-static void fxm_knob(float cx, float cy, float r, float u, int n, int32_t dx, int32_t dy)
-{
-    float t = 0.375f + 0.75f * u, ca = fm_sin_turns(t + 0.25f), sa = fm_sin_turns(t);
-    cv_disc(cx, cy, r, K_CARD);
-    cv_ring(cx, cy, r, 1.2f, K_TEXT);
-    fxm_ln(cx + ca * r * 0.2f, cy + sa * r * 0.2f, cx + ca * (r - 1.0f), cy + sa * (r - 1.0f), r > 6.0f ? 2.0f : 1.5f);
-    if (n)
-        fxm_num((int32_t)cx + dx, (int32_t)cy + dy, n);
-}
 static void fxm_ticks(float cx, float cy, float r0, float r1, int n)   /* a knob's scale: n ticks, 7 to 5 o'clock */
 {
     for (int k = 0; k < n; k++) {
         float t = 0.375f + 0.75f * (float)k / (float)(n - 1), c = fm_sin_turns(t + 0.25f), s = fm_sin_turns(t);
         cv_linef(cx + c * r0, cy + s * r0, cx + c * r1, cy + s * r1, K_TEXT, 0.8f);
-    }
-}
-/* a slider: its slot h px down from y, its cap at u (1: the top); n > 0: its number over the slot */
-static void fxm_vslider(int32_t x, int32_t y, int32_t h, float u, int n)
-{
-    int32_t cy = y + 3 + (int32_t)((1.0f - u) * (float)(h - 6) + 0.5f);
-    cv_rect(x - 1, y, 2, h, K_TEXT);
-    cv_rect(x - 5, cy - 3, 10, 7, K_TEXT);
-    cv_rect(x - 4, cy - 2, 8, 5, K_CARD);
-    cv_rect(x - 4, cy, 8, 1, K_TEXT);
-    if (n)
-        fxm_num(x, y - 8, n);
-}
-static void fxm_screw(float x, float y)
-{
-    cv_ring(x, y, 2.2f, 0.9f, K_TEXT);
-    fxm_ln(x - 1.4f, y + 1.4f, x + 1.4f, y - 1.4f, 0.8f);
-}
-static void fxm_coil(float x, float y, int n, float r)   /* a coiled cable along x */
-{
-    pen_t pn = {0};
-    for (int i = 0; i <= n * 12; i++) {
-        float t = (float)i / 12.0f;
-        pen_to(&pn, x + t * r * 1.2f + r * fm_sin_turns(t + 0.25f) * 0.6f, y + r * fm_sin_turns(t), K_TEXT);
     }
 }
 static void fxm_lead(float x0, float y0, float x1, float y1)   /* a cable from a jack, easing from y0 to y1 */
@@ -5344,7 +5289,7 @@ static void fxm_title(const char *nm, const char *desc, const char *det, int num
         int32_t x = 232 - tr_w(F_LAB, desc, 1);
         tr_text(x, 3, F_LAB, desc, K_DIM, 1);
         if (num)
-            fxm_num(x - 10, 9, num);
+            p2_callout(x - 10, 9, num, 0, K_TEXT);
     }
     if (det)
         text_r(232, 17, F_XB, det, K_TEXT);
@@ -5361,8 +5306,8 @@ __attribute__((noinline)) static void fxm_delay(const uint8_t *q, int wid, int s
 {
     int idx = (q[0] * 8) >> 7, nrep = 1 + (int)(q[2] * 7u >> 7);
     float d = (float)DLY_D[idx] * (1.0f + ((float)q[1] - 64.0f) * (0.25f / 64.0f)), w = FXU(wid);
-    fxm_panel(8, 40, 200, 76, K_CARD);
-    fxm_panel(14, 45, 188, 36, K_PANEL);             /* the window over the tape */
+    p2_panel(8, 40, 200, 76, K_CARD);
+    p2_panel(14, 45, 188, 36, K_PANEL);             /* the window over the tape */
     for (int s = 0; s < 2; s++) {                    /* the rollers, the tape round them */
         float x = s ? 186.0f : 30.0f;
         cv_disc(x, 63.0f, 9.0f, K_CARD);
@@ -5384,10 +5329,10 @@ __attribute__((noinline)) static void fxm_delay(const uint8_t *q, int wid, int s
             cv_rect(x, 75, 8, 6, K_DIM), cv_rect(x + 1, 76, 6, 4, K_PANEL);
     }
     fxm_ticks(34.0f, 100.0f, 10.5f, 13.0f, 8);       /* the time: a knob with a click a division */
-    fxm_knob(34.0f, 100.0f, 8.0f, (float)idx / 7.0f, 1, -18, 0);
+    p2_knob(34.0f, 100.0f, 8.0f, (float)idx / 7.0f, 1, -18, 0);
     for (int k = 1; k < 4; k++)
-        fxm_knob(54.0f + 30.0f * (float)k, 100.0f, 6.0f, FXU(q[k]), k + 1, -13, 0);
-    fxm_panel(152, 90, 30, 20, K_BG);                /* the VU */
+        p2_knob(54.0f + 30.0f * (float)k, 100.0f, 6.0f, FXU(q[k]), k + 1, -13, 0);
+    p2_panel(152, 90, 30, 20, K_BG);                /* the VU */
     ellipse_arc(167.0f, 108.0f, 12.0f, 12.0f, 0.62f, 0.88f, 0.8f, K_DIM);
     {
         float a = snd ? 0.8f : 0.64f;
@@ -5407,7 +5352,7 @@ __attribute__((noinline)) static void fxm_chorus(const uint8_t *q)
     cv_round(40, 38, 160, 78, 7, K_TEXT);
     cv_round(42, 40, 156, 74, 5, K_CARD);
     for (int k = 0; k < 4; k++)
-        fxm_knob(66.0f + 36.0f * (float)k, 65.0f, 8.0f, FXU(q[k]), k + 1, 0, -16);
+        p2_knob(66.0f + 36.0f * (float)k, 65.0f, 8.0f, FXU(q[k]), k + 1, 0, -16);
     cv_round(42, 81, 156, 33, 5, K_PANEL);           /* the lower half, a shade deeper, under the stripe */
     cv_rect(42, 81, 156, 4, K_TEXT);
     for (int s = 0; s < 2; s++) {
@@ -5417,7 +5362,7 @@ __attribute__((noinline)) static void fxm_chorus(const uint8_t *q)
     fxm_jack(200.0f, 62.0f);
     fxm_lead(203.0f, 62.0f, 240.0f, 76.0f);
     fxm_ln(31.0f, 62.0f, 40.0f, 62.0f, 1.6f);
-    fxm_coil(8.0f, 62.0f, 4, 4.5f);
+    p2_coil(8.0f, 62.0f, 4, 4.5f, K_TEXT);
 }
 /* lofi: a chunky early sampling drum box: the rate a slider, the bits on a two-digit display, big square pads
  * (the first vermilion while it sounds), smooth and width two knobs, a speaker's slots */
@@ -5434,11 +5379,11 @@ __attribute__((noinline)) static void fxm_lofi(const uint8_t *q, int snd)
     int bits = 2 + (14 * q[1] + 63) / 127;
     cv_round(14, 38, 212, 78, 9, K_TEXT);
     cv_round(18, 42, 204, 70, 6, K_PANEL);
-    fxm_vslider(32, 60, 46, FXU(q[0]), 1);
+    p2_vslider(32, 60, 46, FXU(q[0]), 1);
     cv_rect(46, 50, 46, 32, K_TEXT);                 /* the display: the bits */
     fxm_seg(52, 54, bits / 10);
     fxm_seg(72, 54, bits % 10);
-    fxm_num(100, 58, 2);
+    p2_callout(100, 58, 2, 0, K_TEXT);
     for (int k = 0; k < 3; k++)                      /* the speaker */
         cv_rect(48, 91 + k * 6, 42, 2, K_DIM);
     for (int k = 0; k < 6; k++) {                    /* the pads */
@@ -5446,8 +5391,8 @@ __attribute__((noinline)) static void fxm_lofi(const uint8_t *q, int snd)
         cv_round(x, y, 24, 24, 3, K_TEXT);
         cv_round(x + 2, y + 2, 20, 20, 2, k == 0 && snd ? K_REC : K_CARD);
     }
-    fxm_knob(206.0f, 66.0f, 6.0f, FXU(q[2]), 3, 0, -14);
-    fxm_knob(206.0f, 98.0f, 6.0f, FXU(q[3]), 4, 0, -14);
+    p2_knob(206.0f, 66.0f, 6.0f, FXU(q[2]), 3, 0, -14);
+    p2_knob(206.0f, 98.0f, 6.0f, FXU(q[3]), 4, 0, -14);
 }
 /* phaser: a wide floor pedal, its sides raked; a meter whose needle is the frequency and whose shaded arc the sweep
  * (the depth); six stage lamps, those inside the sweep lit; its four knobs; two footswitches */
@@ -5458,7 +5403,7 @@ __attribute__((noinline)) static void fxm_phaser(const uint8_t *q)
     cv_poly(B, 4, K_CARD, 256u, 0);
     for (int k = 0; k < 4; k++)
         fxm_ln(B[2 * k], B[2 * k + 1], B[(2 * k + 2) & 7], B[(2 * k + 3) & 7], 1.2f);
-    fxm_panel(52, 46, 62, 40, K_BG);                 /* the meter */
+    p2_panel(52, 46, 62, 40, K_BG);                 /* the meter */
     ellipse_arc(83.0f, 82.0f, 19.0f, 19.0f, fm_maxf(0.6f, a - s), fm_minf(0.9f, a + s), 6.0f, K_TINT);
     ellipse_arc(83.0f, 82.0f, 26.0f, 26.0f, 0.6f, 0.9f, 1.0f, K_TEXT);
     for (int k = 0; k < 7; k++) {
@@ -5473,7 +5418,7 @@ __attribute__((noinline)) static void fxm_phaser(const uint8_t *q)
         fxm_lamp(124 + k * 11, 47, 8, (c < 0.0f ? -c : c) <= dp * 0.5f + 0.09f ? K_NOW : K_BG);
     }
     for (int k = 0; k < 4; k++)
-        fxm_knob((float)(146 + (k & 1) * 38), (float)(67 + (k >> 1) * 26), 7.0f, FXU(q[k]), k + 1, -14, 0);
+        p2_knob((float)(146 + (k & 1) * 38), (float)(67 + (k >> 1) * 26), 7.0f, FXU(q[k]), k + 1, -14, 0);
     fxm_foot(70.0f, 103.0f);
     fxm_foot(112.0f, 103.0f);
 }
@@ -5496,11 +5441,11 @@ __attribute__((noinline)) static void fxm_plate(const uint8_t *q, int snd)
     float s = FXU(q[0]), pw = 84.0f + 50.0f * s, ph = 22.0f + 8.0f * s, cx = 88.0f, cy = 72.0f;
     float x0 = cx - pw * 0.5f, x1 = cx + pw * 0.5f, y0 = cy - ph * 0.5f, y1 = cy + ph * 0.5f, tx = cx - pw * 0.24f;
     int n = 1 + (127 - q[3]) * 3 / 127;
-    fxm_panel(8, 40, 160, 66, K_PANEL);
+    p2_panel(8, 40, 160, 66, K_PANEL);
     for (int k = 0; k < 2; k++) {                    /* the cheeks, wood; the legs */
         float x = k ? 158.0f : 8.0f, w[8] = {x, 40.0f, x + 10.0f, 40.0f, x + 10.0f, 106.0f, x, 106.0f};
         cv_poly(w, 4, K_DIM, 200u, 3);
-        fxm_outline(x + 0.5f, 40.5f, x + 9.5f, 105.5f, 1.2f);
+        p2_outline(x + 0.5f, 40.5f, x + 9.5f, 105.5f, K_TEXT, 1.2f);
         cv_rect(k ? 156 : 16, 106, 4, 10, K_TEXT);
     }
     fxm_ln(18.0f, 46.0f, 158.0f, 46.0f, 0.8f);
@@ -5508,8 +5453,8 @@ __attribute__((noinline)) static void fxm_plate(const uint8_t *q, int snd)
     fxm_spring(18.0f, y0 - 2.0f, x0, y0 + 3.0f), fxm_spring(158.0f, y0 - 2.0f, x1, y0 + 3.0f);   /* (sideways, to the cheeks) */
     fxm_spring(18.0f, y1 + 2.0f, x0, y1 - 3.0f), fxm_spring(158.0f, y1 + 2.0f, x1, y1 - 3.0f);
     cv_rect((int32_t)x0, (int32_t)y0, (int32_t)pw, (int32_t)ph, K_CARD);
-    fxm_outline((float)(int32_t)x0 + 0.5f, (float)(int32_t)y0 + 0.5f, (float)((int32_t)x0 + (int32_t)pw) - 0.5f,
-                (float)((int32_t)y0 + (int32_t)ph) - 0.5f, 1.2f);
+    p2_outline((float)(int32_t)x0 + 0.5f, (float)(int32_t)y0 + 0.5f, (float)((int32_t)x0 + (int32_t)pw) - 0.5f,
+                (float)((int32_t)y0 + (int32_t)ph) - 0.5f, K_TEXT, 1.2f);
     for (int k = n - 1; k >= 0; k--)                 /* the driver's rings: more the less it damps */
         ellipse_arc(tx, cy, 5.0f + 5.0f * (float)k, 3.0f + 2.2f * (float)k, 0.0f, 1.0f, k ? 0.8f : 1.2f,
                     k ? col_mix(K_TEXT, K_CARD, (uint32_t)(4 + 3 * k)) : snd ? K_REC : K_TEXT);
@@ -5520,14 +5465,14 @@ __attribute__((noinline)) static void fxm_plate(const uint8_t *q, int snd)
         float pd[8] = {(float)pl, (float)py, (float)pr, (float)py, (float)pr, (float)py + 4.0f, (float)pl, (float)py + 4.0f};
         cv_rect(pl + 4, py + 4, 1, 100 - py - 4, K_TEXT), cv_rect(pr - 5, py + 4, 1, 100 - py - 4, K_TEXT);
         cv_poly(pd, 4, K_DIM, 256u, 2);
-        fxm_outline((float)pl + 0.5f, (float)py + 0.5f, (float)pr - 0.5f, (float)py + 3.5f, 1.0f);
-        fxm_num(pr + 9, py + 2, 4);
+        p2_outline((float)pl + 0.5f, (float)py + 0.5f, (float)pr - 0.5f, (float)py + 3.5f, K_TEXT, 1.0f);
+        p2_callout(pr + 9, py + 2, 4, 0, K_TEXT);
     }
     dim_line(x0, 52.0f, x1, 52.0f, 3.0f, 3.0f, K_TEXT);   /* the plate's length */
-    fxm_num((int32_t)cx, 53, 1);
-    fxm_panel(184, 54, 46, 62, K_CARD);              /* the remote, on its lead */
-    fxm_knob(214.0f, 72.0f, 7.0f, FXU(q[1]), 2, -18, 0);
-    fxm_knob(214.0f, 98.0f, 7.0f, FXU(q[2]), 3, -18, 0);
+    p2_callout((int32_t)cx, 53, 1, 0, K_TEXT);
+    p2_panel(184, 54, 46, 62, K_CARD);              /* the remote, on its lead */
+    p2_knob(214.0f, 72.0f, 7.0f, FXU(q[1]), 2, -18, 0);
+    p2_knob(214.0f, 98.0f, 7.0f, FXU(q[2]), 3, -18, 0);
     fxm_lead(168.0f, 94.0f, 184.0f, 108.0f);
 }
 /* lush: a 2U digital reverb rack: its ears, a display showing the tail's time, nudge buttons, its four knobs, a row
@@ -5537,7 +5482,7 @@ __attribute__((noinline)) static void fxm_lush(const uint8_t *q, int snd)
     static const uint8_t DT[5] = {0, 45, 64, 100, 127}, DS[5] = {6, 9, 14, 37, 72};   /* the tail, tenths of a s */
     char t[12], *e;
     int k = 0, ds;
-    fxm_panel(8, 42, 224, 72, K_CARD);
+    p2_panel(8, 42, 224, 72, K_CARD);
     for (int s = 0; s < 2; s++) {                    /* the ears and their slots */
         int32_t x = s ? 226 : 14;
         cv_rect(s ? 219 : 20, 42, 1, 72, K_TEXT);
@@ -5555,58 +5500,181 @@ __attribute__((noinline)) static void fxm_lush(const uint8_t *q, int snd)
     text_r(100, 55, F_VAL, t, K_CARD);
     for (int j = 0; j < 2; j++) {                    /* the nudge buttons */
         float y = (float)(51 + j * 16);
-        fxm_panel(112, 50 + j * 16, 14, 14, K_PANEL);
+        p2_panel(112, 50 + j * 16, 14, 14, K_PANEL);
         if (j)
             cv_tri(119.0f, y + 10.0f, 115.0f, y + 4.0f, 123.0f, y + 4.0f, K_TEXT);
         else
             cv_tri(119.0f, y + 3.0f, 115.0f, y + 9.0f, 123.0f, y + 9.0f, K_TEXT);
     }
     for (int j = 0; j < 4; j++)
-        fxm_knob((float)(144 + j * 22), 70.0f, 7.0f, FXU(q[j]), j + 1, 0, -16);
+        p2_knob((float)(144 + j * 22), 70.0f, 7.0f, FXU(q[j]), j + 1, 0, -16);
     for (int j = 0; j < 8; j++)                      /* the programs */
-        fxm_panel(28 + j * 11, 92, 9, 7, j == 2 ? K_TEXT : K_PANEL);
+        p2_panel(28 + j * 11, 92, 9, 7, j == 2 ? K_TEXT : K_PANEL);
     for (int j = 0; j < 10; j++)                     /* the level */
         cv_rect(128 + j * 7, 94, 5, 4, snd && j < 7 ? K_REC : K_LINE);
-    fxm_panel(202, 90, 10, 12, K_TEXT);              /* the power switch */
+    p2_panel(202, 90, 10, 12, K_TEXT);              /* the power switch */
     cv_rect(204, 92, 6, 4, K_PANEL);
 }
-/* the echo modes: an old grey console, a cartridge in its slot; a lamp an echo (one, two, three; five for chaos);
- * half echo's cartridge half out, space echo an expansion bolted on its side, chaos echo with its lid off (the board
- * and its chips) and the lid leant beside it; size, decay, tone and damp its four knobs */
+/* the echo modes: four derelict Cold War signal stations, each its own object, something that sends out and hears
+ * back. one echo a radar scope in an abandoned desk: one blip, as far out as the size (1), its afterglow as long as
+ * the decay (2); half echo a concrete sound mirror facing a horn on a pole, as far off as the size, a few short
+ * returns (the decay); space echo a dish on its lattice mount aimed at a satellite as far as the size, the returns
+ * coming home from it; chaos echo a search radar toppled off its cabin, cables hanging, returns tangled across the
+ * sky. Tone and damp (3, 4): two dials on the desk, the pole's box, the hut, the cabin. A return sounding now:
+ * vermilion; the rest fade as they go */
+static void ec_grass(float x, float y, int n)        /* tufts at a footing */
+{
+    for (int k = 0; k < n; k++, x += 5.0f) {
+        cv_linef(x, y, x - 2.0f, y - 5.0f, K_TEXT, 0.8f);
+        cv_linef(x, y, x + 1.0f, y - 6.0f, K_TEXT, 0.8f);
+        cv_linef(x, y, x + 3.0f, y - 4.0f, K_TEXT, 0.8f);
+    }
+}
+/* n returns about (cx, cy), radii r1 (the first, home now) down to r0, facing turn t, span turns either side */
+static void ec_returns(float cx, float cy, float r0, float r1, int n, float t, float span, int snd)
+{
+    for (int k = n - 1; k >= 0; k--) {
+        float r = n > 1 ? r1 + (r0 - r1) * (float)k / (float)(n - 1) : r1;
+        ellipse_arc(cx, cy, r, r, t - span, t + span, k ? 1.0f : 1.6f,
+                    k ? col_mix(K_TEXT, K_CARD, (uint32_t)(3 + k * 10 / n)) : snd ? K_REC : K_TEXT);
+    }
+}
+static void ec_dials(float x, float y, float sx, const uint8_t *q, int32_t dy)   /* tone and damp (3, 4) */
+{
+    p2_knob(x, y, 6.0f, FXU(q[2]), 3, 0, dy);
+    p2_knob(x + sx, y, 6.0f, FXU(q[3]), 4, 0, dy);
+}
 __attribute__((noinline)) static void fxm_console(const uint8_t *q, int mode, int snd)
 {
-    int ne = mode == RV_ECHO_ONE ? 1 : mode == RV_HALF_ECHO ? 2 : mode == RV_SPACE_ECHO ? 3 : 5;
-    int chaos = mode == RV_CHAOS_ECHO, half = mode == RV_HALF_ECHO;
-    if (mode == RV_SPACE_ECHO) {                     /* the expansion */
-        fxm_panel(8, 66, 20, 48, K_PANEL);
-        for (int k = 0; k < 4; k++)
-            cv_rect(12, 72 + k * 6, 12, 2, K_DIM);
-        fxm_screw(18.0f, 104.0f);
+    float sz = FXU(q[0]), dc = FXU(q[1]);
+    int k;
+    if (mode != RV_ECHO_ONE)
+        cv_rect(8, 116, 224, 1, K_TEXT);             /* the ground */
+    if (mode == RV_ECHO_ONE) {                       /* the desk, its dead lamps, the scope */
+        static const float D[8] = {20.0f, 40.0f, 220.0f, 40.0f, 230.0f, 116.0f, 10.0f, 116.0f};
+        float cx = 120.0f, cy = 78.0f, rb = 6.0f + 24.0f * sz, a = 0.04f;
+        int ng = 2 + (int)(dc * 14.0f);
+        cv_poly(D, 4, K_PANEL2, 256u, 0);
+        for (k = 0; k < 4; k++)
+            fxm_ln(D[2 * k], D[2 * k + 1], D[(2 * k + 2) & 7], D[(2 * k + 3) & 7], 1.2f);
+        for (k = 0; k < 10; k++) {
+            int32_t x = k < 5 ? 26 + k * 10 : 128 + k * 10;
+            if (k == 7)
+                cv_ring((float)x + 3.0f, 50.0f, 2.5f, 0.8f, K_TEXT);   /* (one gone) */
+            else
+                fxm_lamp(x, 48, 7, K_LINE);
+        }
+        cv_disc(cx, cy, 36.0f, K_PANEL);
+        cv_ring(cx, cy, 36.0f, 1.2f, K_TEXT);
+        cv_disc(cx, cy, 31.0f, K_TEXT);
+        for (k = 1; k <= 3; k++)
+            cv_ring(cx, cy, 8.0f * (float)k, 0.7f, col_mix(K_TEXT, K_CARD, 5));
+        for (k = ng; k >= 0; k--) {                  /* the sweep and its afterglow */
+            float t = a + 0.03f - 0.012f * (float)k;
+            cv_linef(cx, cy, cx + 30.0f * fm_sin_turns(t + 0.25f), cy + 30.0f * fm_sin_turns(t), k ? col_mix(K_TEXT, K_CARD, (uint32_t)(10 - k * 9 / (ng + 1))) : K_CARD, k ? 0.9f : 1.4f);
+        }
+        cv_disc(cx + rb * fm_sin_turns(a + 0.25f), cy + rb * fm_sin_turns(a), 2.6f, snd ? K_REC : K_CARD);
+        p2_callout(166, 84, 1, 0, K_TEXT);
+        p2_callout(162, 58, 2, 0, K_TEXT);
+        p2_knob(40.0f, 94.0f, 9.0f, FXU(q[2]), 3, 0, -20);
+        p2_knob(200.0f, 94.0f, 9.0f, FXU(q[3]), 4, 0, -20);
+    } else if (mode == RV_HALF_ECHO) {               /* the horn on its pole; the sound mirror, as far as the size */
+        static const float H[8] = {32.0f, 64.0f, 32.0f, 70.0f, 54.0f, 80.0f, 54.0f, 54.0f};
+        float m = 112.0f + 70.0f * sz, f[18];
+        int n = 1 + (int)(dc * 3.99f);
+        cv_rect(35, 70, 2, 46, K_TEXT);
+        cv_rect(28, 62, 4, 10, K_TEXT);
+        cv_poly(H, 4, K_CARD, 256u, 0);
+        for (k = 0; k < 4; k++)
+            fxm_ln(H[2 * k], H[2 * k + 1], H[(2 * k + 2) & 7], H[(2 * k + 3) & 7], 1.2f);
+        ellipse_arc(54.0f, 67.0f, 3.0f, 13.0f, 0.0f, 1.0f, 1.2f, K_TEXT);
+        p2_panel(22, 82, 28, 16, K_PANEL2);
+        for (k = 0; k < 7; k++) {                    /* the mirror: a concave face, a straight back */
+            float y = 46.0f + 11.0f * (float)k, v = (y - 79.0f) / 33.0f;
+            f[2 * k] = m + 9.0f * (1.0f - v * v), f[2 * k + 1] = y;
+        }
+        f[14] = m + 24.0f, f[15] = 112.0f, f[16] = m + 20.0f, f[17] = 46.0f;
+        cv_poly(f, 9, K_PANEL, 256u, 0);
+        cv_poly(f, 9, K_LINE, 256u, 5);
+        for (k = 0; k < 9; k++)
+            fxm_ln(f[2 * k], f[2 * k + 1], f[(2 * k + 2) % 18], f[(2 * k + 3) % 18], 1.2f);
+        fxm_ln(m + 14.0f, 52.0f, m + 18.0f, 60.0f, 0.8f), fxm_ln(m + 18.0f, 60.0f, m + 13.0f, 66.0f, 0.8f);   /* a crack */
+        cv_rect((int32_t)m - 4, 112, 32, 4, K_TEXT);
+        ec_grass(m - 6.0f, 116.0f, 2), ec_grass(m + 26.0f, 116.0f, 2), ec_grass(26.0f, 116.0f, 2);
+        ec_returns(m + 6.0f, 79.0f, 12.0f, 12.0f + (m - 66.0f) * 0.7f, n, 0.5f, 0.07f, snd);
+        dim_line(56.0f, 108.0f, m - 2.0f, 108.0f, 3.0f, 3.0f, K_TEXT);
+        p2_callout((int32_t)(56.0f + m) / 2, 100, 1, 0, K_TEXT);
+        p2_callout((int32_t)m - 8, 50, 2, 0, K_TEXT);
+        ec_dials(29.0f, 90.0f, 14.0f, q, 16);
+    } else if (mode == RV_SPACE_ECHO) {              /* the dish on its lattice, the satellite, the returns home */
+        static const float AX = 0.92f, AY = -0.39f;
+        float vx = 44.0f, vy = 86.0f, dd = 72.0f + 64.0f * sz, tx = vx + AX * dd, ty = vy + AY * dd, f[20];
+        int n = 2 + (int)(dc * 5.99f);
+        for (k = 0; k < 9; k++) {                    /* the dish: a parabola about its axis */
+            float s = (float)(k - 4) / 4.0f;
+            f[2 * k] = vx - AY * 24.0f * s + AX * 10.0f * s * s, f[2 * k + 1] = vy + AX * 24.0f * s + AY * 10.0f * s * s;
+        }
+        for (k = 0; k < 3; k++) {                    /* the lattice: legs, braces */
+            float y0 = 116.0f - 8.0f * (float)k, y1 = y0 - 8.0f, i0 = 4.0f * (float)k, i1 = i0 + 4.0f;
+            fxm_ln(28.0f + i0, y0, 28.0f + i1, y1, 1.2f), fxm_ln(56.0f - i0, y0, 56.0f - i1, y1, 1.2f);
+            fxm_ln(28.0f + i0, y0, 56.0f - i1, y1, 0.8f), fxm_ln(56.0f - i0, y0, 28.0f + i1, y1, 0.8f);
+        }
+        f[18] = vx + AX * 10.0f, f[19] = vy;
+        cv_poly(f, 10, K_PANEL, 256u, 0);
+        for (k = 0; k < 8; k++)
+            fxm_ln(f[2 * k], f[2 * k + 1], f[2 * k + 2], f[2 * k + 3], 1.6f);
+        fxm_ln(f[0], f[1], vx + AX * 22.0f, vy + AY * 22.0f, 0.8f);
+        fxm_ln(f[16], f[17], vx + AX * 22.0f, vy + AY * 22.0f, 0.8f);
+        cv_disc(vx + AX * 22.0f, vy + AY * 22.0f, 2.2f, K_TEXT);
+        cv_disc(tx, ty, 2.5f, K_TEXT);               /* the satellite, its panels */
+        cv_rect((int32_t)tx - 10, (int32_t)ty - 2, 7, 4, K_TEXT), cv_rect((int32_t)tx + 4, (int32_t)ty - 2, 7, 4, K_TEXT);
+        ec_returns(tx, ty, dd * 0.18f, dd * 0.8f, n, 0.436f, 0.05f, snd);
+        p2_callout((int32_t)tx + 4, (int32_t)ty + 12, 1, 0, K_TEXT);
+        p2_callout((int32_t)(tx - AX * dd * 0.5f) - 4, (int32_t)(ty - AY * dd * 0.5f) + 20, 2, 0, K_TEXT);
+        p2_panel(170, 96, 52, 20, K_PANEL2);         /* the hut */
+        cv_rect(166, 94, 60, 3, K_TEXT);
+        cv_rect(212, 102, 6, 14, K_TEXT);
+        ec_dials(182.0f, 106.0f, 18.0f, q, -18);
+        ec_grass(26.0f, 116.0f, 2), ec_grass(56.0f, 116.0f, 2);
+    } else {                                         /* chaos: the search radar fallen off its cabin */
+        float ax = 14.0f, ay = 112.0f, bx = 146.0f, by = 62.0f, nx = 0.36f, ny = 0.93f, top[22];
+        int n = 4 + (int)(dc * 9.99f);
+        uint32_t r = 0x2545F491u;
+        for (k = 0; k < n; k++) {                    /* the returns, tangled */
+            float cx, cy, rr, t;
+            r = r * 1664525u + 1013904223u, cx = 30.0f + (float)(r >> 24) * (0.3f + 0.3f * sz);
+            r = r * 1664525u + 1013904223u, cy = 52.0f + (float)(r >> 27) * 1.2f;
+            r = r * 1664525u + 1013904223u, rr = (6.0f + (float)(r >> 28) * 1.5f) * (0.6f + 0.8f * sz), t = (float)(r >> 20 & 255u) / 256.0f;
+            ellipse_arc(cx, cy, rr, rr, t, t + 0.3f, k ? 1.0f : 1.6f, k ? col_mix(K_TEXT, K_CARD, (uint32_t)(1 + k * 8 / n)) : snd ? K_REC : K_TEXT);
+        }
+        p2_panel(150, 90, 60, 26, K_PANEL2);         /* the cabin, its door, a window out */
+        cv_rect(194, 98, 8, 18, K_TEXT);
+        fxm_ln(160.0f, 90.0f, 152.0f, 60.0f, 1.2f), fxm_ln(172.0f, 90.0f, 158.0f, 64.0f, 1.2f);   /* the mast, broken */
+        for (k = 0; k < 3; k++)
+            fxm_ln(160.0f - 2.7f * (float)k, 90.0f - 10.0f * (float)k, 167.5f - 3.5f * (float)k, 80.0f - 10.0f * (float)k, 0.8f);
+        for (k = 0; k < 11; k++) {                   /* the reflector: a bowed mesh band, a panel gone */
+            float s = (float)k / 10.0f, bw = 8.0f * fm_sin_turns(s * 0.5f);
+            top[2 * k] = ax + (bx - ax) * s - nx * bw, top[2 * k + 1] = ay + (by - ay) * s - ny * bw;
+            if (k && k != 8) {
+                float qd[8] = {top[2 * k - 2], top[2 * k - 1], top[2 * k], top[2 * k + 1], top[2 * k] + nx * 12.0f,
+                               top[2 * k + 1] + ny * 12.0f, top[2 * k - 2] + nx * 12.0f, top[2 * k - 1] + ny * 12.0f};
+                cv_poly(qd, 4, K_PANEL, 256u, 0);
+                cv_poly(qd, 4, K_DIM, 256u, 5);
+            }
+            if (k && k != 8)
+                fxm_ln(top[2 * k - 2], top[2 * k - 1], top[2 * k], top[2 * k + 1], 1.2f),
+                fxm_ln(top[2 * k - 2] + nx * 12.0f, top[2 * k - 1] + ny * 12.0f, top[2 * k] + nx * 12.0f, top[2 * k + 1] + ny * 12.0f, 1.2f);
+            if (k != 7 && k != 8)
+                fxm_ln(top[2 * k], top[2 * k + 1], top[2 * k] + nx * 12.0f, top[2 * k + 1] + ny * 12.0f, k == 0 || k == 10 ? 1.2f : 0.8f);
+        }
+        p2_cable(bx + 2.0f, by + 8.0f, 156.0f, 92.0f, 8.0f, K_TEXT);
+        p2_cable(top[12] + 5.0f, top[13] + 11.0f, 122.0f, 116.0f, 4.0f, K_TEXT);
+        dim_line(30.0f, 42.0f, 30.0f + 255.0f * (0.3f + 0.3f * sz), 42.0f, 3.0f, 3.0f, K_TEXT);
+        p2_callout(16, 43, 1, 0, K_TEXT);
+        p2_callout(16, 62, 2, 0, K_TEXT);
+        ec_dials(166.0f, 104.0f, 18.0f, q, -20);
+        ec_grass(30.0f, 116.0f, 3), ec_grass(132.0f, 116.0f, 2);
     }
-    fxm_panel(28, 58, 184, 56, K_PANEL2);
-    if (chaos) {                                     /* the lid off: the board, its chips; the lid leant at the side */
-        static const float L[8] = {214.0f, 56.0f, 222.0f, 52.0f, 232.0f, 112.0f, 224.0f, 116.0f};
-        cv_poly(L, 4, K_PANEL2, 256u, 0);
-        for (int k = 0; k < 4; k++)
-            fxm_ln(L[2 * k], L[2 * k + 1], L[(2 * k + 2) & 7], L[(2 * k + 3) & 7], 1.2f);
-        fxm_panel(40, 44, 160, 15, K_TINT);
-        for (int k = 0; k < 5; k++)
-            cv_rect(48 + k * 30, 48, k == 2 ? 20 : 12, 7, K_TEXT);
-        cv_dash(44.0f, 56.5f, 196.0f, 56.5f, 2.0f, 2.0f, 0.8f, K_TEXT);
-    } else
-        fxm_panel(40, 46, 160, 13, K_PANEL);
-    cv_rect(92, 49, 56, 4, K_TEXT);                  /* the slot, the cartridge in it */
-    fxm_panel(98, half ? 30 : 36, 44, half ? 21 : 15, K_CARD);
-    cv_rect(104, half ? 34 : 39, 32, 6, K_LINE);
-    for (int k = 0; k < ne; k++)                     /* the lamps: an echo each */
-        fxm_lamp(38 + k * 13, 66, 10, k == 0 && snd ? K_REC : K_NOW);
-    for (int k = 0; k < 2; k++) {                    /* power and reset; the two ports */
-        fxm_panel(38 + k * 24, 82, 18, 8, K_CARD);
-        cv_round(40 + k * 24, 98, 14, 9, 3, K_TEXT);
-        cv_rect(43 + k * 24, 101, 8, 3, K_PANEL2);
-    }
-    for (int k = 0; k < 4; k++)
-        fxm_knob((float)(118 + k * 26), 94.0f, 7.0f, FXU(q[k]), k + 1, 0, -16);
 }
 
 /* the rooms (room, the studios, the hall): an isometric room whose size follows knob 1 (its floor dimensioned),
@@ -5670,7 +5738,7 @@ __attribute__((noinline)) static void draw_room(const uint8_t *p, int mode, int 
             int32_t e = 0;
             for (int k = 1; k < 4; k++) {
                 int32_t y = 48 + k * 16, x = cv_text(22, y - 7, &FONT_XS, fx_knob_name(FXT_REVERB + mode, k), K_TEXT);
-                fxm_num(13, y, k + 1);
+                p2_callout(13, y, k + 1, 0, K_TEXT);
                 if (k == 1)
                     e = x;
             }
@@ -5690,7 +5758,7 @@ __attribute__((noinline)) static void draw_room(const uint8_t *p, int mode, int 
         float ax = RP(0, d, 0, 0) - 5.0f, ay = RP(0, d, 0, 1) + 9.0f, bx = RP(w, d, 0, 0) - 5.0f, by = RP(w, d, 0, 1) + 9.0f;
         int32_t cx = (int32_t)((ax + bx) * 0.5f - 22.0f), cy = (int32_t)((ay + by) * 0.5f + 12.0f);
         dim_line(ax, ay, bx, by, 3.0f, 3.0f, K_TEXT);
-        fxm_num(cx, cy, 1);
+        p2_callout(cx, cy, 1, 0, K_TEXT);
         cv_text(cx + 9, cy - 7, &FONT_XS, fx_knob_name(FXT_REVERB + mode, 0), K_TEXT);
     }
 #undef RP
@@ -5701,7 +5769,7 @@ static void draw_fxtrack(int trk)                    /* AUX_FX1 / AUX_FX2: the e
     int pick = fx_pick_of(trk), type = fx_pick_type(pick), mode = fx_pick_mode(pick), snd = ui_peak[trk] > 400;
     const uint8_t *q = proj.trk[trk].par + TP_E1;
     int wid = proj.trk[trk].par[TP_FX_WIDTH];
-    uint32_t h = hash_u(hash_u(2166136261u, 0xF1u), (uint32_t)trk | (uint32_t)pick << 4 | (uint32_t)fxm_touch() << 12 |
+    uint32_t h = hash_u(hash_u(2166136261u, 0xF1u), (uint32_t)trk | (uint32_t)pick << 4 | (uint32_t)p2_touch() << 12 |
                                                     (uint32_t)snd << 16 | (uint32_t)wid << 20);
     char t[24];
     for (int k = 0; k < 4; k++)
@@ -5990,15 +6058,16 @@ static void draw_sub(void)
 }
 /* a drum key's own envelope: its lag (flat), the attack's rise, the hold, the decay's fall (or, off, the level
  * held to the right edge: the sound's own length rules), the key's colour under it */
-/* the envelope figures (the sheet's FIG. "Envelope"): on graph paper, the curve's area hatched in the track's ink, the
- * curve in ink with its corners circled, the base line; under it a dimension line for each stage, broken by its knob's
- * circled number. A stage at its least is still drawn EF_MIN wide, so each callout has room: a schematic, not to
- * scale, as a manual's figure */
-#define EF_X0 14.0f
-#define EF_TOP 30.0f
-#define EF_BASE 90.0f
-#define EF_DIM 106
-#define EF_MIN 26.0f
+/* the envelope figures: an envelope generator, a module of four sliders (the page's four knobs, numbered, their caps
+ * at the live values) beside the window of its chart recorder, which plots the shape on its paper roll: the curve's
+ * area hatched in the track's ink, the curve in ink with its corners circled, the pen at its end; under it a
+ * dimension line for each stage, broken by its knob's circled number. A stage at its least is still drawn EF_MIN
+ * wide, so each callout has room: a schematic, not to scale */
+#define EF_X0 108.0f
+#define EF_TOP 40.0f
+#define EF_BASE 84.0f
+#define EF_DIM 100
+#define EF_MIN 15.0f
 typedef struct { float x[64], y[64]; int n, dash; } curve_t;   /* (dash: the points from there on dashed) */
 static void ef_pt(curve_t *c, float x, float y)
 {
@@ -6015,13 +6084,12 @@ static void ef_curve(const curve_t *c)
     float poly[2 * 66];
     pen_t pn = {0};
     int n = 0;
-    cv_grid(8, 20, 224, 76, 8, MAIN_Y, K_GRID);
     for (int i = 0; i < c->n; i++)
         poly[2 * n] = c->x[i], poly[2 * n + 1] = c->y[i], n++;
     poly[2 * n] = c->x[c->n - 1], poly[2 * n + 1] = EF_BASE, n++;
     poly[2 * n] = c->x[0], poly[2 * n + 1] = EF_BASE, n++;
     cv_poly(poly, n, K_NOW, 150u, 6);                /* the area under it, hatched in the track's ink */
-    cv_rect(8, (int32_t)EF_BASE, 224, 1, K_TEXT);
+    cv_rect(102, (int32_t)EF_BASE, 124, 1, K_TEXT);
     pn.w = 2.0f;
     for (int i = 0; i < c->n; i++) {
         if (c->dash && i > c->dash && (i & 1))       /* (dashed: every other step left out) */
@@ -6044,7 +6112,7 @@ static void ef_dim(float a, float b, int knob)        /* a stage's dimension, it
 }
 /* the stages of a figure whose curve spans its full width (EF_X0 .. 222): each EF_MIN wide at least (room for its
  * callout), the rest shared by weight e[i] (the knobs' values, each stage a little even at 0) */
-#define EF_SPAN 208.0f
+#define EF_SPAN 110.0f
 static void ef_stages(float *w, const float *e, int n)
 {
     float sum = 0.0f, rest = EF_SPAN - (float)n * EF_MIN;
@@ -6060,6 +6128,23 @@ static void ef_break(float x, float y)
     cv_linef(x - 2.5f, y + 4.0f, x + 0.5f, y - 4.0f, K_TEXT, 1.3f);
     cv_linef(x + 0.5f, y + 4.0f, x + 3.5f, y - 4.0f, K_TEXT, 1.3f);
 }
+/* the module: its panel, the four sliders at v (0..127, knob k's at v[k]), the recorder's window, its paper and its
+ * sprocket holes, the pen's carriage on its rail at the plot's end (the end of the release, or the break) */
+static void ef_module(int v0, int v1, int v2, int v3, float pen, float py)
+{
+    int v[4] = {v0, v1, v2, v3};
+    p2_panel(8, 18, 224, 98, K_PANEL2);
+    for (int k = 0; k < 4; k++)
+        p2_vslider(22 + k * 20, 40, 66, (float)v[k] / 127.0f, k + 1);
+    p2_panel(100, 22, 128, 90, K_CARD);
+    cv_grid(102, 32, 124, 60, 8, MAIN_Y, K_GRID);
+    for (int k = 0; k < 15; k++)
+        cv_rect(104 + k * 8, 25, 3, 3, K_LINE), cv_rect(104 + k * 8, 107, 3, 3, K_LINE);
+    cv_rect(100, 30, 128, 2, K_TEXT);                /* the rail, the carriage, the pen down on the paper */
+    cv_rect((int32_t)pen - 4, 26, 9, 8, K_TEXT);
+    cv_linef(pen, 34.0f, pen, py - 8.0f, K_TEXT, 0.8f);
+    cv_tri(pen - 2.5f, py - 9.0f, pen + 2.5f, py - 9.0f, pen, py - 3.0f, K_TEXT);
+}
 /* a kit key's envelope: lag (4), attack (1), hold (2), decay (3); decay off: the sound's own length, dashed */
 static void draw_key_env(void)
 {
@@ -6072,11 +6157,12 @@ static void draw_key_env(void)
     uint32_t h = hash_u(hash_u(2166136261u, 0xE8u), (uint32_t)trk | (uint32_t)key << 4 | (uint32_t)p[DP_ATTACK] << 8 |
                                           (uint32_t)p[DP_HOLD] << 16 | (uint32_t)p[DP_DECAY] << 24);
     curve_t c = {{0}, {0}, 0, 0};
-    h = hash_u(h, p[DP_LAG] | (uint32_t)p[DP_MODEL] << 8 | (uint32_t)k_now << 16);
+    h = hash_u(h, p[DP_LAG] | (uint32_t)p[DP_MODEL] << 8 | (uint32_t)k_now << 16 | (uint32_t)p2_touch() << 28);
     if (!begin_main(h))
         return;
     ef_stages(sw, ew, 4);
     x1 = EF_X0 + sw[0], x2 = x1 + sw[1], x3 = x2 + sw[2];
+    ef_module(p[DP_ATTACK], p[DP_HOLD], p[DP_DECAY], p[DP_LAG], x4, open ? EF_TOP : EF_BASE);
     ef_pt(&c, EF_X0, EF_BASE);
     ef_pt(&c, x1, EF_BASE);
     ef_pt(&c, x2, EF_TOP);
@@ -6125,40 +6211,57 @@ static float filt_y(float db, int32_t y0, int32_t hh)
         return (float)y0 + 22.0f - 22.0f * (1.0f - fm_exp2f(-db * s * (1.0f / 22.0f) * 1.4427f));
     return (float)y0 + 22.0f - db * s;
 }
-/* the filter figures (the sheet's language): a title (the type), a line of what it is, the four knobs' callouts at the
- * left; at the right a response on graph paper (frequency across, level up; an octave 22 px, 0 dB dashed): the curve
- * with its area tinted, the cutoff a dotted line (callout 1), the resonance the peak's height (callout 2), the
- * envelope's reach an arrow with the curve it moves dimmed (callout 3). Off: a flat line, and the way to turn it on */
-#define FG_X 108
-#define FG_W 120
-#define FG_Y 8
-#define FG_H 88
+/* the filter figures: a filter box. At the left its faceplate, a different one for each type (the 24 dB a plain grey
+ * plate, the ladder's with its ladder, the 12 dB a lighter one, the high-pass striped at the top, the band-pass across
+ * the middle, the bus filter at the foot; off: blank, its knobs unnumbered): the cutoff a big dial (1), resonance,
+ * envelope and the fourth knob small (2-4), at the live values. At the right its screen in a dark bezel shows the
+ * response (frequency across, level up; an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a
+ * dotted line (1), the resonance the peak's height (2), the envelope's reach an arrow with the curve it moves dimmed
+ * (3). Off: the screen dead, a flat line, the way to turn it on */
+#define FG_X 110
+#define FG_W 116
+#define FG_Y 10
+#define FG_H 78
 static void filt_fig(const char *title, const char *desc, const uint8_t *par, const int *tps, int cut, int res, int hp, int bp,
                      int steep, int env, int off, const char *offmsg, int band, int hi)
 {
     float q = 0.7f + (float)res * 6.0f / 127.0f, ys[FG_W + 1], ye[FG_W + 1];
     int32_t fc = FG_X + 10 + cut * (FG_W - 20) / 127, y0 = FG_Y + 22, i;
     float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
-    {   /* the left: the title, what it is, the four callouts */
-        const felucca_font_t *f = text_w(&FONT_L, title) <= 92 ? &FONT_L : text_w(F_VAL, title) <= 92 ? F_VAL : &FONT_B;
+    int face = band ? 6 : off ? 5 : hp ? 3 : bp ? 4 : steep == 2 ? 1 : steep ? 0 : 2;
+    {   /* the left: the title, what it is; the faceplate, its knobs */
+        const felucca_font_t *f = text_w(&FONT_L, title) <= 96 ? &FONT_L : text_w(F_VAL, title) <= 96 ? F_VAL : &FONT_B;
         cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, title, K_TEXT);
         if (tr_w(F_LAB, desc, 1) <= 92)
             tr_text(9, 37, F_LAB, desc, K_DIM, 1);
         else
             text_fit(9, 37, F_LAB, desc, 92, K_DIM);
+        p2_panel(8, 52, 94, 64, face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2);
+        if (face == 1)                               /* the ladder */
+            for (int k = 0; k < 9; k++)
+                cv_rect(k ? 52 : 50, 56 + k * 7, k ? 8 : 2, k ? 1 : 56, K_TEXT), cv_rect(60, 56, 2, 56, K_TEXT);
+        if (face == 3 || face == 4)                  /* the stripe: high at the top, the band across; the bus's ears */
+            cv_rect(9, face == 3 ? 53 : 82, 92, 4, K_TEXT);
+        if (face == 6)
+            cv_rect(9, 53, 3, 62, K_TEXT), cv_rect(98, 53, 3, 62, K_TEXT);
+        p2_screw(13.0f, 57.0f), p2_screw(13.0f, 111.0f);
         for (int k = 0; k < 4; k++) {
-            char c[2] = {(char)('1' + k), 0};
             const tp_info_t *in = tps[k] >= 0 ? tp_info_par(tps[k], par) : 0;
+            float u = in ? p2_u(par, tps[k]) : 0.0f;
             if (!in || !in->name || !in->name[0])
                 continue;
-            circ_num(13, 58 + k * 15, c, off ? K_DIM : K_TEXT, K_BG);
-            cv_text(22, 51 + k * 15, &FONT_XS, in->name, off ? K_DIM : K_TEXT);
+            if (k == 0)
+                fxm_ticks(34.0f, 84.0f, 15.0f, 18.0f, 11), p2_knob(34.0f, 84.0f, 12.5f, u, off ? 0 : 1, 0, -26);
+            else
+                p2_knob(76.0f, (float)(44 + k * 20), 6.5f, u, off ? 0 : k + 1, 15, 0);
         }
     }
-    cv_frame(FG_X - 1, FG_Y - 1, FG_W + 2, FG_H + 2, 0, K_TEXT, K_BG);
-    cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_GRID);
-    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_LINE);
-    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 3, F_LAB, "FREQ", K_DIM, 1);
+    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, 7, K_TEXT);   /* the screen in its bezel */
+    cv_rect(FG_X, FG_Y, FG_W, FG_H, off ? K_PANEL2 : K_PANEL);
+    if (!off)
+        cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_LINE);
+    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
+    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 8, F_LAB, "FREQ", K_DIM, 1);
     if (off) {
         cv_rect(FG_X, y0, FG_W, 2, K_DIM);
         text_c(FG_X + FG_W / 2, y0 + 12, &FONT_XS, offmsg, K_DIM);
@@ -6204,8 +6307,9 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
     }
     {   /* 1: the cutoff */
         int32_t cx = fc - FG_X < 0 ? 0 : fc - FG_X > FG_W ? FG_W : fc - FG_X;
+        int32_t nx = fc < FG_X + 8 ? FG_X + 8 : fc > FG_X + FG_W - 8 ? FG_X + FG_W - 8 : fc;
         dot_line((float)fc, (float)FG_Y + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
-        circ_num(fc, FG_Y + 9, "1", K_TEXT, K_BG);
+        circ_num(nx, FG_Y + 9, "1", K_TEXT, K_BG);
     }
     {   /* 2: the resonance: the peak's height over 0 dB */
         float top = (float)y0;
@@ -6219,7 +6323,12 @@ static void filt_fig(const char *title, const char *desc, const uint8_t *par, co
             dim_line((float)dx, (float)y0, (float)dx, top, 3.0f, 3.0f, K_TEXT);
             circ_num(dx + (hp ? 9 : -9), (int32_t)((float)y0 + top) / 2 + 1, "2", K_TEXT, K_BG);
         } else
-            circ_num(fc + (hp ? 12 : -12), y0 - 10, "2", K_TEXT, K_BG);
+        {   /* (pushed in from the screen's edge; under the 0 dB line when that would sit it on 1) */
+            int32_t nx = fc + (hp ? 12 : -12), ny = y0 - 10;
+            if (nx < FG_X + 8 || nx > FG_X + FG_W - 8)
+                nx = clampi(nx, FG_X + 8, FG_X + FG_W - 8), ny = y0 + 6;
+            circ_num(nx, ny, "2", K_TEXT, K_BG);
+        }
     }
     if (env != 64 && (reach > 5.0f || reach < -5.0f)) {   /* 3: the envelope's reach */
         float ay = (float)(FG_Y + FG_H - 12), xa = (float)fc, xb = (float)fc + reach;
@@ -6238,7 +6347,7 @@ static void draw_key_filter(void)
                                           (uint32_t)p[DP_CUT] << 12 | (uint32_t)p[DP_RES] << 20);
     int tps[4] = {TP_DRUM(key, DP_CUT), TP_DRUM(key, DP_RES), TP_DRUM(key, DP_FENV), TP_DRUM(key, DP_DRIVE)};
     char t[40];
-    h = hash_u(h, p[DP_FENV] | (uint32_t)p[DP_DRIVE] << 8);
+    h = hash_u(h, p[DP_FENV] | (uint32_t)p[DP_DRIVE] << 8 | (uint32_t)p2_touch() << 16);
     if (!begin_main(h))
         return;
     s_cat(t, ft == DF_OFF ? "NO FILTER" : ft == DF_LP ? "LOW-PASS" : ft == DF_HP ? "HIGH-PASS" : "BAND-PASS");
@@ -6252,8 +6361,8 @@ static void draw_env(int filter)
     const uint8_t *p = par_now(trk);
     uint32_t h = hash_u(hash_u(2166136261u, 0xE7u), (uint32_t)trk | (uint32_t)filter << 4 | (uint32_t)p[b] << 8 |
                                           (uint32_t)p[b + 1] << 16 | (uint32_t)p[b + 2] << 24);
-    float x0 = 16.0f, hh = 84.0f, base = 16.0f + hh;
-    h = hash_u(h, p[b + 3] | (uint32_t)drum << 8);
+    float x0 = EF_X0, hh = EF_BASE - EF_TOP + 4.0f, base = EF_BASE;
+    h = hash_u(h, p[b + 3] | (uint32_t)drum << 8 | (uint32_t)p2_touch() << 12);
     if (is_acid(trk) && !filter) {                   /* the 303's: over 3 s, the filter's opening (its attack's rise,
                                                       * its decay), an accented note's dimmer, the held note's level */
         const float ta = 0.3f * fm_exp2f(p[TP_A] * (13.28771238f / 127.0f)), td = 200.0f * fm_exp2f(p[TP_D] * (3.321928095f / 127.0f));
@@ -6261,9 +6370,10 @@ static void draw_env(int filter)
         pen_t pa = {0}, pc = {0}, pl = {0};
         if (!begin_main(hash_u(h, 0xAC1Du)))
             return;
-        cv_rect(16, 16 + 84, 208, 1, K_LINE);
-        for (int32_t xi = 0; xi <= 208; xi++) {
-            float ms = (float)xi * (3000.0f / 208.0f);
+        ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], EF_X0 + EF_SPAN, base);
+        ef_head("ACID", "filter; dim: accented; line: level");
+        for (int32_t xi = 0; xi <= (int32_t)EF_SPAN; xi++) {
+            float ms = (float)xi * (3000.0f / EF_SPAN);
             float rise = 1.0f - fm_expf(-ms / ta), fl = rise * fm_expf(-ms / td), ac = fm_expf(-ms / tc);
             pen_to(&pl, x0 + (float)xi, base - hh * 0.9f * fm_expf(-ms / tl), K_LINE);
             pen_to(&pc, x0 + (float)xi, base - hh * ac * (1.0f - fm_expf(-ms / 15.0f)), K_DIM);
@@ -6271,7 +6381,6 @@ static void draw_env(int filter)
                 cv_rect((int32_t)x0 + xi, (int32_t)(base - hh * fl + 1.5f), 1, (int32_t)(hh * fl), K_TINT);
             pen_to(&pa, x0 + (float)xi, base - hh * fl, K_NOW);
         }
-        cv_text(16, 16 + 84 + 3, &FONT_XS, "filter; dim: accented; line: the note's level", K_DIM);
         cv_blit(0, MAIN_Y);
         return;
     }
@@ -6283,6 +6392,7 @@ static void draw_env(int filter)
         curve_t c = {{0}, {0}, 0, 0};
         ef_stages(sw, ew, 3);
         x1 = EF_X0 + sw[0], x2 = x1 + sw[1];
+        ef_module(p[TP_A], p[TP_D], p[TP_S], p[TP_R], x3, EF_BASE);
         ef_pt(&c, EF_X0, EF_BASE);
         ef_pt(&c, x1, EF_BASE);
         for (int i = 1; i <= 12; i++) {
@@ -6301,10 +6411,11 @@ static void draw_env(int filter)
         return;
     }
     {   /* attack (1), decay (2) to the sustain's level (3, its height), the note held, release (4) */
-        float a = EF_MIN + (float)p[b] * 28.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 28.0f / 127.0f;
-        float r = EF_MIN + (float)p[b + 3] * 28.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
-        float x1 = EF_X0 + a, x2 = x1 + d, x4 = 222.0f, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
+        float a = EF_MIN + (float)p[b] * 16.0f / 127.0f, d = EF_MIN + (float)p[b + 1] * 16.0f / 127.0f;
+        float r = EF_MIN + (float)p[b + 3] * 16.0f / 127.0f, s = (float)p[b + 2] / 127.0f;
+        float x1 = EF_X0 + a, x2 = x1 + d, x4 = EF_X0 + EF_SPAN, x3 = x4 - r, ys = EF_BASE - (EF_BASE - EF_TOP) * s;
         curve_t c = {{0}, {0}, 0, 0};
+        ef_module(p[b], p[b + 1], p[b + 2], p[b + 3], x4, EF_BASE);
         ef_pt(&c, EF_X0, EF_BASE);
         for (int i = 1; i <= 12; i++) {
             float t = (float)i / 12.0f;
@@ -6349,7 +6460,7 @@ static void draw_filter(void)
         draw_key_filter();
         return;
     }
-    h = hash_u(h, p[TP_FENV] | (uint32_t)drum << 8);
+    h = hash_u(h, p[TP_FENV] | (uint32_t)drum << 8 | (uint32_t)p2_touch() << 12);
     if (!begin_main(h))
         return;
     if (drum && dyn)
@@ -6359,7 +6470,7 @@ static void draw_filter(void)
                  drum ? "PRESET turns it on" : "PRESET picks a filter", 0, 0);
     else {
         s_cat(t, DESC[ft]);
-        filt_fig(tp_info_par(TP_FTYPE, p)->names[ft], t, p, TPS, cut, res, ft == FT_HP12, ft == FT_BP12, ft == FT_LP24 || ft == FT_LADDER,
+        filt_fig(tp_info_par(TP_FTYPE, p)->names[ft], t, p, TPS, cut, res, ft == FT_HP12, ft == FT_BP12, ft == FT_LADDER ? 2 : ft == FT_LP24,
                  p[TP_FENV], 0, "", 0, 0);
     }
     cv_blit(0, MAIN_Y);
@@ -6370,34 +6481,14 @@ static void draw_filter(void)
  * a ring modulator, two inputs and a carrier dial; tilt a hi-fi's tone strip, one big tilt knob, the tilt printed
  * small beside it about its pivot; tape a cassette deck, its meters as far over as it drives; sampler a small
  * keyboard sampler, its rate on its display; off the stompbox unplugged, its cable coiled beside it */
-static void fxm_cable(float x0, float y0, float x1, float y1, float s, uint16_t c)   /* a patch cable, sagging s px */
-{
-    pen_t pn = {0};
-    pn.w = 1.6f;
-    cv_ring(x0, y0, 2.4f, 1.0f, K_TEXT), cv_ring(x1, y1, 2.4f, 1.0f, K_TEXT);
-    for (int i = 0; i <= 20; i++) {
-        float t = (float)i / 20.0f;
-        pen_to(&pn, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + s * 4.0f * t * (1.0f - t), c);
-    }
-}
-static void fxm_keys(int32_t x, int32_t y, int32_t w, int32_t h, int nw, int32_t bh)   /* nw white keys */
-{
-    float kw = (float)w / (float)nw;
-    fxm_panel(x, y, w, h, K_CARD);
-    for (int k = 1; k < nw; k++)
-        cv_rect(x + (int32_t)(kw * (float)k), y, 1, h, K_TEXT);
-    for (int k = 0; k < nw - 1; k++)
-        if (k % 7 != 2 && k % 7 != 6)
-            cv_rect(x + (int32_t)(kw * ((float)k + 0.68f)), y, (int32_t)(kw * 0.64f + 0.5f), bh, K_TEXT);
-}
 __attribute__((noinline)) static void fxm_stomp(float a, float t, float m, int live)   /* drive's pedal; off's, unplugged */
 {
     cv_round(86, 38, 68, 78, 7, live ? K_TEXT : K_DIM);
     cv_round(88, 40, 64, 74, 5, K_CARD);
     cv_rect(88, 70, 64, 2, live ? K_TEXT : K_DIM);
-    fxm_knob(104.0f, 55.0f, 8.5f, a, live ? 2 : 0, -26, 0);
-    fxm_knob(136.0f, 55.0f, 8.5f, t, live ? 3 : 0, 26, 0);
-    fxm_knob(104.0f, 84.0f, 6.0f, m, live ? 4 : 0, -26, 0);
+    p2_knob(104.0f, 55.0f, 8.5f, a, live ? 2 : 0, -26, 0);
+    p2_knob(136.0f, 55.0f, 8.5f, t, live ? 3 : 0, 26, 0);
+    p2_knob(104.0f, 84.0f, 6.0f, m, live ? 4 : 0, -26, 0);
     fxm_lamp(124, 82, 14, live && m > 0.0f ? K_NOW : K_BG);
     fxm_foot(120.0f, 102.0f);
     fxm_jack(154.0f, 94.0f);
@@ -6406,7 +6497,7 @@ __attribute__((noinline)) static void fxm_stomp(float a, float t, float m, int l
         fxm_lead(157.0f, 94.0f, 240.0f, 108.0f);
         fxm_lead(83.0f, 94.0f, 0.0f, 108.0f);
     } else {                                         /* the cable coiled on the floor, its plug loose */
-        fxm_coil(160.0f, 104.0f, 5, 5.0f);
+        p2_coil(160.0f, 104.0f, 5, 5.0f, K_TEXT);
         fxm_ln(193.0f, 104.0f, 204.0f, 98.0f, 1.6f);
         cv_rect(203, 95, 12, 6, K_TEXT);
         cv_rect(215, 97, 6, 2, K_TEXT);
@@ -6417,13 +6508,13 @@ __attribute__((noinline)) static void fxm_ch_fold(float a, float t, float m, flo
 {
     for (int s = 0; s < 2; s++) {
         int32_t x = s ? 164 : 28;
-        fxm_panel(x, 42, 48, 72, K_PANEL);
+        p2_panel(x, 42, 48, 72, K_PANEL);
         for (int k = 0; k < 3; k++)
-            fxm_knob((float)(x + 24), (float)(56 + k * 18), 4.5f, (float)((k * 3 + s * 2 + 1) % 5) / 4.0f, 0, 0, 0);
+            p2_knob((float)(x + 24), (float)(56 + k * 18), 4.5f, (float)((k * 3 + s * 2 + 1) % 5) / 4.0f, 0, 0, 0);
         fxm_jack((float)(x + 14), 108.0f), fxm_jack((float)(x + 34), 108.0f);
     }
-    fxm_panel(96, 38, 48, 80, K_CARD);
-    fxm_screw(102.0f, 43.0f), fxm_screw(138.0f, 43.0f), fxm_screw(102.0f, 113.0f), fxm_screw(138.0f, 113.0f);
+    p2_panel(96, 38, 48, 80, K_CARD);
+    p2_screw(102.0f, 43.0f), p2_screw(138.0f, 43.0f), p2_screw(102.0f, 113.0f), p2_screw(138.0f, 113.0f);
     {   /* the fold printed on its face */
         pen_t pn = {0};
         pn.w = 1.0f;
@@ -6431,12 +6522,12 @@ __attribute__((noinline)) static void fxm_ch_fold(float a, float t, float m, flo
             pen_to(&pn, 108.0f + (float)i, 48.0f - 3.5f * fm_sin_turns(fm_sin_turns((float)i / 24.0f) * 1.2f), K_TEXT);
     }
     fxm_ticks(120.0f, 67.0f, 12.0f, 14.5f, 11);
-    fxm_knob(120.0f, 67.0f, 10.0f, a, 2, -32, 0);
-    fxm_knob(110.0f, 90.0f, 5.5f, t, 3, -22, 0);
-    fxm_knob(130.0f, 90.0f, 5.5f, m, 4, 22, 0);
+    p2_knob(120.0f, 67.0f, 10.0f, a, 2, -32, 0);
+    p2_knob(110.0f, 90.0f, 5.5f, t, 3, -22, 0);
+    p2_knob(130.0f, 90.0f, 5.5f, m, 4, 22, 0);
     fxm_jack(108.0f, 106.0f), fxm_jack(120.0f, 106.0f), fxm_jack(132.0f, 106.0f);
-    fxm_cable(108.0f, 106.0f, 62.0f, 108.0f, 7.0f, K_TEXT);
-    fxm_cable(132.0f, 106.0f, 178.0f, 108.0f, 9.0f, K_NOW);
+    p2_cable(108.0f, 106.0f, 62.0f, 108.0f, 7.0f, K_TEXT);
+    p2_cable(132.0f, 106.0f, 178.0f, 108.0f, 9.0f, K_NOW);
     (void)a, (void)t, (void)m, (void)tc;
 }
 /* crush: the toy: its handle, its screen of big pixels, its buttons */
@@ -6458,22 +6549,22 @@ __attribute__((noinline)) static void fxm_ch_crush(float a, float t, float m, fl
         cv_disc((float)(78 + k * 20), 101.0f, 6.5f, k == 1 ? K_TEXT : K_PANEL2);
         cv_ring((float)(78 + k * 20), 101.0f, 6.5f, 1.2f, K_TEXT);
     }
-    fxm_knob(150.0f, 58.0f, 6.0f, a, 2, 16, 0);
-    fxm_knob(150.0f, 80.0f, 6.0f, t, 3, 16, 0);
-    fxm_knob(150.0f, 102.0f, 6.0f, m, 4, 16, 0);
+    p2_knob(150.0f, 58.0f, 6.0f, a, 2, 16, 0);
+    p2_knob(150.0f, 80.0f, 6.0f, t, 3, 16, 0);
+    p2_knob(150.0f, 102.0f, 6.0f, m, 4, 16, 0);
     (void)a, (void)t, (void)m, (void)tc;
 }
 /* ring: two inputs, the carrier's dial (the ratio), depth and mix; the output */
 __attribute__((noinline)) static void fxm_ch_ring(float a, float t, float m, float tc)
 {
-    fxm_panel(56, 46, 128, 66, K_CARD);
+    p2_panel(56, 46, 128, 66, K_CARD);
     fxm_jack(68.0f, 62.0f), fxm_jack(68.0f, 96.0f);
     cv_text(76, 56, F_LAB, "X", K_DIM), cv_text(76, 90, F_LAB, "Y", K_DIM);
     fxm_lead(8.0f, 54.0f, 65.0f, 62.0f), fxm_lead(8.0f, 106.0f, 65.0f, 96.0f);
     fxm_ticks(114.0f, 79.0f, 16.0f, 19.0f, 16);
-    fxm_knob(114.0f, 79.0f, 13.0f, t, 3, -20, -20);
-    fxm_knob(158.0f, 66.0f, 6.0f, a, 2, 0, -13);
-    fxm_knob(158.0f, 98.0f, 6.0f, m, 4, 0, -13);
+    p2_knob(114.0f, 79.0f, 13.0f, t, 3, -20, -20);
+    p2_knob(158.0f, 66.0f, 6.0f, a, 2, 0, -13);
+    p2_knob(158.0f, 98.0f, 6.0f, m, 4, 0, -13);
     fxm_jack(184.0f, 79.0f);
     fxm_lead(187.0f, 79.0f, 240.0f, 90.0f);
     (void)a, (void)t, (void)m, (void)tc;
@@ -6482,42 +6573,42 @@ __attribute__((noinline)) static void fxm_ch_ring(float a, float t, float m, flo
 __attribute__((noinline)) static void fxm_ch_tilt(float a, float t, float m, float tc)
 {
     float px = 64.0f + 40.0f * a, dy = tc * 9.0f;
-    fxm_panel(8, 60, 224, 36, K_CARD);
+    p2_panel(8, 60, 224, 36, K_CARD);
     for (int k = 0; k < 4; k++)
         cv_rect(10, 65 + k * 8, 220, 1, K_PANEL);
-    fxm_screw(15.0f, 66.0f), fxm_screw(15.0f, 90.0f), fxm_screw(225.0f, 66.0f), fxm_screw(225.0f, 90.0f);
+    p2_screw(15.0f, 66.0f), p2_screw(15.0f, 90.0f), p2_screw(225.0f, 66.0f), p2_screw(225.0f, 90.0f);
     cv_rect(24, 96, 12, 3, K_TEXT), cv_rect(204, 96, 12, 3, K_TEXT);
-    fxm_knob(42.0f, 78.0f, 7.0f, a, 2, 0, -24);
-    fxm_outline(62.5f, 67.5f, 106.5f, 89.5f, 0.8f);
+    p2_knob(42.0f, 78.0f, 7.0f, a, 2, 0, -24);
+    p2_outline(62.5f, 67.5f, 106.5f, 89.5f, K_TEXT, 0.8f);
     cv_dash(63.0f, 78.5f, 106.0f, 78.5f, 2.0f, 2.0f, 0.8f, K_DIM);
     fxm_ln(64.0f, 78.0f + dy * (px - 64.0f) / 22.0f, 105.0f, 78.0f - dy * (105.0f - px) / 22.0f, 1.2f);
     cv_disc(px, 78.0f, 1.8f, K_TEXT);
     cv_disc(140.0f, 78.0f, 15.0f, K_PANEL2);
     fxm_ticks(140.0f, 78.0f, 16.0f, 19.0f, 11);
-    fxm_knob(140.0f, 78.0f, 12.0f, t, 3, 0, -28);
-    fxm_knob(184.0f, 78.0f, 7.0f, m, 4, 0, -24);
+    p2_knob(140.0f, 78.0f, 12.0f, t, 3, 0, -28);
+    p2_knob(184.0f, 78.0f, 7.0f, m, 4, 0, -24);
     fxm_lamp(206, 70, 10, m > 0.0f ? K_NOW : K_BG);
-    fxm_panel(206, 80, 10, 10, K_TEXT);
+    p2_panel(206, 80, 10, 10, K_TEXT);
     (void)a, (void)t, (void)m, (void)tc;
 }
 /* tape: the deck: the cassette in its well, the keys (play down), its knobs, two meters */
 __attribute__((noinline)) static void fxm_ch_tape(float a, float t, float m, float tc)
 {
-    fxm_panel(16, 40, 208, 76, K_CARD);
-    fxm_panel(26, 46, 92, 50, K_PANEL);
-    fxm_panel(32, 52, 80, 38, K_CARD);
+    p2_panel(16, 40, 208, 76, K_CARD);
+    p2_panel(26, 46, 92, 50, K_PANEL);
+    p2_panel(32, 52, 80, 38, K_CARD);
     cv_rect(46, 62, 52, 18, K_TEXT);
     cv_disc(58.0f, 71.0f, 7.5f, K_DIM), cv_disc(86.0f, 71.0f, 5.0f, K_DIM);   /* the tape on its spools */
     for (int s = 0; s < 2; s++)
         cv_disc(s ? 86.0f : 58.0f, 71.0f, 3.5f, K_CARD), cv_ring(s ? 86.0f : 58.0f, 71.0f, 3.5f, 1.0f, K_TEXT);
     cv_rect(38, 55, 68, 4, K_LINE);
     for (int k = 0; k < 6; k++)
-        fxm_panel(26 + k * 15, 102, 13, 10, k == 2 ? K_TEXT : K_PANEL);
+        p2_panel(26 + k * 15, 102, 13, 10, k == 2 ? K_TEXT : K_PANEL);
     for (int k = 0; k < 3; k++)
-        fxm_knob((float)(146 + k * 33), 58.0f, 7.0f, k == 0 ? a : k == 1 ? t : m, k + 2, -16, 0);
+        p2_knob((float)(146 + k * 33), 58.0f, 7.0f, k == 0 ? a : k == 1 ? t : m, k + 2, -16, 0);
     for (int s = 0; s < 2; s++) {
         float x = (float)(157 + s * 40), an = 0.64f + 0.22f * a;
-        fxm_panel(140 + s * 40, 80, 34, 22, K_BG);
+        p2_panel(140 + s * 40, 80, 34, 22, K_BG);
         ellipse_arc(x, 100.0f, 13.0f, 13.0f, 0.62f, 0.88f, 0.8f, K_DIM);
         fxm_ln(x, 100.0f, x + 13.0f * fm_sin_turns(an + 0.25f), 100.0f + 13.0f * fm_sin_turns(an), 1.2f);
     }
@@ -6528,14 +6619,14 @@ __attribute__((noinline)) static void fxm_ch_sampler(float a, float t, float m, 
 {
     char r[12];
     s_cat(num_s((uint32_t)(26.04f * fm_exp2f(-a * 1.243f) + 0.5f), r), " kHz");
-    fxm_panel(8, 42, 224, 36, K_CARD);
+    p2_panel(8, 42, 224, 36, K_CARD);
     cv_rect(16, 51, 42, 4, K_TEXT);
     cv_rect(16, 60, 6, 3, K_NOW), cv_rect(48, 60, 10, 5, K_TEXT);
     cv_rect(64, 48, 50, 22, K_TEXT);
     text_c(89, 52, &FONT_XS, r, K_CARD);
     for (int k = 0; k < 3; k++)
-        fxm_knob((float)(146 + k * 31), 60.0f, 6.5f, k == 0 ? a : k == 1 ? t : m, k + 2, -15, 0);
-    fxm_keys(8, 78, 224, 36, 22, 22);
+        p2_knob((float)(146 + k * 31), 60.0f, 6.5f, k == 0 ? a : k == 1 ? t : m, k + 2, -15, 0);
+    p2_keys(8, 78, 224, 36, 22, 22);
     (void)a, (void)t, (void)m, (void)tc;
 }
 static void draw_character(void)
@@ -6550,7 +6641,7 @@ static void draw_character(void)
     uint32_t h = hash_u(hash_u(2166136261u, 0xC5u), (uint32_t)trk | (uint32_t)ct << 4 | (uint32_t)p[TP_CAMT] << 8 |
                                           (uint32_t)p[TP_CTONE] << 16 | (uint32_t)p[TP_CMIX] << 24);
     char d[32];
-    h = hash_u(h, (uint32_t)drum | (uint32_t)fxm_touch() << 4);
+    h = hash_u(h, (uint32_t)drum | (uint32_t)p2_touch() << 4);
     if (!begin_main(h))
         return;
     s_cat(s_cat(s_cat(d, drum ? "on all " : "after "), TRACK_NAME[trk]), drum ? "'s keys" : "'s filter");
@@ -6588,7 +6679,7 @@ static void draw_sends(void)
     char t[32], nm[2][24];
     h = hash_u(h, proj.trk[AUX_FX1].par[TP_ENGINE] | (uint32_t)proj.trk[AUX_FX2].par[TP_ENGINE] << 8 |
                       (uint32_t)(drum ? key + 1 : 0) << 16 | (uint32_t)p[TP_PAN] << 24);
-    h = hash_u(h, (uint32_t)fxm_touch());
+    h = hash_u(h, (uint32_t)p2_touch());
     if (!begin_main(h))
         return;
     for (int i = 0; i < 2; i++) {
@@ -6633,15 +6724,15 @@ static void draw_sends(void)
         snd_seg((float)rx, (float)(by + 16), (float)rx, up ? (float)(DY - 4) : (float)(DY + 4), v);
         arrow_head((float)rx, up ? (float)(DY - 1) : (float)(DY + 1), 0.0f, up ? 1.0f : -1.0f, K_TEXT);
         s_cat(num_s((uint32_t)pc, pt), "%");
-        fxm_num(x + 9, ly + 1, i + 1);
+        p2_callout(x + 9, ly + 1, i + 1, 0, K_TEXT);
         cv_text(x + 18, ly - 6, F_LAB, pt, K_TEXT);
     }
     {   /* under the voice, off the path: pan (3) a ruler with its pointer, level (4) a wedge, taller the louder */
         float hh = 2.0f + 11.0f * (float)p[TP_LEVEL] / 127.0f;
-        fxm_num(13, 98, 3);
+        p2_callout(13, 98, 3, 0, K_TEXT);
         cv_text(22, 91, &FONT_XS, "pan", K_TEXT);
         ruler(52, 100, 30, p[TP_PAN], 127, K_TEXT);
-        fxm_num(13, 113, 4);
+        p2_callout(13, 113, 4, 0, K_TEXT);
         cv_text(22, 106, &FONT_XS, "level", K_TEXT);
         cv_tri(56.0f, 116.0f, 82.0f, 116.0f, 82.0f, 116.0f - hh, K_TINT);
         cv_linef(56.0f, 116.0f, 82.0f, 116.0f - hh, K_TEXT, 1.0f);
@@ -6663,44 +6754,56 @@ static float lfo_shape_v(int shape, float ph)
     default: return fm_sin_turns(ph);
     }
 }
-/* the LFO page: a pendulum and one cycle of the real shape it draws on graph paper (the sheet's LFO): the bob swings as
- * the marker runs along the wave; the rate a dimension line under one cycle (its value beside it, callout 2), the
- * depth a vertical arrow at the crest (callout 3; a negative depth turns the wave over), the type the title
- * (callout 1), and what it moves a line of words (callout 4). Off: the pendulum hangs still, the wave a dashed
- * level line, and the words "LFO off" */
+/* the LFO page: a function generator. Its round scope draws one cycle of the real shape (a negative depth turns it
+ * over, the depth its height); the type (1) a selector, the rate (2) and the depth (3) its dials; its output jack's
+ * lead runs off the page to what it moves (4, the words at the top). The one moving drawing on the instrument (the
+ * owner's exception): the trace's bright dot runs along the shape at its rate while the LFO acts: free-running at
+ * once, else while the sequencer plays or the track sounds (its phase restarted at the track's notes as the
+ * engine's is: the meter's rise); the pump's dot drops down the duck from each hit of its source and climbs back.
+ * Off: the scope's line flat, the lead unplugged on the bench, nothing moves */
+static const float LFO_BEATS[LS_SYNC_N] = {8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f};
+static uint32_t lfo_t0;                          /* the last restart (a note on the track, a hit on the duck's source), ms */
+static uint8_t lfo_was;
 static void draw_lfo(void)
 {
     int trk = sel_trk();
     const uint8_t *p = par_now(trk);
-    int lt = p[TP_LTYPE] % NLT, sh = p[TP_LX2];
-    uint32_t h = hash_u(hash_u(2166136261u, 0x1Fu), (uint32_t)trk | (uint32_t)lt << 4 | (uint32_t)p[TP_LAMT] << 8 |
-                                          (uint32_t)sh << 16);
-    const int32_t GX = 118, GW = 112, GY = 10, GH = 84, CY = GY + GH / 2;
-    const float PX = 46.0f, PY = 60.0f, PL = 40.0f, P = 64.0f;
-    float v = fm_clampf(((float)p[TP_LAMT] - 64.0f) / 63.0f, -1.0f, 1.0f), A = 34.0f * (v < 0.0f ? -v : v);
-    float ph = 0.0f;
+    int lt = p[TP_LTYPE] % NLT, sh = p[TP_LX2], uni = lt == LT_DRIFT || lt == LT_PUMP;
+    uint32_t now = plat_ms(), h;
+    int hit = ui_peak[lt == LT_PUMP ? (p[TP_LSPEED] < NTRK ? p[TP_LSPEED] : 0) : trk < NTRK ? trk : 0] > 1500;
+    int fre = (lt == LT_WAVE || lt == LT_DRIFT) && p[TP_LDEST] >= LD_FREE, live;
+    float v = uni ? (float)p[TP_LAMT] / 127.0f : fm_clampf(((float)p[TP_LAMT] - 64.0f) / 63.0f, -1.0f, 1.0f);
+    float A = 22.0f * (v < 0.0f ? -v : v), sg = v < 0.0f ? -1.0f : 1.0f, ph = 0.25f, hz;
     char t[48], num[12], unit[6], ttl[16];
-    h = hash_u(h, (uint32_t)p[TP_LSPEED] << 8 | p[TP_LX] | (uint32_t)p[TP_LDEST] << 16);
-    ph = 0.25f;                                       /* (a still: the marker at the first crest, the bob at its depth) */
-    ph -= fm_floorf(ph);
+    if (hit && !lfo_was)
+        lfo_t0 = now;
+    lfo_was = (uint8_t)hit;
+    hz = lt == LT_PUMP ? 1000.0f / (float)(120 + 6 * (p[TP_LDEST] + p[TP_LX]))
+         : p[TP_LSPEED] < LS_SYNC_N ? seq.bpm * (1.0f / 60.0f) / LFO_BEATS[p[TP_LSPEED]]
+                                    : 0.1f * fm_exp2f((float)(p[TP_LSPEED] - LS_SYNC_N) * (8.22881869f / 119.0f));
+    live = lt && A > 0.5f && (lt == LT_PUMP ? (float)(now - lfo_t0) * hz < 1000.0f : fre || playing() || hit || ui_peak[trk < NTRK ? trk : 0] > 200);
+    if (live) {
+        now = now / 84u * 84u;                       /* (about 12 pictures a second) */
+        ph = (float)(fre ? now : now - lfo_t0) * 0.001f * hz;
+        ph = lt == LT_PUMP ? ph : ph - fm_floorf(ph);
+    }
+    h = hash_u(hash_u(2166136261u, 0x1Fu), (uint32_t)trk | (uint32_t)lt << 4 | (uint32_t)p[TP_LAMT] << 8 | (uint32_t)sh << 16);
+    h = hash_u(h, (uint32_t)p[TP_LSPEED] << 8 | p[TP_LX] | (uint32_t)p[TP_LDEST] << 16 | (uint32_t)p2_touch() << 24);
+    h = hash_u(h, live ? now : 0u);
     if (!begin_main(h))
         return;
 #define LFOV(u) (lt == LT_WAVE || lt == LT_WOBBLE ? lfo_shape_v(lt == LT_WAVE ? (sh & 3) == 1 ? 0 : (sh & 3) == 0 ? 3 : (sh & 3) == 2 ? 5 : 1 : sh, \
                  (u) - fm_floorf(u)) : lt == LT_DRIFT ? fm_sin_turns((u) * 0.9f) * 0.8f + fm_sin_turns((u) * 2.3f + 0.3f) * 0.2f \
-                 : 1.0f - 2.0f * ease_exp((u) - fm_floorf(u)))
-    {   /* the title: the shape (wave, wobble), else the type */
+                 : 1.0f - 2.0f * ease_exp(u))
+    {   /* the title: the shape (wave, wobble), else the type; at the right what it moves (4) and the rate */
         const char *nm = lt == LT_OFF ? "off" : lt == LT_WAVE ? tp_info_par(TP_LX2, p)->names ? tp_info_par(TP_LX2, p)->names[sh & 3] : "wave"
                          : lt == LT_WOBBLE ? tp_info_par(TP_LX2, p)->names ? tp_info_par(TP_LX2, p)->names[sh % 5] : "wobble"
                          : tp_info_par(TP_LTYPE, p)->names[lt];
-        const felucca_font_t *f = text_w(&FONT_L, nm) <= 100 ? &FONT_L : text_w(F_VAL, nm) <= 100 ? F_VAL : &FONT_B;
         uint32_t i;
+        char *e = t;
         for (i = 0; i < sizeof ttl - 1u && nm[i]; i++)
             ttl[i] = nm[i];
         ttl[i] = 0;
-        cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, ttl, K_TEXT);
-    }
-    {   /* what it moves (callout 4) */
-        char *e = t;
         *t = 0;
         if (lt == LT_OFF)
             s_cat(t, "NOTHING MOVES");
@@ -6712,78 +6815,46 @@ static void draw_lfo(void)
             up_copy(t, t, sizeof t);
         } else
             s_cat(t, lt == LT_WOBBLE ? "A WOBBLE" : "DUCK AND SWELL");
-        circ_num(13, 43, "4", lt ? K_TEXT : K_DIM, K_BG);
-        if (tr_w(F_LAB, t, 1) <= 94)
-            tr_text(22, 37, F_LAB, t, K_DIM, 1);
-        else
-            text_fit(22, 37, F_LAB, t, 94, K_DIM);
-    }
-    {   /* the pendulum */
-        float th = lt ? 0.5f * LFOV(ph) * (v < 0.0f ? -1.0f : 1.0f) * (A > 1.0f ? A / 34.0f : 0.1f) : 0.0f;
-        float lim = 0.5f * (A > 1.0f ? A / 34.0f : 0.1f);
-        float bx = PX + PL * fm_sin_turns(th * 0.159155f), by = PY + PL * fm_sin_turns(0.25f - th * 0.159155f);
-        cv_rect((int32_t)PX - 14, (int32_t)PY - 4, 28, 4, K_TEXT);
-        circ_num(13, 62, "1", K_TEXT, K_BG);
-        if (lt) {   /* the two extremes, dotted, and the arc between */
-            for (int sd = -1; sd <= 1; sd += 2) {
-                float ex = PX + (float)sd * PL * fm_sin_turns(lim * 0.159155f), ey = PY + PL * fm_sin_turns(0.25f - lim * 0.159155f);
-                dot_line(PX, PY, ex, ey, 3.0f, K_DIM);
-                cv_disc(ex, ey, 5.0f, K_BG);
-                cv_ring(ex, ey, 5.0f, 0.9f, K_DIM);
-            }
-            ellipse_arc(PX, PY, PL, PL, 0.25f - lim * 0.159155f, 0.25f + lim * 0.159155f, 0.8f, K_LINE);
-        }
-        cv_linef(PX, PY, bx, by, K_TEXT, 1.2f);
-        cv_disc(bx, by, 6.0f, K_NOW);
-        cv_ring(bx, by, 6.0f, 1.1f, K_TEXT);
-    }
-    cv_frame(GX - 1, GY - 1, GW + 2, GH + 2, 0, K_TEXT, K_BG);
-    cv_grid(GX, GY, GW, GH, 8, MAIN_Y, K_GRID);
-    cv_rect(GX, CY, GW, 1, K_LINE);
-    if (lt == LT_OFF) {
-        cv_dash((float)GX, (float)CY, (float)(GX + GW), (float)CY, 3.0f, 3.0f, 1.2f, K_DIM);
-        text_c(GX + GW / 2, CY - 22, &FONT_S, "LFO off", K_DIM);
-    } else {
-        pen_t pn = {0};
-        float mk = 0.0f;
-        pn.w = 2.0f;
-        for (int32_t x = 0; x <= GW; x++) {
-            float u = (float)x / P, val = (float)LFOV(u) * (v < 0.0f ? -1.0f : 1.0f);
-            pen_to(&pn, (float)(GX + x), (float)CY - val * (A > 1.0f ? A : 3.0f), K_TEXT);
-        }
         {
-            float u = ph, val = (float)LFOV(u) * (v < 0.0f ? -1.0f : 1.0f);
-            mk = (float)GX + ph * P;
-            cv_disc(mk, (float)CY - val * (A > 1.0f ? A : 3.0f), 3.2f, K_NOW);
-            cv_ring(mk, (float)CY - val * (A > 1.0f ? A : 3.0f), 3.4f, 1.0f, K_TEXT);
-        }
-        {   /* the depth: an arrow from the centre line to the shape's crest (callout 3) */
-            int32_t bi = 0;
-            float best = -2.0f, vv;
-            for (int32_t x = 0; x < (int32_t)P; x++) {
-                vv = (float)LFOV((float)x / P) * (v < 0.0f ? -1.0f : 1.0f);
-                if (vv > best + 0.001f)
-                    best = vv, bi = x;
-            }
-            if (bi < 10)
-                bi = 10;
-            if (A > 5.0f) {
-                float ay = (float)CY - best * A;
-                cv_linef((float)(GX + bi), (float)CY, (float)(GX + bi), ay + 3.0f, K_TEXT, 1.0f);
-                arrow_head((float)(GX + bi), ay, 0.0f, best >= 0.0f ? -1.0f : 1.0f, K_TEXT);
-            }
-            circ_num(GX + bi + 11, CY - (int32_t)(best * A * 0.5f) - (int32_t)(A > 5.0f ? 0 : 8), "3", K_TEXT, K_BG);
+            char det[20];
+            tp_text_par(TP_LSPEED, p[TP_LSPEED], p, num, unit);
+            s_cat(s_cat(s_cat(det, num), unit[0] ? " " : ""), unit);
+            fxm_title(ttl, t, lt ? det : 0, 4, lt ? K_TEXT : K_DIM);
         }
     }
-    {   /* the rate: one cycle's width, dimensioned (callout 2), its value after it */
-        float x1 = (float)GX, x2 = (float)GX + P;
-        dim_line(x1, 104.0f, x2, 104.0f, 4.0f, 4.0f, K_TEXT);
-        cv_rect(GX + 25, 98, 14, 13, K_BG);
-        circ_num(GX + 32, 105, "2", K_TEXT, K_BG);
-        tp_text_par(TP_LSPEED, p[TP_LSPEED], p, num, unit);
-        s_cat(s_cat(s_cat(t, num), unit[0] ? " " : ""), unit);
-        cv_text(GX + 71, 98, &FONT_XS, t, K_TEXT);
+    p2_panel(8, 40, 224, 76, K_PANEL2);
+    p2_screw(14.0f, 46.0f), p2_screw(226.0f, 46.0f), p2_screw(14.0f, 110.0f), p2_screw(226.0f, 110.0f);
+    cv_disc(52.0f, 78.0f, 34.0f, K_PANEL);           /* the scope: its bezel, its face, the graticule */
+    cv_ring(52.0f, 78.0f, 34.0f, 1.2f, K_TEXT);
+    cv_disc(52.0f, 78.0f, 29.0f, K_TEXT);
+    cv_rect(24, 78, 57, 1, col_mix(K_TEXT, K_CARD, 5));
+    cv_rect(52, 50, 1, 57, col_mix(K_TEXT, K_CARD, 5));
+    if (lt == LT_OFF)
+        cv_rect(26, 78, 53, 2, K_DIM);
+    else {
+        pen_t pn = {0};
+        float pu = lt == LT_PUMP ? fm_minf(ph, 1.0f) : ph;
+        pn.w = 1.6f;
+        for (int x = 0; x <= 48; x += 2) {
+            float u = (float)x / 48.0f;
+            pen_to(&pn, 28.0f + (float)x, 78.0f - sg * (float)LFOV(u) * (A > 1.0f ? A : 1.0f), K_CARD);
+        }
+        cv_disc(28.0f + 48.0f * pu, 78.0f - sg * (float)LFOV(pu) * (A > 1.0f ? A : 1.0f), 3.0f, live ? K_REC : K_CARD);
     }
+    for (int k = 0; k < 3; k++) {                    /* the type, the rate, the depth */
+        float x = 112.0f + 38.0f * (float)k;
+        fxm_ticks(x, 72.0f, 12.0f, 14.5f, k == 0 ? NLT : k == 1 ? 8 : 9);
+        p2_knob(x, 72.0f, 9.5f, k == 0 ? (float)lt / (float)(NLT - 1) : p2_u(p, k == 1 ? TP_LSPEED : TP_LAMT), k + 1, 0, -24);
+    }
+    for (int k = 0; k < 3; k++)                      /* the vents */
+        cv_rect(100, 98 + k * 5, 98, 2, K_DIM);
+    cv_disc(214.0f, 72.0f, 4.0f, K_CARD);            /* the output: its lead off the page to what it moves; off: unplugged */
+    cv_ring(214.0f, 72.0f, 4.0f, 1.2f, K_TEXT);
+    if (lt) {
+        cv_disc(214.0f, 72.0f, 2.0f, K_TEXT);
+        fxm_lead(214.0f, 72.0f, 240.0f, 100.0f);
+    } else
+        cv_disc(214.0f, 72.0f, 1.5f, K_TEXT), p2_coil(204.0f, 104.0f, 3, 4.0f, K_TEXT);
 #undef LFOV
     cv_blit(0, MAIN_Y);
 }
@@ -6843,7 +6914,7 @@ static void draw_players(void)
         h = hash_u(h, pr->chord[i]);
     for (int i = 0; i < 4; i++)
         h = hash_u(h, pr->phys[i]);
-    h = hash_u(h, (uint32_t)ui.oct + 8u + ((uint32_t)fxm_touch() << 8));
+    h = hash_u(h, (uint32_t)ui.oct + 8u + ((uint32_t)p2_touch() << 8));
     h = hash_u(h, pp[TP_P1] | (uint32_t)pp[TP_P2] << 8 | (uint32_t)pp[TP_P3] << 16 | (uint32_t)pp[TP_P4] << 24);
     if (!begin_main(h))
         return;
@@ -6873,13 +6944,13 @@ static void draw_players(void)
                 s_cat(num_s((uint32_t)pp[TP_P3], t), pp[TP_P3] == 1 ? " octave" : " octaves");
                 x -= text_w(F_XB, t);
                 cv_text(x, 17, F_XB, t, K_TEXT);
-                fxm_num(x - 10, 24, 4);
+                p2_callout(x - 10, 24, 4, 0, K_TEXT);
                 x -= 24;
             }
             tp_text_par(TP_P2, pp[TP_P2], pp, num, unit);
             x -= text_w(F_XB, num);
             cv_text(x, 17, F_XB, num, K_TEXT);
-            fxm_num(x - 10, 24, 3);
+            p2_callout(x - 10, 24, 3, 0, K_TEXT);
         }
     }
     pl_keys(KX, KY, trk, pr, pl, pl == PL_OFF && 0);
@@ -6900,7 +6971,7 @@ static void draw_players(void)
         if (!pr->nheld)
             e = s_cat(e, "-");
     }
-    if (pl == PL_ARP || pl == PL_HOLD ? !pr->nheld : pl == PL_STRUM && !pr->nchord)   /* nothing yet: what to do */
+    if (pl == PL_ARP || pl == PL_HOLD ? !pr->nheld && !(pl == PL_HOLD && pr->nsounding) : pl == PL_STRUM && !pr->nchord)   /* nothing yet: what to do */
         text_fit(KX, 84, &FONT_XS, pl == PL_HOLD ? "play keys to hold" : pl == PL_ARP ? "hold a chord" : "learn a chord", 88, K_DIM);
     else
         text_fit(KX, 84, &FONT_XS, t, 88, K_TEXT);
@@ -6912,25 +6983,21 @@ static void draw_players(void)
         cv_blit(0, MAIN_Y);
         return;
     }
-    cv_linef(104.0f, 62.0f, 114.0f, 62.0f, K_TEXT, 1.4f);
-    arrow_head(118.0f, 62.0f, 1.0f, 0.0f, K_TEXT);
-    {   /* the figure: notes by pitch rank, the staircase (arp), the stagger (strum), the long bars (hold), the dice (random) */
-        int32_t sx = 126, base = 100, ntop = 58;
-        uint8_t nt[24], ord[24];
-        int nn = 0, n = 0, i, j, steps = 0, nu = 0, cur = -1;
-        uint8_t uniq[24];
-        const player_t *q = pr;
+    cv_linef(98.0f, 62.0f, 106.0f, 62.0f, K_TEXT, 1.4f);
+    arrow_head(110.0f, 62.0f, 1.0f, 0.0f, K_TEXT);
+    {   /* the machine: arp a step box (its knobs 2-4, the pattern lit on its lamps), strum a neck strummed (the stroke's
+         * slant the roll, its arrow the direction), hold a sustain pedal, random a tumbler dropping notes in slots */
+        uint8_t nt[24], ord[12], uniq[24];
+        int nn = 0, ghost = 0, i, j, steps = 0, nu = 0, cur = -1;
         if (pl == PL_STRUM)
-            for (i = 0; i < q->nchord && i < SN * 2; i++)
-                nt[nn++] = q->chord[i];
+            for (i = 0; i < pr->nchord && i < SN * 2; i++)
+                nt[nn++] = pr->chord[i];
         else
-            for (i = 0; i < q->nheld && i < 8; i++)
-                nt[nn++] = q->held[i];
-        if (!nn && pl != PL_RAND) {              /* nothing held: a ghost (C E G) and the words */
-            nt[0] = 60, nt[1] = 64, nt[2] = 67, nn = 3;
-            n = -1;
-        }
-        if (pl == PL_ARP && pp[TP_P2] != 4)
+            for (i = 0; i < pr->nheld && i < 8; i++)
+                nt[nn++] = pr->held[i];
+        if (!nn)                                     /* nothing held: a ghost (C E G) */
+            nt[0] = 60, nt[1] = 64, nt[2] = 67, nn = 3, ghost = 1;
+        if (pl == PL_STRUM || (pl == PL_ARP && pp[TP_P2] != 4))
             for (i = 1; i < nn; i++)
                 for (j = i; j > 0 && nt[j - 1] > nt[j]; j--) {
                     uint8_t v = nt[j];
@@ -6938,128 +7005,118 @@ static void draw_players(void)
                 }
         if (pl == PL_ARP) {
             int range = clampi(pp[TP_P3], 1, 4), total = nn * range, pat = pp[TP_P2], cyc;
-            cyc = pat == 2 ? (total > 1 ? 2 * total - 2 : 1) : pat == 3 ? 2 * total : total * (pat == 5 ? 1 : 1);
+            int32_t sw, rs;
+            cyc = pat == 2 ? (total > 1 ? 2 * total - 2 : 1) : pat == 3 ? 2 * total : total;
             steps = cyc < 12 ? cyc : 12;
             for (i = 0; i < steps; i++) {
-                int k = i % (cyc ? cyc : 1), idx = pat == 1 ? total - 1 - k : pat == 2 ? (k < total ? k : 2 * total - 2 - k)
+                int k = i % cyc, idx = pat == 1 ? total - 1 - k : pat == 2 ? (k < total ? k : 2 * total - 2 - k)
                           : pat == 3 ? (k < total ? k : 2 * total - 1 - k) : pat == 5 ? (int)((uint32_t)(k * 2654435761u) >> 16) % total : k;
                 ord[i] = (uint8_t)(nt[idx % nn] + 12 * (idx / nn));
-            }
-        } else if (pl == PL_STRUM) {
-            int down = pp[TP_P2] == 1;
-            steps = nn;
-            for (i = 0; i < steps; i++)
-                ord[i] = nt[down ? nn - 1 - i : i];
-            for (i = 1; i < steps && !down && pp[TP_P2] != 0; i++)
-                ;
-        } else if (pl == PL_HOLD) {
-            steps = nn;
-            for (i = 0; i < steps; i++)
-                ord[i] = nt[i];
-        } else
-            steps = 0;
-        for (i = 0; i < steps; i++) {            /* the distinct pitches, sorted: the ranks */
-            for (j = 0; j < nu && uniq[j] != ord[i]; j++)
-                ;
-            if (j == nu)
-                uniq[nu++] = ord[i];
-        }
-        for (i = 1; i < nu; i++)
-            for (j = i; j > 0 && uniq[j - 1] > uniq[j]; j--) {
-                uint8_t v = uniq[j];
-                uniq[j] = uniq[j - 1], uniq[j - 1] = v;
-            }
-        if (pl == PL_ARP && pr->arp_note)
-            for (i = 0; i < steps && cur < 0; i++)
-                if (ord[i] == pr->arp_note)
+                for (j = 0; j < nu && uniq[j] != ord[i]; j++)
+                    ;
+                if (j == nu)
+                    uniq[nu++] = ord[i];
+                if (pr->arp_note && ord[i] == pr->arp_note && cur < 0)
                     cur = i;
-        if (pl == PL_ARP) {
-            int32_t sw = steps ? (228 - sx) / steps : 21, bw, rs = nu > 1 ? (base - ntop - 10) / (nu - 1) : 0;
-            if (sw > 21)
-                sw = 21;
-            if (rs > 13)
-                rs = 13;
-            bw = sw * 3 / 4;
-            for (i = 0; i < steps; i++) {
-                int rk = 0;
-                int32_t x = sx + i * sw, y;
-                for (j = 0; j < nu; j++)
-                    if (uniq[j] == ord[i])
-                        rk = j;
-                y = base - 10 - rk * rs;
-                cv_frame(x, y, bw, 10, 2, n < 0 ? K_LINE : K_TEXT, i == cur ? K_REC : n < 0 ? K_BG : K_TINT);
-                if (i + 1 < steps) {
-                    int rk2 = 0;
-                    for (j = 0; j < nu; j++)
-                        if (uniq[j] == ord[i + 1])
-                            rk2 = j;
-                    dot_line((float)(x + bw), (float)y + 5.0f, (float)(x + sw), (float)(base - 10 - rk2 * rs) + 5.0f, 3.0f, K_DIM);
+            }
+            for (i = 1; i < nu; i++)
+                for (j = i; j > 0 && uniq[j - 1] > uniq[j]; j--) {
+                    uint8_t v = uniq[j];
+                    uniq[j] = uniq[j - 1], uniq[j - 1] = v;
                 }
-                if (sw >= 15) {
+            p2_panel(114, 40, 118, 62, K_PANEL2);
+            for (i = 0; i < 3; i++)
+                p2_knob((float)(130 + i * 26), 62.0f, 7.0f, p2_u(pp, TP_P1 + i), i + 2, 0, -13);
+            fxm_lamp(200, 58, 22, pr->arp_note ? K_REC : K_LINE);
+            p2_panel(120, 75, 106, 22, K_TEXT);      /* the lamps: a column a step, a row a pitch */
+            sw = 104 / steps;
+            rs = nu > 1 ? 16 / (nu - 1) : 0;
+            if (rs > 5)
+                rs = 5;
+            for (i = 0; i < steps; i++) {
+                int32_t x = 121 + i * sw;
+                for (j = 0; j < nu && uniq[j] != ord[i]; j++)
+                    ;
+                cv_rect(x + 1, 91 - j * rs, sw - 2, 3, i == cur ? K_REC : ghost ? K_DIM : K_CARD);
+                if (sw >= 10) {
                     char nm[6];
                     note_name(ord[i], nm);
                     nm[1 + (nm[1] == '#' || nm[1] == 'b')] = 0;
-                    text_c(x + bw / 2, base + 3, &FONT_XS, nm, n < 0 ? K_FAINT : K_DIM);
+                    text_c(x + sw / 2, 104, &FONT_XS, nm, ghost ? K_FAINT : K_DIM);
                 }
             }
-            cv_rect(sx, base, 228 - sx, 1, K_TEXT);
-            {   /* 2: the rate, one step dimensioned; 4: the octave (a dotted line where the keys' set repeats an octave up) */
-                char num[12], unit[6];
-                dim_line((float)sx, 46.0f, (float)(sx + sw), 46.0f, 3.0f, 3.0f, K_TEXT);
-                fxm_num(sx + sw + 8, 46, 2);
-                tp_text_par(TP_P1, pp[TP_P1], pp, num, unit);
-                s_cat(s_cat(t, "rate "), num);
-                cv_text(sx + sw + 17, 39, &FONT_XS, t, K_TEXT);
-                if (pp[TP_P3] > 1 && nn < steps && n >= 0) {
-                    int32_t ox = sx + nn * sw - 2;
-                    dot_line((float)ox, (float)base - 3.0f, (float)ox, 56.0f, 3.0f, K_DIM);
-                }
+            if (range > 1 && nn < steps && !ghost)   /* where the keys' set repeats an octave up */
+                cv_dash((float)(121 + nn * sw), 77.0f, (float)(121 + nn * sw), 95.0f, 2.0f, 2.0f, 1.0f, K_DIM);
+        } else if (pl == PL_STRUM) {
+            int dir = pp[TP_P2] & 3;
+            float roll = 2.0f + 38.0f * (float)(pp[TP_P1] > 63 ? 63 : pp[TP_P1]) / 63.0f, gap = nn > 1 ? 40.0f / (float)(nn - 1) : 0.0f;
+            if (gap > 8.0f)
+                gap = 8.0f;
+            p2_panel(114, 46, 118, 52, K_PANEL2);    /* the neck: frets, inlays */
+            for (i = 0; i < 5; i++)
+                cv_rect(134 + i * 24, 47, 2, 50, K_DIM);
+            cv_disc(171.0f, 72.0f, 2.5f, K_LINE), cv_disc(219.0f, 72.0f, 2.5f, K_LINE);
+            cv_rect(114, 46, 5, 52, K_TEXT);         /* the nut */
+            for (i = 0; i < nn; i++) {               /* a string a note, the lowest at the bottom */
+                float y = 72.0f + gap * ((float)(nn - 1) * 0.5f - (float)i);
+                cv_linef(118.0f, y, 232.0f, y, i < pr->nsounding ? K_REC : ghost ? K_DIM : K_TEXT, i < nn / 2 ? 1.6f : 1.0f);
             }
-        } else if (pl == PL_STRUM || pl == PL_HOLD) {
-            int32_t dxr = pl == PL_STRUM ? 4 + (int32_t)pp[TP_P1] * 12 / 63 : 0, bw = pl == PL_STRUM ? 70 : 90;
-            for (i = 0; i < steps; i++) {
-                int rk = 0;
-                int32_t y;
-                for (j = 0; j < nu; j++)
-                    if (uniq[j] == ord[i])
-                        rk = j;
-                y = base - 12 - rk * (nu > 1 ? (base - ntop - 14) / (nu - 1) > 14 ? 14 : (base - ntop - 14) / (nu - 1) : 0);
-                if (pl == PL_STRUM) {
-                    cv_frame(sx + i * dxr, y, bw, 9, 2, n < 0 ? K_LINE : K_TEXT, n < 0 ? K_BG : K_TINT);
-                    cv_rect(sx + i * dxr - 1, y - 2, 2, 13, K_TEXT);
-                } else {
-                    cv_frame(sx, y, bw, 9, 2, n < 0 ? K_LINE : K_TEXT, n < 0 ? K_BG : K_TINT);
-                    arrow_head((float)(sx + bw + 8), (float)y + 4.5f, 1.0f, 0.0f, K_TEXT);
-                    cv_linef((float)(sx + bw), (float)y + 4.5f, (float)(sx + bw + 4), (float)y + 4.5f, K_TEXT, 1.0f);
-                }
+            {   /* the stroke, from the top string to the bottom one, slanted by the roll: down (high to low) its arrow at
+                 * the bottom, up at the top, alternating both, either way both and dashed */
+                float l = f_sqrt1(roll * roll + 44.0f * 44.0f), ux = roll / l, uy = 44.0f / l;
+                if (dir == 3)
+                    cv_dash(178.0f, 50.0f, 178.0f + roll, 94.0f, 3.0f, 2.0f, 1.6f, K_TEXT);
+                else
+                    cv_linef(178.0f, 50.0f, 178.0f + roll, 94.0f, K_TEXT, 1.6f);
+                if (dir != 0)
+                    arrow_head(178.0f + roll, 94.0f, ux, uy, K_TEXT);
+                if (dir != 1)
+                    arrow_head(178.0f, 50.0f, -ux, -uy, K_TEXT);
             }
-            cv_rect(sx - 4, base, 106 + (pl == PL_STRUM ? steps * dxr : 0), 1, K_TEXT);
-            if (pl == PL_STRUM) {   /* 2: the roll: the stagger between two notes */
-                char num[12], unit[6];
-                dim_line((float)sx, 46.0f, (float)(sx + dxr), 46.0f, 3.0f, 3.0f, K_TEXT);
-                fxm_num(sx + dxr + 8, 46, 2);
-                tp_text_par(TP_P1, pp[TP_P1], pp, num, unit);
-                s_cat(s_cat(t, "roll "), num);
-                cv_text(sx + dxr + 17, 39, &FONT_XS, t, K_TEXT);
-            } else
-                cv_text(sx, base + 3, &FONT_XS, "until the next change", K_DIM);
-        } else {   /* random: 16 slots, a note where the dice give one (note %), its pitch among the octaves (4), time and rhythm */
-            int32_t gx = sx - 4, gw = 108, rows = 6;
-            int pct = clampi(pp[TP_P1] * 100 / 127, 0, 100), span = clampi(pp[TP_P4], 0, 3) + 1, sl;
-            cv_rect(gx, base, gw, 1, K_TEXT);
-            for (sl = 0; sl < 16; sl++) {
-                uint32_t r = (uint32_t)(sl + 1) * 2654435761u;
-                int on = (int)((r >> 8) % 100u) < pct, row = (int)((r >> 20) % (uint32_t)(rows * span > 12 ? 12 : rows * span));
-                float x = (float)gx + 3.0f + (float)sl * 6.5f, y = (float)base - 6.0f - (float)row * 3.6f;
-                if (on) {
-                    cv_disc(x, y, 2.6f, K_NOW);
-                    cv_ring(x, y, 2.8f, 1.0f, K_TEXT);
-                } else
-                    cv_disc(x, (float)base - 3.0f, 1.0f, K_LINE);
+            dim_line(178.0f, 106.0f, 178.0f + roll, 106.0f, 3.0f, 3.0f, K_TEXT);
+            p2_callout(169, 106, 2, 0, K_TEXT);
+            p2_callout(166, 72, 3, 0, K_TEXT);
+        } else if (pl == PL_HOLD) {                  /* the sustain pedal: down while notes are held; its lead */
+            float ty = pr->nheld || pr->nsounding ? 96.0f : 84.0f, q[8] = {150.0f, 100.0f, 214.0f, ty, 216.0f, ty + 6.0f, 150.0f, 105.0f};
+            p2_panel(144, 104, 76, 10, K_PANEL2);
+            cv_poly(q, 4, K_PANEL, 256u, 0);
+            for (i = 0; i < 4; i++)
+                fxm_ln(q[2 * i], q[2 * i + 1], q[(2 * i + 2) & 7], q[(2 * i + 3) & 7], 1.2f);
+            for (i = 1; i < 5; i++)
+                fxm_ln(150.0f + 12.0f * (float)i, 100.0f + (ty - 100.0f) * (float)i / 5.3f, 156.0f + 12.0f * (float)i,
+                       100.0f + (ty - 100.0f) * ((float)i + 0.5f) / 5.3f, 0.8f);
+            p2_coil(118.0f, 109.0f, 3, 4.0f, K_TEXT);
+            fxm_ln(132.0f, 109.0f, 144.0f, 109.0f, 1.6f);
+            cv_rect(112, 106, 7, 6, K_TEXT);
+            cv_text(118, 42, &FONT_XS, pr->nheld || pr->nsounding ? "held notes ring" : "the pedal is up", K_TEXT);
+            cv_text(118, 56, &FONT_XS, "until the next change", K_DIM);
+        } else {                                     /* random: the tumbler, its stand and crank; the slots it drops into */
+            int pct = clampi(pp[TP_P1] * 100 / 127, 0, 100);
+            for (i = 0; i < 6; i++) {
+                float a = (float)i / 6.0f + 0.04f, b = a + 1.0f / 6.0f;
+                fxm_ln(146.0f + 18.0f * fm_sin_turns(a + 0.25f), 62.0f + 18.0f * fm_sin_turns(a), 146.0f + 18.0f * fm_sin_turns(b + 0.25f),
+                       62.0f + 18.0f * fm_sin_turns(b), 1.2f);
+                fxm_ln(146.0f + 15.0f * fm_sin_turns(a + 0.25f), 62.0f + 15.0f * fm_sin_turns(a), 146.0f + 15.0f * fm_sin_turns(b + 0.25f),
+                       62.0f + 15.0f * fm_sin_turns(b), 0.8f);
+                cv_disc(140.0f + (float)(i % 3) * 6.0f, 70.0f + (float)(i / 3) * 5.0f - (float)(i % 2) * 2.0f, 2.4f, K_NOW);
             }
-            fxm_num(gx + gw - 8, 46, 2);
-            s_cat(num_s((uint32_t)pct, t), "% of the slots");
-            cv_text(gx + 4, 39, &FONT_XS, t, K_TEXT);
+            fxm_ln(126.0f, 98.0f, 146.0f, 62.0f, 1.6f), fxm_ln(146.0f, 62.0f, 166.0f, 98.0f, 1.6f);
+            cv_disc(146.0f, 62.0f, 3.0f, K_TEXT);
+            fxm_ln(146.0f, 62.0f, 168.0f, 50.0f, 1.6f), fxm_ln(168.0f, 50.0f, 172.0f, 56.0f, 2.0f);   /* the crank */
+            fxm_ln(158.0f, 76.0f, 166.0f, 96.0f, 1.2f);  /* the chute */
+            p2_panel(118, 98, 112, 12, K_CARD);      /* the slots, a note where the dice give one */
+            for (i = 0; i < 16; i++) {
+                uint32_t r = (uint32_t)(i + 1) * 2654435761u;
+                float x = 122.0f + (float)i * 6.9f;
+                if ((int)((r >> 8) % 100u) < pct)
+                    cv_disc(x, 104.0f, 2.6f, K_NOW), cv_ring(x, 104.0f, 2.8f, 1.0f, K_TEXT);
+                else
+                    cv_disc(x, 104.0f, 1.0f, K_LINE);
+            }
+            p2_callout(110, 104, 2, 0, K_TEXT);
+            p2_panel(180, 42, 50, 46, K_PANEL2);     /* the chances: pitch and rhythm */
+            p2_knob(193.0f, 72.0f, 7.0f, p2_u(pp, TP_P2), 3, 0, -15);
+            p2_knob(217.0f, 72.0f, 7.0f, p2_u(pp, TP_P3), 4, 0, -15);
         }
     }
     cv_blit(0, MAIN_Y);

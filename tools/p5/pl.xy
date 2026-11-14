@@ -1,0 +1,98 @@
+bpm 120
+wait 300
+turn ALGO 2
+wait 200
+tap ARP
+wait 300
+shot 01_off.png
+knob 3 player arp
+wait 400
+shot 02_arp_empty.png
+key 0 down
+key 4 down
+key 7 down
+wait 400
+shot 03_arp_held.png
+knob 3 p1 0
+knob 3 p2 1
+knob 3 p3 1
+wait 400
+shot 04_arp_min_down.png
+knob 3 p1 8
+knob 3 p2 3
+knob 3 p3 4
+wait 400
+shot 05_arp_max_updown4.png
+knob 3 p2 4
+knob 3 p3 2
+wait 400
+shot 06_arp_played_2oct.png
+knob 3 p2 5
+wait 400
+shot 07_arp_random.png
+knob 3 p1 4
+knob 3 p2 2
+tap PLAY
+wait 700
+shot 08_arp_playing.png
+tap PLAY
+key 0 up
+key 4 up
+key 7 up
+knob 3 player strum
+knob 3 p2 0
+knob 3 p1 0
+wait 400
+shot 10_strum_empty.png
+key 0 down
+key 4 down
+key 7 down
+key 11 down
+wait 300
+key 0 up
+key 4 up
+key 7 up
+key 11 up
+wait 400
+shot 11_strum_up_roll0.png
+knob 3 p1 63
+knob 3 p2 1
+wait 400
+shot 12_strum_down_roll63.png
+knob 3 p1 20
+knob 3 p2 2
+wait 400
+shot 13_strum_alt.png
+knob 3 p2 3
+wait 400
+shot 14_strum_random.png
+key 5 down
+wait 60
+shot 15_strum_sounding.png
+key 5 up
+knob 3 player hold
+wait 400
+shot 20_hold_up.png
+key 2 down
+key 9 down
+wait 300
+key 2 up
+key 9 up
+wait 300
+shot 21_hold_down.png
+knob 3 player rand
+wait 400
+shot 30_random.png
+knob 3 p1 0
+knob 3 p2 0
+knob 3 p3 0
+wait 400
+shot 31_random_min.png
+knob 3 p1 127
+knob 3 p2 127
+knob 3 p3 127
+wait 400
+shot 32_random_max.png
+turn ALGO -2
+wait 400
+shot 40_kit.png
