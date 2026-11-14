@@ -31,7 +31,7 @@ const char *fx_knob_name(int pick, int k);     /* the four knobs' names (the pla
  *   lofi        rate bits smooth width           80 80 64 40    8.4 kHz, 11 bits, half smoothed, the right 3.4 ms late
  *   phaser      freq depth rate feedback         50 90 50 80    466 Hz, +-2.1 octaves, 0.27 Hz, feedback 0.57
  *   plate       size motion tone damp            100 40 44 72   lines x1.43 (the old combs' feedback 0.88: ~1.5 s), a little
- *                                                               wander, 7.4 kHz, damp 0.45
+ *                                                               wander, 7.4 kHz, damp 0.34
  *   SPU modes   size decay tone damp             127 64 64 0    the console's own: its delays (x4 of the registers), its
  *                                                               wall feedback, flat, its own reflection filter
  *   lush        size decay tone damp             64 64 56 48    Dattorro's lengths x1 (pre-delay 19 ms), a tail of

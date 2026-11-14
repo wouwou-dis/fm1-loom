@@ -68,7 +68,7 @@ const uint8_t FXT_DEFAULT[NFXT][4] = {
     {80, 80, 64, 40},                         /* lofi        8.4 kHz, 10.8 bits, half smoothed, 3.4 ms spread */
     {50, 90, 50, 80},                         /* phaser      466 Hz, +-2.1 octaves, 0.27 Hz, feedback 0.57 */
     {100, 40, 44, 72},                        /* plate       lines x1.43 (pre-delay 18 ms, ~1.5 s), 2.4 samples of
-                                               *             wander, 7.4 kHz, damp 0.45 */
+                                               *             wander, 7.4 kHz, damp 0.34 */
 };
 const uint8_t RV_SPU_DEFAULT[4] = {127, 64, 64, 0};   /* the console's sizes, its decay, flat, its own filter */
 const uint8_t RV_LUSH_DEFAULT[4] = {64, 64, 56, 48};  /* (fx.h) */
