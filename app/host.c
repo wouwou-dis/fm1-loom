@@ -627,6 +627,26 @@ static int expect_more(const char *what, const char *a, const char *b, const cha
             return 1;
         }
         host_fails += expect_val(what, tp->st[s].cval, c);
+    } else if (!strcmp(what, "barmask")) {          /* expect barmask T PAT BAR SOUND HEX: bit i set when step i of the bar has a
+                                                     * hit (SOUND 1.. of a kit track; 0: any note on the step) */
+        char t[16], pt[16], br[16], sn[16];
+        unsigned want, got = 0;
+        tpat_t *tp;
+        if (sscanf(plat_host_line, "%*s %*s %15s %15s %15s %15s %x", t, pt, br, sn, &want) != 5 ||
+            !(tp = pat_of(atoi(t), atoi(pt)))) {
+            printf("FAIL expect barmask: T PAT BAR SOUND HEX\n");
+            host_fails++;
+            return 1;
+        }
+        for (int i = 0; i < 16; i++) {
+            int s = (atoi(br) - 1) * 16 + i;
+            got |= (unsigned)(s < NSTEP && (atoi(sn) ? kit_has(&tp->st[s], atoi(sn)) : !step_empty(&tp->st[s]))) << i;
+        }
+        if (got != want) {
+            printf("FAIL expect barmask %s %s %s %s == 0x%04x, got 0x%04x\n", t, pt, br, sn, want, got);
+            host_fails++;
+        } else
+            printf("  ok barmask %s %s %s %s == 0x%04x\n", t, pt, br, sn, got);
     } else if (!strcmp(what, "note")) {             /* expect note T PAT S VALUE: five words */
         char t[16], pt[16], st[16], v[16];
         tpat_t *tp;

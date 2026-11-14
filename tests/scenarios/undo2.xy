@@ -1,0 +1,129 @@
+# the undo reaches back two steps (HOME + REC, again; HOME + PLAY, again): a pattern's step, then the song's slot, undone
+# twice and redone twice; a new edit after an undo discards the redo side; edits in a run still merge into one step
+wait 300
+projnew
+tap HOME
+tapkey w1
+tapkey w2
+tap HOME
+wait 100
+expect page Song
+tapkey w0
+tapkey w1
+tapkey w2
+expect songlen 3
+# step 1: a note on T1's step 1
+wait 1300
+tap SEQ
+tapkey w0
+expect note 1 1 1 1
+# step 2: the song's slot 1 deleted
+wait 1300
+tap HOME
+tap HOME
+wait 100
+expect page Song
+turn K1 -5
+tap SEL
+row DELETE SLOT
+tap SEL
+wait 50
+expect songlen 2
+# undo 1: the slot is back; undo 2: the note is gone
+listen
+press HOME
+tap REC
+release HOME
+wait 100
+said UNDO song and scenes
+shot undo2_first.png
+expect songlen 3
+expect note 1 1 1 1
+listen
+press HOME
+tap REC
+release HOME
+wait 100
+said UNDO T1 P1
+shot undo2_second.png
+expect songlen 3
+expect note 1 1 1 0
+# a third: nothing (two steps)
+listen
+press HOME
+tap REC
+release HOME
+wait 100
+said NOTHING TO UNDO
+shot undo2_none.png
+expect note 1 1 1 0
+# redo 1: the note; redo 2: the slot deleted; a third: nothing
+listen
+press HOME
+tap PLAY
+release HOME
+wait 100
+said REDO T1 P1
+shot undo2_redo.png
+expect note 1 1 1 1
+expect songlen 3
+listen
+press HOME
+tap PLAY
+release HOME
+wait 100
+said REDO song and scenes
+expect songlen 2
+listen
+press HOME
+tap PLAY
+release HOME
+wait 100
+said NOTHING TO REDO
+# undone twice again, then a new edit (a step on T1): the redo side is gone, the step before it is still there to undo
+press HOME
+tap REC
+release HOME
+press HOME
+tap REC
+release HOME
+wait 100
+expect songlen 3
+expect note 1 1 1 0
+wait 1300
+tap SEQ
+tapkey w4
+expect note 1 1 5 1
+listen
+press HOME
+tap PLAY
+release HOME
+wait 100
+said NOTHING TO REDO
+expect note 1 1 5 1
+expect songlen 3
+# its undo, then the step before it (one undo step: the edits here are all T1's pattern, so the first merged with the
+# second only within a second: here 1.3 s apart, two steps)
+press HOME
+tap REC
+release HOME
+wait 100
+expect note 1 1 5 0
+expect note 1 1 1 0
+press HOME
+tap REC
+release HOME
+wait 100
+expect songlen 3
+# edits within a second are one step: two steps, one undo
+wait 1300
+tapkey w1
+tapkey w2
+expect note 1 1 2 1
+expect note 1 1 3 1
+press HOME
+tap REC
+release HOME
+wait 100
+expect note 1 1 2 0
+expect note 1 1 3 0

@@ -1,0 +1,103 @@
+# a list opens on the row used last, but never on one that clears, deletes or loads (NEW PROJECT, CLEAR ALL PATTERNS,
+# CLEAR SONG, CLEAR SCENE, DELETE SLOT, LOAD PROJECT, CLEAR, CLEAR BAR ...): after one of those it opens on its first row;
+# a repeatable row (MOVE SLOT, ROTATE, EUCLID) is still what it opens on
+wait 300
+projnew
+step 1 1 1 1 100
+step 2 1 1 60 100
+tap HOME
+tapkey w1
+tap HOME
+wait 100
+expect page Song
+tapkey w0
+tapkey w1
+turn K1 -5
+# each destructive row picked, the list left with HOME: the next opens on PLAY SONG
+listen
+tap SEL
+row NEW PROJECT
+wait 100
+said NEW PROJECT
+shot listsafe_row.png
+tap HOME
+wait 100
+listen
+tap SEL
+wait 200
+said PLAY SONG
+unsaid NEW PROJECT
+shot listsafe_first.png
+row CLEAR ALL PATTERNS
+tap HOME
+listen
+tap SEL
+wait 200
+said PLAY SONG
+row CLEAR SONG
+tap HOME
+listen
+tap SEL
+wait 200
+said PLAY SONG
+row LOAD PROJECT
+tap HOME
+listen
+tap SEL
+wait 200
+said PLAY SONG
+# DELETE SLOT done (SEL): the list opens on the first row, not on it
+row DELETE SLOT
+tap SEL
+wait 100
+expect songlen 1
+listen
+tap SEL
+wait 200
+said PLAY SONG
+unsaid DELETE SLOT
+# a repeatable row is kept
+row MOVE SLOT
+tap HOME
+listen
+tap SEL
+wait 200
+said MOVE SLOT
+tap HOME
+# CLEAR ALL PATTERNS, said yes to: the first row after it too
+listen
+tap SEL
+row CLEAR ALL PATTERNS
+tap SEL
+wait 100
+said CLEAR ALL PATTERNS?
+tap SEL
+wait 200
+expect note 2 1 1 0
+listen
+tap SEL
+wait 200
+said PLAY SONG
+unsaid CLEAR ALL PATTERNS
+tap HOME
+# Steps: CLEAR (the pick) and CLEAR BAR, done: the first row; ROTATE stays
+step 1 1 1 1 100
+tap SEQ
+listen
+tap SEL
+row CLEAR
+tap SEL
+wait 100
+expect note 1 1 1 0
+listen
+tap SEL
+wait 200
+said COPY TO EMPTY
+unsaid CLEAR
+row ROTATE
+tap SEL
+wait 100
+listen
+tap SEL
+wait 200
+said ROTATE

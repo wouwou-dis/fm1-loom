@@ -51,10 +51,11 @@ tap REC
 release HOME
 expect note 2 2 17 64
 tap OCT-
-# opens on CLEAR BAR again
+# CLEAR BAR is never what a list opens on: the first row
 tap SEL
 wait 200
-said CLEAR BAR
+said COPY TO EMPTY
+unsaid CLEAR BAR
 # ROTATE: R1 to start with; the list closes, and opens on ROTATE again
 row ROTATE
 tap SEL

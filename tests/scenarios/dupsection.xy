@@ -1,0 +1,160 @@
+# DUPLICATE SECTION (Song's SEL): the slot picked's scene copied as NEW SECTION does (its own patterns, locks), into the
+# first empty scene, which becomes the next slot with the same bars; nothing switches; one undo. All or nothing: no
+# empty scene, no empty pattern for a track with notes, a full song: said, nothing changed. DUPLICATE SLOT repeats the scene
+wait 300
+projnew
+step 1 1 1 1 100
+step 2 1 1 60 100
+step 2 1 5 64 100
+lock 2 1 1 e1 30
+tap HOME
+tapkey w1
+tap HOME
+wait 100
+expect page Song
+tapkey w0
+tapkey w1
+expect songlen 2
+expect slotsc1 1
+expect slotsc2 2
+turn K1 -5
+turn K3 -1
+expect slotrep1 3
+expect scene 2
+listen
+tap SEL
+row DUPLICATE SLOT
+wait 200
+said DUPLICATE SLOT
+row DUPLICATE SECTION
+wait 200
+said DUPLICATE SECTION new S3
+shot dupsection_row.png
+tap SEL
+wait 100
+said DUPLICATED NEW S3
+shot dupsection_done.png
+expect listopen 0
+# slot 2 is the copy: scene 3, 3 bars, its own patterns (P2) with locks; the scene playing as it was; the original as it was
+expect songlen 3
+expect slotsc1 1
+expect slotsc2 3
+expect slotsc3 2
+expect slotrep2 3
+expect used 7
+expect spat3.1 2
+expect spat3.2 2
+expect spat3.3 1
+expect spat1.2 1
+expect spat2.2 1
+expect note 1 2 1 1
+expect note 2 2 1 60
+expect note 2 2 5 64
+expect lane 2 2 e1 1
+expect scene 2
+# editing the copy leaves the original
+turn K1 5
+# one undo: the slot, the scene and the copies gone; the redo brings them back
+listen
+press HOME
+tap REC
+release HOME
+wait 100
+said UNDO duplicate
+shot dupsection_undo.png
+expect songlen 2
+expect used 3
+expect slotsc2 2
+expect note 2 2 1 0
+expect lane 2 2 e1 0
+expect scene 2
+press HOME
+tap PLAY
+release HOME
+wait 100
+expect songlen 3
+expect slotsc2 3
+expect note 2 2 1 60
+expect lane 2 2 e1 1
+# DUPLICATE SLOT: the same scene again, as it was
+turn K1 -5
+tap SEL
+row DUPLICATE SLOT
+tap SEL
+wait 100
+said DUPLICATED slot
+expect songlen 4
+expect slotsc2 1
+expect used 7
+# no empty pattern on T2 (P3 to P8 hold notes; P2 is the copy's): said, nothing made, nothing half copied
+step 2 3 1 60 100
+step 2 4 1 60 100
+step 2 5 1 60 100
+step 2 6 1 60 100
+step 2 7 1 60 100
+step 2 8 1 60 100
+expect songlen 4
+turn K1 -5
+tap SEL
+row DUPLICATE SECTION
+tap SEL
+wait 100
+said NOT COPIED 1 track has no room
+shot dupsection_noroom.png
+expect songlen 4
+expect used 7
+expect slotsc2 1
+expect spat1.1 1
+expect spat2.1 1
+expect spat1.3 1
+# no empty scene: said, nothing changed
+scenedef 4 1 1
+scenedef 5 1 1
+scenedef 6 1 1
+scenedef 7 1 1
+scenedef 8 1 1
+scenedef 9 1 1
+scenedef 10 1 1
+scenedef 11 1 1
+scenedef 12 1 1
+scenedef 13 1 1
+scenedef 14 1 1
+scenedef 15 1 1
+scenedef 16 1 1
+scenedef 17 1 1
+scenedef 18 1 1
+scenedef 19 1 1
+scenedef 20 1 1
+scenedef 21 1 1
+scenedef 22 1 1
+scenedef 23 1 1
+scenedef 24 1 1
+scenedef 25 1 1
+scenedef 26 1 1
+scenedef 27 1 1
+scenedef 28 1 1
+scenedef 29 1 1
+scenedef 30 1 1
+scenedef 31 1 1
+scenedef 32 1 1
+turn K1 -5
+listen
+tap SEL
+row DUPLICATE SECTION
+wait 100
+said none empty
+tap SEL
+wait 100
+said NO EMPTY SCENE
+shot dupsection_noscene.png
+expect songlen 4
+# a full song (64 slots): said, nothing changed
+song 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1 1:1
+expect songlen 64
+turn K1 -70
+tap SEL
+row DUPLICATE SECTION
+tap SEL
+wait 100
+said SONG FULL
+expect songlen 64

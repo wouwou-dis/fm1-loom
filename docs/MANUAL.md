@@ -171,11 +171,14 @@ Count the white keys 1 to 16 from the left, and the black keys 1 to 11. "Hold **
 | record a knob's motion | While it plays, on a sound page, hold **REC** and turn the knob. The motion is recorded for as long as you hold **REC**. |
 | set the click, count-in, quantize | While stopped, hold **REC** and turn the knobs: CLICK, COUNT, QUANT and MODE (overdub or replace). |
 | record step by step | While stopped, on Steps, tap **REC**. The red cursor starts after the last note. Each key (or chord) you play is written there, and the cursor moves on. **OCT+** leaves a rest and **OCT−** goes back. Tap **REC** again to finish. |
-| undo | Hold **HOME** and press **REC**. Hold **HOME** and press **PLAY** to redo. |
+| undo | Hold **HOME** and press **REC**. Press **REC** again (still holding **HOME**) to undo the change before it. Hold **HOME** and press **PLAY** to redo, once or twice. |
 | set the tempo | Press **HOME** and turn **KNOB 1**. Hold **HOME** while you turn it for tenths. On any page, you can also hold **HOME** and turn **SELECT**. |
 | use a throw | Press **FX** and turn **SELECT** to Throws. Hold a key: the lower octave works on the drums and the upper octave on the melodic tracks. Hold **REC** while it plays to record throws into the THROW track. <!-- hint: press FX; turn SELECT; white 1-16 --> |
 | make a new scene | Press **HOME** and press an empty white key. It becomes a copy of the scene that is playing. **OCT+** puts scenes 17 to 32 on the white keys. <!-- hint: press HOME; white 2 --> |
 | make a new section to vary | Press **HOME**, press **SEL** and pick NEW SECTION. You get a new scene with its own copy of each pattern, so what you change there leaves the scene you came from as it was. <!-- hint: press HOME, SEL --> |
+| spread hits evenly over a bar (a Euclidean rhythm) | On Steps, show the bar, press **SEL**, pick EUCLID HITS, turn **ALGORITHM** for how many hits (1 to 16) and press **SEL**. EUCLID ROTATE turns the pattern forward by 0 to 15 steps and also does it. On a kit it is the sound shown; on a synth track it is the note or chord you played last. <!-- hint: press SEQ, SEL --> |
+| vary a bar | On Steps, press **SEL** and pick VARY BAR. Hits off the beat may drop or move a step, and velocities shift; steps 1, 5, 9 and 13 stay. It is different each time, and one undo takes it back. <!-- hint: press SEQ, SEL --> |
+| repeat a song section with changes | On the Song page, pick the slot with **KNOB 1**, press **SEL** and pick DUPLICATE SECTION. The slot after it plays a new scene with its own copy of each pattern and the same number of bars. DUPLICATE SLOT repeats the same scene instead. <!-- hint: press HOME, HOME, SEL --> |
 | move a slot in the song | On the Song page, pick the slot with **KNOB 1**, press **SEL** and pick MOVE SLOT. Turn **ALGORITHM** for earlier or later and press **SEL**. Press **SEL** twice to move it again. <!-- hint: press HOME, HOME, SEL --> |
 | switch scenes while playing | On Arrange, press the scene's white key, and it starts at the next bar. Press it again to switch at once. To wait for the end of T1's pattern instead, set SCENES SWITCH in the **SEL** list to "pattern end". <!-- hint: press HOME; white 2 --> |
 | mute a track | On Arrange or Mix, press its black key. On Mix, hold it to solo the track for as long as you hold it. <!-- hint: black 1 --> |
@@ -425,6 +428,13 @@ knobs. A row with a ▸ is a choice. Turn **ALGORITHM** to pick it, and press **
   L16 (16 steps to the left) to R16, and press **SEL** to do it. **SHIFT NOTES** moves every note up or down, from
   -24 to +24 semitones. It isn't there on a kit or THROW. Both keep the amount you set, and the list reopens on
   the row you used, so to do it again, press **SEL** twice.
+- **EUCLID HITS** and **EUCLID ROTATE** are at the end of the bar's rows. EUCLID HITS spreads 1 to 16 hits evenly
+  over the bar's steps (the row says "5 of 16"), and EUCLID ROTATE (0 to 15) turns them forward. Turn **ALGORITHM**
+  to set either and press **SEL** on either row to do it. On a kit it replaces the steps of the sound shown, and the
+  other sounds stay. On a synth track it replaces the track's steps in the bar with the note or chord you played last.
+  **VARY BAR** makes a variation: off the beat, a hit may drop or move a step, and velocities shift a little. Steps
+  1, 5, 9 and 13 stay, and the bar always keeps a hit. It differs each time. Each one is one undo step, and the list
+  reopens on the row, so to do it again, press **SEL** twice.
 - **DOUBLE PATTERN** makes the pattern twice as long, and it plays itself twice, locks included. A 16-step pattern
   becomes 32, so you can vary its second half.
 - For the bar shown, there are **COPY BAR**, **PASTE** (the bar, or locks only), **CLEAR BAR**, which clears its
@@ -434,7 +444,9 @@ knobs. A row with a ▸ is a choice. Turn **ALGORITHM** to pick it, and press **
   notes is left as it is, and a track shorter than the bar you copied gives the bar it was playing. As with COPY,
   the copy is read when you paste. One undo takes back the whole paste.
 
-Every list opens on the row you used last, until you switch the FM-1 off.
+Every list opens on the row you used last, until you switch the FM-1 off, with one exception: a list never opens on a
+row that clears, deletes or loads (NEW PROJECT, CLEAR ALL PATTERNS, CLEAR SONG, CLEAR SCENE, DELETE SLOT, LOAD PROJECT,
+CLEAR, CLEAR BAR, RESET SOUND, RANDOMIZE PRESETS). After one of those, it opens on its first row.
 
 On the Bar page, hold **SEQ** and press black keys 1 to 4, which stand for the pattern's bars. Press one key to
 jump to that bar at the next bar line and play on from there. This releases any loop you had. Hold two keys to
@@ -526,8 +538,9 @@ melody's notes.
 
 <img src="img/screen-step-record.png" width="240" alt="REC tapped on Steps: the red cursor waits on the step after the last note" title="Step record armed">
 
-Hold **HOME** and press **REC** to undo the last change, and hold **HOME** and press **PLAY** to redo it. There is
-one level of undo, and it covers whatever changed last. That can be a pattern with its locks (including CLEAR
+Hold **HOME** and press **REC** to undo the last change, and hold **HOME** and press **PLAY** to redo it. There are
+two levels of undo: undo twice to go back two changes, and redo twice to bring them back. A new change after an undo
+clears what you could redo. Quick edits of the same kind still count as one change. A change can be a pattern with its locks (including CLEAR
 LOCKS), a track's sound (or T2 to T8 after RANDOMIZE PRESETS), the master, or the song, scenes and weaves.
 
 ## Sounds
@@ -1221,9 +1234,15 @@ selected slot. The map is as fine as it needs to be so that two stops never crow
 Press **PLAY** on the Song page to play the song from the selected slot. To play it from the top, pick PLAY SONG in
 the **SEL** list. As the song plays, a small red train runs along the line. The **SEL**
 list can also insert the scene that is playing (INSERT SLOT), repeat the selected slot right after itself
-(DUPLICATE SLOT), move the selected slot (MOVE SLOT), delete a slot or clear the song. On MOVE SLOT, turn
+(DUPLICATE SLOT), copy it as a new section (DUPLICATE SECTION), move the selected slot (MOVE SLOT), delete a slot or clear the song. On MOVE SLOT, turn
 **ALGORITHM** for earlier or later and press **SEL**: the slot swaps places with its neighbour, and the knobs stay
 on it. Press **SEL** twice to move it again. While the song plays, it goes on from where it was.
+
+DUPLICATE SECTION takes the selected slot's scene, makes the first empty scene (the row says which, "new S3") a copy
+with its own copy of each pattern, as NEW SECTION does, and inserts it as the next slot with the same number of bars.
+You can then vary the repeat without touching the original, and nothing switches while the song plays. It is all or
+nothing: with no empty scene, a full song, or a track with notes that has no empty pattern or no lanes left for its
+locks, it says so and changes nothing. One undo takes it all back.
 
 ## The aux tracks
 
