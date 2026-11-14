@@ -4,9 +4,9 @@
      release text (gh release create ... --notes-file docs/RELEASE_NOTES_paper-1.0.md). Nothing here was built or
      published by the person who wrote it. -->
 
-> **Source commit:** `e274f2db502f241a270cccb4be7d3eba34b241e3` (the firmware in the attached files was built from this commit; the commits after it only touch these notes)
+> **Source commit:** `874a1854a691d901810571ce7692a74c0beae12a` (the firmware in the attached files was built from this commit; the commits after it only touch these notes)
 > **Files:** `loom-1.0-paper.fwsc` (identity `FM-1_10010000`, version text `1.0-PAPER` on the device) and `loom-1.0-paper-res.bin`
-> **SHA-256 of the .fwsc:** `2e5925e13fc6938c992ea9e10db173d85003d0cc26869aa9fa1f6ed414e50ed0`
+> **SHA-256 of the .fwsc:** `71cf3870049801823b32f003de13d20aefc318ce9dc7f56645e13d8e032ed2ca`
 > **SHA-256 of the -res.bin:** `22ed9d1562690b1c5700b18766830e6774059b90da9a05ea2dc5b812fc181473`
 
 ## What this is
@@ -29,6 +29,10 @@ The full list, with the commit for each item, is [CHANGES.md](https://github.com
 - Sound: a new chip-voice engine, sequin (from Felucca-Engines' LOFI by Leo Kuroshita); the plate reverb rebuilt;
   half-band filters around the lush reverb and the delay; a three-voice chorus; a fix to the PlayStation reverb modes'
   output interpolator (image energy above 12 kHz went from about 5 to 10 dB under the signal to more than 50 dB under).
+- Sequin's sweep now ends the note when the pitch falls below hearing (it used to motorboat at 8 Hz on held notes), and
+  its knob is spread evenly from a slow glide of 8 semitones a second to the fastest zap, with no dead travel.
+- Setup is drawn as the instrument's rear panel: a slide switch for the clock, a toggle for the notes, lamps for the
+  lights, an antenna for Bluetooth MIDI and a rating plate.
 
 ## What is missing compared with LOOM-8
 
