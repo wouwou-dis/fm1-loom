@@ -538,6 +538,29 @@ int main(void)
         snprintf(name, sizeof name, "  chaos echo / lush -> plate mid-tail: quiet (%.6f), then working (%.2f)", (double)pk, (double)pk2);
         check(name, ok && pk < 1e-4f && pk2 > 0.01f && pk2 < 4.0f);
     }
+    {   /* a small plate (size 30) does not ring: its impulse's tail (50 .. 550 ms) is never more than 0.35 like itself
+         * at a lag of 100 .. 1000 samples (until 2026-11 the input allpasses rang through it: 0.40 at their 379) */
+        static const uint8_t ks[4] = {30, 40, 44, 72};
+        float worst = 0.0f, e0 = 0.0f;
+        int lag, at = 0;
+        impulse(FXT_REVERB, ks, imp_l, imp_r, SR + 2048);
+        for (i = 2205; i < 2205 + SR / 2; i++)
+            e0 += imp_l[i] * imp_l[i];
+        for (lag = 100; lag < 1000; lag++) {
+            float c = 0.0f, e1 = 0.0f;
+            for (i = 2205; i < 2205 + SR / 2; i++) {
+                c += imp_l[i] * imp_l[i + lag];
+                e1 += imp_l[i + lag] * imp_l[i + lag];
+            }
+            c = fm_fabsf(c) / fm_sqrtf(e0 * e1 + 1e-30f);
+            if (c > worst) {
+                worst = c;
+                at = lag;
+            }
+        }
+        snprintf(name, sizeof name, "  a small plate rings at no lag: at most %.3f like itself (at %d)", (double)worst, at);
+        check(name, worst < 0.35f);
+    }
     {   /* every corner of the four knobs: bounded, no NaN, and the tail falling */
         int ok = 1, c;
         for (c = 0; c < 16; c++) {
