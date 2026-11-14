@@ -2,7 +2,8 @@
 """sequin's presets (2026-11): a home computer's sound chip (dsp/chip.h, after Felucca-Engines' LOFI). knobs: wave
 (0 pulse, 1 tri, 2 saw, 3 noise, 4 table: the wave memory), duty (the pulse's width in eighths, duty >> 5: 1/8 1/4 3/8
 1/2; on table the table, duty >> 3: 11 vox a, 14 buzz, 9 organ ...), crush (the sample hold, 1 + crush / 8 samples; past
-64 the held value in 16 steps), sweep (the pitch falling from the note, sweep >> 3 eighths of a semitone a chunk).
+64 the held value in 16 steps), sweep (the pitch falling from the note: 0 none, 1 8 semitones a
+second .. 127 ~1290, x1.041 a step: chip.h CH_SWEEP_OCT).
 x: chip (0 4 bit, 1 4 bit lo, 2 8 bit, 3 1 bit: the noise at the held rate, 4 step: the envelope in 16 steps), arp
 (0 off, 1 octave, 2 major, 3 minor), vib (0..127: to +-27 cents at 5.4 Hz), tone (the chip's own low-pass, 127 open).
 The first five are LOFI's own (PULSE LD, WAVE BASS, ARP 8BIT, WAVE LEAD, STEP LEAD), on LOOM-8's envelope."""
@@ -36,8 +37,8 @@ P("vox lead", "lead", "sequin", knobs=dict(wave=TABLE, duty=11 * 8 + 4, crush=0,
 P("step pluck", "pluck", "sequin", knobs=dict(wave=PULSE, duty=40, crush=0, sweep=0), volume=100,
   amp=(0, 84, 0, 60), fenv=(0, 64, 0, 64), filter=("lp12", 127, 0, 64, 64), sends=(30, 20), x=(STEP, OFF, 16, 127),
   genres=("chiptune",))
-# a zap: a pulse falling fast from high up
-P("zap", "fx", "sequin", knobs=dict(wave=PULSE, duty=64, crush=0, sweep=72), volume=88,
+# a zap: a pulse falling fast from high up (sweep 114: 1.11 semitones a chunk, ~765 a second)
+P("zap", "fx", "sequin", knobs=dict(wave=PULSE, duty=64, crush=0, sweep=114), volume=88,
   amp=(0, 80, 0, 50), fenv=(0, 64, 0, 64), filter=("lp12", 127, 0, 64, 64), sends=(40, 10), x=(B4, OFF, 0, 127),
   octave=1, genres=("chiptune",))
 # a chip kick: a triangle swept down hard, short

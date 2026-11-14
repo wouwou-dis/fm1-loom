@@ -1,0 +1,118 @@
+# sequin's sweep: the pitch falls from the note's start and, out of hearing (20 Hz), the chip falls silent till the
+# next note (dsp/chip.h CH_SWEEP_HZ). Before, a held note's fall stopped at LOFI's 8 Hz floor and stayed there: a
+# full-scale 8 Hz click train (a pulse; the noise a held DC) for as long as the note was held. And the knob is even in
+# ratio (CH_SWEEP_OCT): 1 already sweeps (8 semitones a second), 127 is LOFI's fastest; before, 1..7 did nothing and 8 up
+# all zapped alike. The rate shows here as how long a C4 takes to fall out of hearing (44.5 semitones): knob 1 ~5.6 s,
+# 32 ~1.6 s, 64 ~0.44 s, 96 ~0.12 s, 127 ~35 ms (tests/host/chip_test.c measures the pitch itself). Picked from SEL's
+# list by name (ENGINE, ten steps on from knit), the sweep on knob 4, its sends off (no echo in the tail)
+wait 300
+spin ALGO 1
+expect trk 2
+tap EDIT
+expect page Engine
+tap SEL
+row ENGINE
+turn ALGO 10 30
+tap SEL
+wait 40
+expect par2.engine 11
+param 2 send1 0
+param 2 send2 0
+# knob 1: the slowest, a glide still sounding a second on (it was no sweep at all: that held too, see 0 below)
+spin K4 1
+expect par2.e4 1
+play 2 60 on 100
+wait 1000
+peakreset
+wait 300
+expect peak_db_min -45
+play 2 60 off
+wait 400
+# 32: still sounding at 1 s, silent by 1.9 s (before: silent at 0.1 s, the click train after)
+spin K4 31
+expect par2.e4 32
+play 2 60 on 100
+wait 1000
+peakreset
+wait 300
+expect peak_db_min -45
+wait 600
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 60 off
+wait 400
+# 64: sounding at 0.25 s, silent from 0.6 s, held or not
+spin K4 32
+expect par2.e4 64
+play 2 60 on 100
+wait 250
+peakreset
+wait 100
+expect peak_db_min -45
+wait 250
+peakreset
+wait 500
+expect peak_db_max -70
+play 2 60 off
+wait 400
+shot sequin_sweep64.png
+# 96: sounding at 40 ms, silent from 0.2 s
+spin K4 32
+expect par2.e4 96
+play 2 60 on 100
+wait 40
+peakreset
+wait 40
+expect peak_db_min -45
+wait 120
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 60 off
+wait 400
+# 127: the zap, silent from 80 ms; the next note zaps again (the sweep from the start)
+spin K4 31
+expect par2.e4 127
+shot sequin_sweep127.png
+play 2 60 on 100
+peakreset
+wait 20
+expect peak_db_min -45
+wait 60
+peakreset
+wait 400
+expect peak_db_max -70
+play 2 60 off
+wait 300
+peakreset
+play 2 72 on 100
+wait 20
+expect peak_db_min -45
+wait 60
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 72 off
+# the noise: its held DC gone too
+spin K1 3
+expect par2.e1 3
+wait 300
+play 2 60 on 100
+wait 100
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 60 off
+wait 200
+# no sweep: the note holds (the end is the sweep's only)
+spin K4 -127
+expect par2.e4 0
+spin K1 -3
+play 2 60 on 100
+wait 1000
+peakreset
+wait 300
+expect peak_db_min -45
+play 2 60 off
+wait 300

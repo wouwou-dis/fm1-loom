@@ -734,7 +734,7 @@ whose screen shows one cycle of the wave as the chip holds it.
 | **wave** | pulse, tri, saw, noise or table. Noise is a 15-bit shift register, clocked once each cycle of the note, so it has a pitch. Table plays the wave memory: sixteen waves of 32 steps, 4 bits each. |
 | **duty** | the pulse's width: 1/8, 1/4, 3/8 or 1/2. On table, it picks the table: sq 50, sq 25, sq 12, sine, tri, saw, saw 2, bass 1, bass 2, organ, hollow, vox a, vox o, vox e, buzz or stair. |
 | **crush** | holds each sample for longer, from 1 to 16 samples, for a lower and grainier rate. Past the middle, it also cuts the wave to 16 steps. |
-| **sweep** | makes the pitch fall from the start of each note, in 16 speeds. Use it for zaps, lasers and chip kicks. At 0 the pitch stays. |
+| **sweep** | makes the pitch fall from the start of each note: low values glide down slowly, high ones zap. Use it for drops, toms, zaps, lasers and chip kicks. Once the pitch has fallen out of hearing the note goes silent until the next one. At 0 the pitch stays. |
 
 On the Sub page, **chip** sets the bit depth: 4 bit, 4 bit lo (half the rate as well), 8 bit, 1 bit (the noise then
 hisses at the full rate) or step. Step is a games console's chip: the pulse widths become 1/8, 1/4, 1/2 and 3/4, the

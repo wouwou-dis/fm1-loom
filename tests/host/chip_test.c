@@ -236,18 +236,44 @@ int main(void)
             check(what, ok);
         }
     }
-    /* the sweep: the pitch falls (fewer crossings 40 ms on than in the first 10 ms), and none without it */
+    /* the sweep: the pitch falls at a rate even in ratio over the knob (chip.h CH_SWEEP_OCT): 1 a slow glide (8
+     * semitones a second), 127 LOFI's fastest (15/8 semitone a chunk, ~1290), each step x1.041; none without it. The
+     * rate: the fall in semitones against time, fitted over the rising edges' periods (a pulse at note 100, above 40
+     * Hz, the first 0.79 s); then the note ends where the fall leaves hearing (20 Hz): silent */
     {
-        int a0, a1, b0, b1;
-        reset(CW_PULSE, 96, 0, 64, CC_4BIT, 0);
-        held(84, 20, buf);
-        a0 = crossings(buf, 441), a1 = crossings(buf + 1764, 441);
+        static const int K[6] = {1, 8, 32, 64, 96, 127};
+        double r[6], prev = 0.0;
+        int ok = 1, j, b0, b1;
+        printf("the sweep's fall, semitones a second:");
+        for (j = 0; j < 6; j++) {
+            int e0 = -1, i, np = 0;
+            double st = 0, ss = 0, stt = 0, sts = 0, want = 8.0 * pow(1.875 * 44100.0 / 64.0 / 8.0, (K[j] - 1) / 126.0);
+            reset(CW_PULSE, 96, 0, K[j], CC_4BIT, 0);
+            held(100, 140, buf);
+            for (i = 1; i < (int)(0.79 * 44100); i++)
+                if (buf[i - 1] < 0.0f && buf[i] >= 0.0f) {
+                    if (e0 >= 0 && 44100.0 / (i - e0) > 40.0 && np++ > 0) {   /* (the first period left out) */
+                        double t = (i + e0) * 0.5 / 44100.0, sm = 12.0 * log2(44100.0 / (i - e0));
+                        st += t, ss += sm, stt += t * t, sts += t * sm;
+                    }
+                    e0 = i;
+                }
+            np--;
+            r[j] = -(np * sts - st * ss) / (np * stt - st * st);
+            printf(" %d: %.1f", K[j], r[j]);
+            ok &= np >= 20 && fabs(r[j] / want - 1.0) < 0.03 && r[j] > prev * 1.2;
+            prev = r[j];
+        }
+        printf("\n");
+        check("the sweep: 8 .. 1290 semitones a second over the knob, each step a ratio", ok);
         reset(CW_PULSE, 96, 0, 0, CC_4BIT, 0);
         held(84, 20, buf);
         b0 = crossings(buf, 441), b1 = crossings(buf + 1764, 441);
-        snprintf(what, sizeof what, "the sweep falls (crossings in 10 ms: %d at the start, %d 40 ms on; none: %d, %d)", a0, a1,
-                 b0, b1);
-        check(what, a1 * 4 < a0 && abs(b0 - b1) <= 2);
+        reset(CW_PULSE, 96, 0, 64, CC_4BIT, 0);
+        held(60, 140, buf);
+        snprintf(what, sizeof what, "no sweep, the pitch holds (crossings %d, %d); sweep 64 at C4 silent at 0.6 s (%.1g)",
+                 b0, b1, rms(buf + (int)(0.6 * 44100), 4410));
+        check(what, abs(b0 - b1) <= 2 && rms(buf + (int)(0.6 * 44100), 4410) == 0.0);
     }
     /* the arpeggio, octave: the note, then its octave, a step every 896 samples (LOFI's ~49 Hz) */
     {
