@@ -47,7 +47,9 @@ static const theme_t *const theme = &PAPER;
                                                         * off by default, old and new projects alike) */
 #define CC_IN_ENDLESS 1u                               /* proj.rsv[3]: CCs in from endless encoders, each a turn
                                                         * (midicc.c cc_delta; absolute by default) */
-#define K_BG theme->bg
+#define BEAT_FLASH_OFF 2u                             /* proj.rsv[3]: no beat flash on Steps and Bar (on by default) */
+static uint16_t k_bg = RGB(236, 232, 220);            /* the paper now: PAPER.bg, a little coral on a beat (beat_flash) */
+#define K_BG k_bg
 #define K_PANEL theme->panel
 #define K_PANEL2 theme->panel2
 #define K_LINE theme->line
@@ -66,7 +68,7 @@ static uint16_t k_now, k_tint, k_mid;
 static uint16_t trk_ink(int t) { return t >= 0 && t < NTRK ? theme->ink[t] : theme->aux; }
 static uint16_t ink_mix(uint16_t ink, uint32_t a)    /* the ink at a/16 over the background */
 {
-    uint32_t pr = K_BG >> 11, pg = K_BG >> 5 & 63u, pb = K_BG & 31u;
+    uint32_t pr = theme->bg >> 11, pg = theme->bg >> 5 & 63u, pb = theme->bg & 31u;   /* (the plain paper) */
     uint32_t r = ink >> 11, g = ink >> 5 & 63u, b = ink & 31u;
     return (uint16_t)(((r * a + pr * (16u - a)) / 16u) << 11 | ((g * a + pg * (16u - a)) / 16u) << 5 |
                       (b * a + pb * (16u - a)) / 16u);
@@ -272,7 +274,7 @@ enum { A_CLEAR_NOTES, A_CLEAR_LOCKS, A_CLEAR_BOTH, A_COPY_PAT, A_PASTE_PAT, A_RO
        A_KIT, A_SAVE_KIT, A_MIDI_CC, A_USB_HOST, A_BT_MIDI, A_BT_AUDIO, A_BT_ADEV, A_BT_DEVICE, A_BT_DEV, A_BT_LOOK,
        A_BT_FORGET, A_BT_DISCONNECT, A_CLEAR, A_ROTATE, A_PASTE, A_COPY_EMPTY, A_CLEAR_BAR,
        A_COPY_SOUND, A_PASTE_SOUND, A_COPY_KEY, A_PASTE_KEY, A_COPY_SCENE, A_PASTE_SCENE, A_DUP_SLOT, A_KIT_FILTER,
-       A_SHIFT, A_CC_IN, A_FX_WIDTH, A_NEW_SECTION, A_MOVE_SLOT, A_COPY_ALL, A_PASTE_ALL, A_CLEAR_ALL, NACTIONS };
+       A_SHIFT, A_CC_IN, A_FX_WIDTH, A_NEW_SECTION, A_MOVE_SLOT, A_COPY_ALL, A_PASTE_ALL, A_CLEAR_ALL, A_BEAT_FLASH, NACTIONS };
 static const char *const ACTION_NAME[NACTIONS] = {
     "CLEAR NOTES", "CLEAR LOCKS", "CLEAR NOTES AND LOCKS", "COPY PATTERN", "PASTE PATTERN", "ROTATE FORWARD",
     "ROTATE BACK", "DUPLICATE BAR", "ENGINE", "PRESET", "SCRAMBLE", "SAVE AS PRESET", "RESET SOUND", "FOLLOWS CONDUCTOR",
@@ -284,7 +286,7 @@ static const char *const ACTION_NAME[NACTIONS] = {
     "USB PORT", "BT MIDI", "BT AUDIO", "AUDIO DEVICE", "MIDI DEVICE", "DEVICE", "LOOK AGAIN", "FORGET", "DISCONNECT",
     "CLEAR", "ROTATE", "PASTE", "COPY TO EMPTY", "CLEAR BAR", "COPY SOUND", "PASTE SOUND", "COPY DRUM", "PASTE DRUM",
     "COPY SCENE", "PASTE SCENE", "DUPLICATE SLOT", "KIT FILTER", "SHIFT NOTES", "CC IN", "PING WIDTH",
-    "NEW SECTION", "MOVE SLOT", "COPY BAR, ALL TRACKS", "PASTE BAR, ALL TRACKS", "CLEAR ALL PATTERNS"};
+    "NEW SECTION", "MOVE SLOT", "COPY BAR, ALL TRACKS", "PASTE BAR, ALL TRACKS", "CLEAR ALL PATTERNS", "BEAT FLASH"};
 static const char *const CLEAR_WHAT[3] = {"notes", "locks", "notes and locks"};
 /* a pick ALGORITHM sets at once (a setting: SEL only leaves the list), as against a choice SEL then carries out */
 static int pick_sets(int a)
@@ -293,7 +295,7 @@ static int pick_sets(int a)
     case A_FOLLOW: case A_USB_AUDIO: case A_COUNT_IN: case A_PLAYMODE: case A_FTYPE:
     case A_FX_HP: case A_FX_LP: case A_FX_SEND: case A_PUMP_BY: case A_PUMP_REL: case A_PUMP_ACC: case A_LEVEL:
     case A_SCENE_AT: case A_AUTOSAVE: case A_MIDI_OUT: case A_LOOP_FREE: case A_CC_OUT: case A_SCENES_OUT: case A_MIDI_CC:
-    case A_USB_HOST: case A_KIT_FILTER: case A_CC_IN: case A_FX_WIDTH:
+    case A_USB_HOST: case A_KIT_FILTER: case A_CC_IN: case A_FX_WIDTH: case A_BEAT_FLASH:
         return 1;
     default:
         return 0;
@@ -2887,6 +2889,7 @@ static void list_setup(int g)
     list_add(ACTION_NAME[A_SCENES_OUT], proj.rsv[2] & SCENES_OUT ? "on" : "off", LK_PICK, A_SCENES_OUT);
     list_head("LOOM-8");
     list_page_knobs(P_SETUP, 1u);                    /* LIGHTS */
+    list_add(ACTION_NAME[A_BEAT_FLASH], proj.rsv[3] & BEAT_FLASH_OFF ? "off" : "on", LK_PICK, A_BEAT_FLASH);
     list_add(ACTION_NAME[A_AUTOSAVE], proj.rsv[2] & AUTOSAVE_OFF ? "off" : "on", LK_PICK, A_AUTOSAVE);
     list_add(ACTION_NAME[A_LOOP_FREE], proj.rsv[2] & LOOP_FREE ? "drift" : "in time", LK_PICK, A_LOOP_FREE);
     if (group_n(g) > 6)
@@ -7643,6 +7646,54 @@ static void ink_follow(void)                         /* another track: its ink, 
     k_mid = ink_mix(k_now, theme->mid);
     for (uint32_t i = 0; i < sizeof ui.sig / sizeof ui.sig[0]; i++)
         ui.sig[i] ^= 0x5A5A5A5Au;
+}
+/* The beat flash (the owner's one animation: Steps and Bar only, while playing): the paper tints toward coral on every
+ * beat, the bar's downbeat more, and falls back in three steps. The beat comes from the sequencer's sixteenth counter
+ * (seq.step_tick, bar16: what the metronome follows, so an external clock, groove, tempo changes and a pattern's step
+ * scale are all right); the decay is in time (each step is one redraw of the whole screen). The colours and strengths
+ * are these constants. Above FLASH_MAX_BPM only every second beat flashes (at most three a second). */
+#define FLASH_CORAL RGB(255, 111, 82)                /* coral #FF6F52: lighter and pinker than the vermilion */
+#define FLASH_BEAT 30                                 /* % of coral over the paper at a beat's peak */
+#define FLASH_DOWN 50                                 /* ... at the bar's downbeat */
+#define FLASH_STEP_MS 55                              /* each step of the decay (three: about 165 ms) */
+#define FLASH_MAX_BPM 180
+#define FLASH_GAP_MS 250                              /* never closer than this (a torn read of the counters) */
+static const uint8_t FLASH_DECAY[3] = {100, 62, 28};  /* % of the peak by step, then the plain paper */
+static uint32_t fl_t0;                                /* when the pulse began (ms) */
+static uint8_t fl_six, fl_pk, fl_pct;                 /* the sixteenth counter last seen, the pulse's peak, the % now */
+#ifdef PLAT_HOST
+static uint32_t fl_count;                             /* (the simulator: pulses begun, expect flashes) */
+#endif
+static uint16_t flash_mix(uint32_t pct)
+{
+    uint32_t a = theme->bg, c = FLASH_CORAL, q = 100u - pct;
+    return (uint16_t)((((a >> 11) * q + (c >> 11) * pct + 50u) / 100u) << 11 |
+                      (((a >> 5 & 63u) * q + (c >> 5 & 63u) * pct + 50u) / 100u) << 5 |
+                      ((a & 31u) * q + (c & 31u) * pct + 50u) / 100u);
+}
+static void beat_flash(void)
+{
+    uint32_t now = plat_ms(), t = seq.step_tick, b = seq.bar16 & 15u, d = (uint8_t)(t - fl_six), pct = 0;
+    fl_six = (uint8_t)t;
+    if (playing() && !(proj.rsv[3] & BEAT_FLASH_OFF) && (ui.page == P_STEPS || ui.page == P_BAR) && !ui.card && !lst.open &&
+        !ui.ask) {
+        if (d > (b & 3u) && (!fl_pk || now - fl_t0 >= FLASH_GAP_MS) &&
+            (!((b & 4u) && (seq.ext ? seq.ext_bpm : seq.bpm) > (float)FLASH_MAX_BPM))) {   /* a beat came by */
+            fl_t0 = now;
+            fl_pk = (uint8_t)((b & ~3u) ? FLASH_BEAT : FLASH_DOWN);
+#ifdef PLAT_HOST
+            fl_count++;
+#endif
+        }
+        if (fl_pk && (now - fl_t0) / FLASH_STEP_MS < 3u)
+            pct = (uint32_t)fl_pk * FLASH_DECAY[(now - fl_t0) / FLASH_STEP_MS] / 100u;
+    } else
+        fl_pk = 0;
+    if (pct != fl_pct) {                             /* a new level: every band is drawn again with the paper's */
+        fl_pct = (uint8_t)pct;
+        k_bg = pct ? flash_mix(pct) : theme->bg;
+        ui_redraw();
+    }
 }
 /* ARP's Weave page: the track, what it weaves with and how, in words with their names, and its first bar three
  * ways: its own steps, the other pattern's, and what plays woven (each step in the ink of the pattern it came from) */
