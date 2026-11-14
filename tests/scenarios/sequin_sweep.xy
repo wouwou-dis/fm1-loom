@@ -1,0 +1,62 @@
+# sequin's sweep ends the note: the pitch falls from the note's start and, out of hearing (20 Hz), the chip falls
+# silent till the next note (dsp/chip.h CH_SWEEP_HZ). Before, a held note's fall stopped at LOFI's 8 Hz floor and stayed
+# there: a full-scale 8 Hz click train (a pulse; the noise a held DC) for as long as the note was held. Picked from SEL's
+# list by name (ENGINE, ten steps on from knit), the sweep turned up on knob 4, its sends off (no echo in the tail)
+wait 300
+spin ALGO 1
+expect trk 2
+tap EDIT
+expect page Engine
+tap SEL
+row ENGINE
+turn ALGO 10 30
+tap SEL
+wait 40
+expect par2.engine 11
+param 2 send1 0
+param 2 send2 0
+spin K4 64
+wait 40
+expect par2.e4 64
+# a held note: the zap sounds, then (the fall done in ~80 ms at C4) nothing, held or not
+play 2 60 on 100
+peakreset
+wait 40
+expect peak_db_min -45
+wait 260
+peakreset
+wait 500
+expect peak_db_max -70
+play 2 60 off
+wait 300
+# the next note zaps again (the sweep from the start), the noise's too
+peakreset
+play 2 72 on 100
+wait 30
+expect peak_db_min -45
+wait 400
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 72 off
+spin K1 3
+expect par2.e1 3
+wait 300
+play 2 60 on 100
+wait 400
+peakreset
+wait 300
+expect peak_db_max -70
+play 2 60 off
+wait 200
+# no sweep: the note holds (the end is the sweep's only)
+spin K4 -64
+expect par2.e4 0
+spin K1 -3
+play 2 60 on 100
+wait 400
+peakreset
+wait 300
+expect peak_db_min -45
+play 2 60 off
+wait 300
