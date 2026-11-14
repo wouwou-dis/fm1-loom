@@ -636,7 +636,7 @@ static int kit_x_page(int t)                         /* a kit whose key shown ha
 static int x_page(int t)                             /* the engine has a second page of knobs (TP_X1..X4) */
 {
     int e = t < NTRK ? proj.trk[t].par[TP_ENGINE] : -1, m = t < NTRK ? proj.trk[t].par[TP_E4] % NSM : 0;
-    return e == EG_RAYON || e == EG_KNIT || e == EG_MIDI || e == EG_ACID || (e == EG_SAMPLE && (m == SM_LOOP || m == SM_PINGPONG)) ||   /* (the
+    return e == EG_RAYON || e == EG_KNIT || e == EG_MIDI || e == EG_ACID || e == EG_SEQUIN || (e == EG_SAMPLE && (m == SM_LOOP || m == SM_PINGPONG)) ||   /* (the
                                                                                      * sample's loop page: looping) */
            kit_x_page(t);
 }
@@ -4663,25 +4663,27 @@ static void m_voile(const uint8_t *p)
     }
 }
 /* sequin: a handheld game machine, landscape, its corners rounded: an LCD with the chip's wave as it holds it (a cycle
- * in 32 steps: the wave, its duty or table, the hold, the bits), the wave's five-way switch at its left with a glyph at
- * each stop (1), the duty and crush wheels at its right (2, 3), the sweep's slider under the screen (4); a D-pad and two
- * buttons, quiet; a speaker's slots; its wrist strap looped off the corner */
-static void m_sequin(const uint8_t *p)
+ * in 32 steps: the wave, its duty or table, the hold, the bits). The Engine page's controls: the wave's five-way switch
+ * at its left, a glyph at each stop (1), the duty and crush wheels at its right (2, 3), the sweep's slider under the
+ * screen (4). The Sub page's: the chip's lamps under the LCD, its own lit (1: 4 bit, 4 bit lo, 8 bit, 1 bit, step), the
+ * D-pad (2: the arp, an arm lit: up the octave, right major, left minor), the wheels as vib and tone (3, 4). Two buttons
+ * and a speaker's slots, quiet; its wrist strap looped off the corner */
+static void m_sequin(const uint8_t *p, int sub)
 {
     static const float GLY[5][8] = {                 /* the switch's glyphs, 4 points each in a 10 x 5 box: pulse, tri, */
         {0, 5, 0, 0, 5, 0, 5, 5}, {0, 5, 5, 0, 5, 0, 10, 5}, {0, 5, 8, 0, 8, 5, 10, 5},   /* saw */
-        {0, 3, 3, 1, 6, 4, 10, 2}, {0, 5, 3, 5, 3, 1, 10, 1}};                               /* noise, wave */
+        {0, 3, 3, 1, 6, 4, 10, 2}, {0, 5, 3, 5, 3, 1, 10, 1}};                               /* noise, table */
     float y[32];
-    int wv = p[TP_E1] < 5 ? p[TP_E1] : 4;
-    pen_t pn = {0};
+    int wv = p[TP_E1] < 5 ? p[TP_E1] : 4, ch = p[TP_X1] < 5 ? p[TP_X1] : 4, ar = p[TP_X2] & 3;
     cv_frame(24, 40, 192, 76, 12, K_TEXT, K_CARD);   /* the body */
     cv_round(26, 106, 188, 8, 6, K_PANEL);           /* its grip's shading */
     cv_frame(74, 45, 92, 46, 5, K_TEXT, K_TEXT);     /* the screen's bezel, its stripes, the LCD in it */
-    cv_rect(80, 48, 80, 1, K_DIM), cv_rect(80, 88, 80, 1, K_DIM);
+    cv_rect(80, 48, 80, 1, K_DIM);
+    for (int k = 0; k < 5; k++)                      /* the chip's lamps under the LCD, the chip's lit (Sub: 1) */
+        cv_rect(84 + k * 16, 87, 8, 2, k == ch ? K_CARD : K_DIM);
     cv_rect(80, 50, 80, 36, K_PANEL);
     cv_rect(80, 68, 80, 1, K_LINE);
     chip_picture(p, y);
-    pn.w = 1.0f;
     for (int k = 0; k < 32; k++) {                   /* the wave: the held steps as the LCD's dots, joined */
         float x = 80.0f + 2.5f * (float)k, yy = 68.0f - y[k] * 13.0f;
         cv_rect((int32_t)x, (int32_t)yy - 1, 3, 2, K_TEXT);
@@ -4698,13 +4700,24 @@ static void m_sequin(const uint8_t *p)
     cv_rect(32, 46 + wv * 9, 10, 7, K_TEXT);
     cv_rect(33, 47 + wv * 9, 8, 5, K_CARD);
     cv_rect(33, 49 + wv * 9, 8, 1, K_TEXT);
-    p2_callout(14, 66, 1, 0, K_TEXT);
-    cv_linef(20.0f, 66.0f, 31.0f, (float)(49 + wv * 9), K_TEXT, 0.7f);
-    cv_rect(44, 98, 18, 6, K_TEXT), cv_rect(50, 92, 6, 18, K_TEXT);   /* the D-pad */
-    cv_disc(53.0f, 101.0f, 1.2f, K_CARD);
-    p2_hslider(84, 101, 64, p2_u(p, TP_E4), 4);      /* the sweep (4) */
-    p2_knob(184.0f, 55.0f, 7.0f, p2_u(p, TP_E2), 2, 0, 15);   /* duty and crush (2, 3) */
-    p2_knob(204.0f, 55.0f, 7.0f, p2_u(p, TP_E3), 3, 0, 15);
+    {   /* the D-pad: its arms outlined, the arp's lit (up: octave, right: major, left: minor) */
+        static const int8_t ARM[4][2] = {{0, 0}, {0, -6}, {6, 0}, {-6, 0}};
+        cv_rect(44, 98, 18, 6, K_TEXT), cv_rect(50, 92, 6, 18, K_TEXT);
+        cv_rect(45, 99, 16, 4, K_CARD), cv_rect(51, 93, 4, 16, K_CARD);
+        if (ar)
+            cv_rect(51 + ARM[ar][0], 99 + ARM[ar][1], 4, 4, K_TEXT);
+        cv_disc(53.0f, 101.0f, 1.2f, K_TEXT);
+    }
+    p2_hslider(84, 101, 64, p2_u(p, TP_E4), sub ? 0 : 4);   /* the sweep (4) */
+    p2_knob(184.0f, 55.0f, 7.0f, p2_u(p, sub ? TP_X3 : TP_E2), sub ? 3 : 2, 0, 15);   /* duty and crush; vib and tone */
+    p2_knob(204.0f, 55.0f, 7.0f, p2_u(p, sub ? TP_X4 : TP_E3), sub ? 4 : 3, 0, 15);
+    if (sub) {
+        p2_callout(66, 86, 1, 0, K_TEXT);
+        p2_callout(34, 101, 2, 0, K_TEXT);
+    } else {
+        p2_callout(14, 66, 1, 0, K_TEXT);
+        cv_linef(20.0f, 66.0f, 31.0f, (float)(49 + wv * 9), K_TEXT, 0.7f);
+    }
     cv_disc(186.0f, 93.0f, 5.0f, K_TEXT), cv_disc(203.0f, 87.0f, 5.0f, K_TEXT);   /* the buttons, quiet */
     for (int k = 0; k < 4; k++)                      /* the speaker's slots */
         cv_linef(192.0f + (float)k * 5.0f, 112.0f, 198.0f + (float)k * 5.0f, 101.0f, K_TEXT, 1.4f);
@@ -4962,7 +4975,7 @@ static void draw_engine(void)
     case EG_BELLOWS: m_bellows(p); break;
     case EG_VOILE: m_voile(p); break;
     case EG_ACID: m_acid(p); break;
-    case EG_SEQUIN: m_sequin(p); break;
+    case EG_SEQUIN: m_sequin(p, ui.page == P_SUB); break;
     case EG_SAMPLE: m_sample(p); break;
     case EG_SLICE: m_slice(p, trk); break;
     case EG_MIDI: m_midi(p, trk, ui.page == P_SUB, eng_midi_hit[trk]); break;
@@ -5927,9 +5940,9 @@ static void draw_sub(void)
         draw_rayon_fall();
     else if (eg == EG_ACID)
         draw_acid_x();
-    else if (eg == EG_SAMPLE || eg == EG_MIDI)
+    else if (eg == EG_SAMPLE || eg == EG_MIDI || eg == EG_SEQUIN)
         draw_engine();                           /* (the sample's loop page: the waveform, its loop marked; MIDI's
-                                                  * knobs 5..8: its eight bars) */
+                                                  * knobs 5..8: its eight bars; sequin's machine, its Sub controls) */
     else
         draw_knit_x();
 }

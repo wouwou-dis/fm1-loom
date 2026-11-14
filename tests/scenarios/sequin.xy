@@ -1,0 +1,59 @@
+# sequin, the chip voice, on track 2: picked from SEL's list (ENGINE, ten steps on from knit: the pickers step past cane's
+# retired number), its first preset "sequin" (a quarter pulse, the chip's vibrato); a note played by hand and from the
+# steps; the presets turned; the Sub page's chip, arp, vib and tone; EDIT held and ALGORITHM from bellows to voile
+wait 300
+spin ALGO 1
+expect trk 2
+tap EDIT
+expect page Engine
+tap SEL
+row ENGINE
+turn ALGO 10 30
+tap SEL
+wait 40
+expect par2.engine 11
+expect par2.e1 0
+expect par2.e2 32
+expect par2.x3 20
+expect par2.x4 127
+play 2 60 on 100
+wait 200
+expect voices 1
+shot sequin_note.png
+play 2 60 off
+wait 600
+step 2 1 1 60 100
+step 2 1 5 67 100
+tap PLAY
+bars 0.05
+expect playing 1
+expect voices >0
+bars 1
+tap PLAY
+wait 400
+turn PRESET 1
+wait 40
+expect par2.engine 11
+expect par2.e1 1
+expect par2.x1 1
+turn SELECT 3
+expect page Sub
+spin K1 4
+expect par2.x1 4
+spin K2 1
+expect par2.x2 1
+wait 100
+shot sequin_sub.png
+play 2 48 on 100
+wait 300
+expect voices 1
+play 2 48 off
+wait 400
+param 2 engine 3
+press EDIT
+turn ALGO 1
+expect par2.engine 5
+wait 1200
+turn ALGO -1
+expect par2.engine 3
+release EDIT
