@@ -2560,6 +2560,7 @@ static void cards_audit(void)                  /* every card on every page it is
 }
 #endif
 static void card_paint(int i);
+static void p2_card(int32_t x, int32_t y, int32_t w, int32_t h, int32_t cut, uint16_t fill);
 static void draw_card(void)
 {
     int i = card_find(ui.card - 1);
@@ -2575,11 +2576,13 @@ static void draw_card(void)
         cv_blit(0, (uint32_t)(MAIN_Y + off));
     }
 }
-static void card_paint(int i)                        /* a card on the paper: the button's key-cap (inked: held), the
+static void card_paint(int i)                        /* a card on the paper, a page of the manual with its corner
+                                                      * turned and a hard shadow: the button's key-cap (inked: held), the
                                                       * title in tracked capitals, a rule, what it does */
 {
     int32_t x, y, top = 4 + (CARD_H - 8 - 20) / 2;
-    cv_frame(8, 3, 224, CARD_H - 6, 3, K_TEXT, K_CARD);
+    cv_rect(12, 7, 224, CARD_H - 7, K_TEXT);         /* a page torn from the manual: its shadow, its dog-ear */
+    p2_card(8, 3, 224, CARD_H - 7, 12, K_CARD);
     if (i >= 0)
         card_end(i, &top);
     else if (top < 10)
