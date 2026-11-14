@@ -6310,154 +6310,194 @@ static float filt_y(float db, int32_t y0, int32_t hh)
         return (float)y0 + 22.0f - 22.0f * (1.0f - fm_exp2f(-db * s * (1.0f / 22.0f) * 1.4427f));
     return (float)y0 + 22.0f - db * s;
 }
-/* the filter figures: a filter box. At the left its faceplate, a different one for each type (the 24 dB a plain grey
- * plate, the ladder's with its ladder, the 12 dB a lighter one, the high-pass striped at the top, the band-pass across
- * the middle, the bus filter at the foot; off: blank, its knobs unnumbered): the cutoff a big dial (1), resonance,
- * envelope and the fourth knob small (2-4), at the live values. At the right its screen in a dark bezel shows the
- * response (frequency across, level up; an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a
- * dotted line (1), the resonance the peak's height (2), the envelope's reach an arrow with the curve it moves dimmed
- * (3). Off: the screen dead, a flat line, the way to turn it on */
-#define FG_X 110
-#define FG_W 116
-#define FG_Y 10
-#define FG_H 78
+/* the filter figures: each type a machine of its own, its cutoff a big dial (1), resonance, envelope and the fourth
+ * knob small (2-4), at the live values, and a screen in a dark bezel showing the response (frequency across, level up;
+ * an octave 22 px, 0 dB dashed): the curve with its area tinted, the cutoff a dotted line (1), the resonance the peak's
+ * height (2), the envelope's reach an arrow with the curve it moves dimmed (3). The 24 dB: a desk console with its
+ * monitor on a stand; the ladder: a tall cabinet with three valves on top; the 12 dB (and the kit's low-pass and bus
+ * filter): a slim rack strip over a blanking plate; the high-pass: a pedal; the band-pass: a round-faced unit on a
+ * foot; no filter: an empty rack, a blanking plate where it would go, the screen dead */
+typedef struct { int16_t sx, sy, sw, sh, dx, dy, dr, cx, cy, kx[3], ky[3], kr, nx, ny; } fgeo_t;
+static const fgeo_t FGEO[7] = {
+    {112, 9, 114, 40, 44, 90, 16, 22, -20, {100, 140, 180}, {86, 86, 86}, 8, 0, -15},
+    {14, 62, 124, 46, 193, 68, 14, -30, -18, {171, 193, 215}, {97, 97, 97}, 7, 0, 13},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0},
+    {14, 62, 124, 46, 189, 30, 12, -26, -14, {166, 189, 212}, {62, 62, 62}, 7, 0, 13},
+    {14, 62, 124, 46, 189, 62, 12, 28, 0, {164, 214, 164}, {40, 40, 86}, 7, 0, -14},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0},
+    {112, 9, 114, 40, 46, 76, 11, 18, -10, {96, 128, 160}, {76, 76, 76}, 7, 12, 0}};
+static void fg_rack(int32_t y, int32_t h)             /* a rack unit across the page, its ears and their slots */
+{
+    p2_panel(8, y, 225, h, K_PANEL2);
+    for (int e = 0; e < 2; e++) {
+        int32_t ex = e ? 220 : 8;
+        p2_outline((float)ex + 0.5f, (float)y + 0.5f, (float)ex + 12.5f, (float)(y + h - 1) + 0.5f, K_TEXT, 1.2f);
+        cv_frame(ex + 3, y + h / 2 - 6, 7, 12, 3, K_TEXT, K_BG);
+    }
+}
 static void filt_fig(const char *title, const char *desc, const uint8_t *par, const int *tps, int cut, int res, int hp, int bp,
                      int steep, int env, int off, const char *offmsg, int band, int hi)
 {
-    float q = 0.7f + (float)res * 6.0f / 127.0f, ys[FG_W + 1], ye[FG_W + 1];
-    int32_t fc = FG_X + 10 + cut * (FG_W - 20) / 127, y0 = FG_Y + 22, i;
-    float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
     int face = band ? 6 : off ? 5 : hp ? 3 : bp ? 4 : steep == 2 ? 1 : steep ? 0 : 2;
-    {   /* the left: the title, what it is; the faceplate, its knobs */
+    const fgeo_t *g = &FGEO[face];
+    int32_t fx = g->sx, fy = g->sy, fw = g->sw, fh = g->sh, i;
+    float q = 0.7f + (float)res * 6.0f / 127.0f, ys[125], ye[125];
+    int32_t fc = fx + 10 + cut * (fw - 20) / 127, y0 = fy + 22;
+    float reach = ((float)env - 64.0f) * (6.0f / 64.0f) * 22.0f;
+    {   /* the title, what it is */
         const felucca_font_t *f = text_w(&FONT_L, title) <= 96 ? &FONT_L : text_w(F_VAL, title) <= 96 ? F_VAL : &FONT_B;
         cv_text(8, f == &FONT_L ? 5 : f == F_VAL ? 13 : 17, f, title, K_TEXT);
-        if (tr_w(F_LAB, desc, 1) <= 92)
-            tr_text(9, 37, F_LAB, desc, K_DIM, 1);
+        if (tr_w(F_LAB, desc, 1) <= 94)
+            tr_text(9, 39, F_LAB, desc, K_DIM, 1);
         else
-            text_fit(9, 37, F_LAB, desc, 92, K_DIM);
-        {   /* the box's silhouette: the 24 dB on feet, the ladder chamfered, the 12 dB rounded, the high-pass with its
-             * foot raked away; the others square */
-            uint16_t fill = face == 2 || face == 4 || face == 5 ? K_PANEL : face == 3 ? K_CARD : K_PANEL2;
-            static const int8_t OCT[8][2] = {{7, 0}, {86, 0}, {93, 7}, {93, 56}, {86, 63}, {7, 63}, {0, 56}, {0, 7}};
-            static const int8_t RAKE[5][2] = {{0, 0}, {93, 0}, {93, 63}, {16, 63}, {0, 47}};
-            if (face == 1 || face == 3) {
-                float pg[16];
-                pen_t po = {0};
-                int np = face == 1 ? 8 : 5;
-                for (int k = 0; k < np; k++)
-                    pg[2 * k] = 8.5f + (float)(face == 1 ? OCT[k][0] : RAKE[k][0]),
-                    pg[2 * k + 1] = 52.5f + (float)(face == 1 ? OCT[k][1] : RAKE[k][1]);
-                cv_poly(pg, np, fill, 256u, 0);
-                po.w = 1.2f;
-                for (int k = 0; k <= np; k++)
-                    pen_to(&po, pg[2 * (k % np)], pg[2 * (k % np) + 1], K_TEXT);
-            } else if (face == 2)
-                cv_frame(8, 52, 94, 64, 9, K_TEXT, fill);
-            else
-                p2_panel(8, 52, 94, 64, fill);
-            if (face == 0)
-                cv_rect(16, 116, 12, 3, K_TEXT), cv_rect(82, 116, 12, 3, K_TEXT);
+            text_fit(9, 39, F_LAB, desc, 94, K_DIM);
+    }
+    switch (face) {                                  /* the machine */
+    case 0:                                          /* the console, its monitor's stand, its feet, its jacks */
+        cv_rect(166, 54, 8, 6, K_TEXT);
+        p2_panel(8, 60, 225, 56, K_PANEL2);
+        cv_rect(8, 60, 225, 4, K_TEXT);
+        cv_rect(16, 116, 14, 3, K_TEXT), cv_rect(210, 116, 14, 3, K_TEXT);
+        for (int k = 0; k < 3; k++)
+            fxm_jack((float)(204 + k * 9), 106.0f);
+        cv_ring(212.0f, 80.0f, 4.0f, 1.0f, K_TEXT), cv_disc(212.0f, 80.0f, 2.0f, K_TEXT);
+        break;
+    case 1:                                          /* the cabinet, its chassis, three valves on it */
+        for (int k = 0; k < 3; k++) {
+            int32_t vx = 160 + k * 22;
+            cv_frame(vx, 4, 16, 30, 7, K_TEXT, K_CARD);
+            cv_rect(vx + 5, 14, 1, 16, K_DIM), cv_rect(vx + 10, 14, 1, 16, K_DIM);
+            cv_rect(vx + 5, 14, 6, 1, K_DIM);
+            cv_rect(vx + 2, 32, 12, 4, K_TEXT);
         }
-        if (face == 1)                               /* the ladder */
-            for (int k = 0; k < 9; k++)
-                cv_rect(k ? 52 : 50, 56 + k * 7, k ? 8 : 2, k ? 1 : 56, K_TEXT), cv_rect(60, 56, 2, 56, K_TEXT);
-        if (face == 3 || face == 4)                  /* the stripe: high at the top, the band across; the bus's ears */
-            cv_rect(9, face == 3 ? 53 : 82, 92, 4, K_TEXT);
-        if (face == 6)
-            cv_rect(9, 53, 3, 62, K_TEXT), cv_rect(98, 53, 3, 62, K_TEXT);
-        p2_screw(13.0f, 57.0f), p2_screw(13.0f, face == 3 ? 96.0f : 111.0f);
+        p2_panel(154, 36, 79, 82, K_PANEL2);
+        cv_rect(154, 36, 79, 3, K_TEXT);
+        p2_screw(159.0f, 43.0f), p2_screw(227.0f, 43.0f), p2_screw(159.0f, 112.0f), p2_screw(227.0f, 112.0f);
+        break;
+    case 3:                                          /* the pedal: its body, its LED, its footswitch, its jacks */
+        cv_frame(152, 4, 75, 113, 6, K_TEXT, K_PANEL);
+        cv_rect(153, 78, 73, 1, K_TEXT);
+        cv_ring(189.0f, 86.0f, 3.0f, 1.0f, K_TEXT);
+        fxm_foot(189.0f, 102.0f);
+        fxm_jack(152.0f, 26.0f), fxm_jack(226.0f, 26.0f);
+        fxm_lead(229.0f, 26.0f, 240.0f, 44.0f);
+        break;
+    case 4:                                          /* the round unit: its face, its rings, its foot */
+        {
+            float ft[8] = {176.0f, 100.0f, 202.0f, 100.0f, 210.0f, 117.0f, 168.0f, 117.0f};
+            cv_poly(ft, 4, K_PANEL2, 256u, 0);
+            p2_outline(168.0f, 117.0f, 210.0f, 117.0f, K_TEXT, 1.2f);
+            cv_linef(176.0f, 100.0f, 168.0f, 117.0f, K_TEXT, 1.2f), cv_linef(202.0f, 100.0f, 210.0f, 117.0f, K_TEXT, 1.2f);
+        }
+        cv_disc(189.0f, 62.0f, 41.0f, K_PANEL2);
+        cv_ring(189.0f, 62.0f, 41.0f, 1.6f, K_TEXT);
+        cv_ring(189.0f, 62.0f, 36.0f, 0.8f, K_LINE);
+        break;
+    case 5:                                          /* the empty rack: a blanking plate, its vents */
+        fg_rack(60, 34);
+        for (int k = 0; k < 8; k++)
+            cv_round(60 + k * 16, 70, 10, 14, 4, K_TEXT);
+        fg_rack(96, 20);
+        break;
+    default:                                         /* the rack strip over a blanking plate; its lamps */
+        fg_rack(60, 32);
+        cv_rect(184, 68, 30, 16, K_TEXT);
+        for (int k = 0; k < 4; k++)
+            cv_rect(188 + k * 6, 74, 3, 4, k < 1 + cut / 43 ? K_CARD : K_DIM);
+        fg_rack(96, 20);
+        for (int k = 0; k < 6; k++)
+            cv_rect(80 + k * 14, 102, 8, 8, K_PANEL);
+        break;
+    }
+    if (face != 5)                                   /* the four controls */
         for (int k = 0; k < 4; k++) {
             const tp_info_t *in = tps[k] >= 0 ? tp_info_par(tps[k], par) : 0;
             float u = in ? p2_u(par, tps[k]) : 0.0f;
             if (!in || !in->name || !in->name[0])
                 continue;
-            if (k == 0)
-                fxm_ticks(34.0f, 84.0f, 15.0f, 18.0f, 11), p2_knob(34.0f, 84.0f, 12.5f, u, off ? 0 : 1, 0, -26);
-            else
-                p2_knob(76.0f, (float)(44 + k * 20), 6.5f, u, off ? 0 : k + 1, 15, 0);
+            if (k == 0) {
+                fxm_ticks((float)g->dx, (float)g->dy, (float)g->dr + 2.5f, (float)g->dr + 5.5f, 11);
+                p2_knob((float)g->dx, (float)g->dy, (float)g->dr, u, off ? 0 : 1, g->cx, g->cy);
+            } else
+                p2_knob((float)g->kx[k - 1], (float)g->ky[k - 1], (float)g->kr - 0.5f, u, off ? 0 : k + 1, g->nx, g->ny);
         }
-    }
-    cv_round(FG_X - 5, FG_Y - 5, FG_W + 10, FG_H + 10, face == 1 ? 14 : face == 2 ? 2 : 7, K_TEXT);   /* the screen in its
-                                                      * bezel: the ladder's a round-cornered tube, the 12 dB's square */
-    if (face == 3)                                   /* (the high-pass's: a hood over it) */
-        cv_rect(FG_X - 6, FG_Y - 7, FG_W + 12, 4, K_TEXT);
-    cv_rect(FG_X, FG_Y, FG_W, FG_H, off ? K_PANEL2 : K_PANEL);
+    cv_round(fx - 5, fy - 5, fw + 10, fh + 10, face == 1 ? 12 : face == 2 || face == 6 ? 2 : 6, K_TEXT);   /* the screen */
+    cv_rect(fx, fy, fw, fh, off ? K_PANEL2 : K_PANEL);
     if (!off)
-        cv_grid(FG_X, FG_Y, FG_W, FG_H, 8, MAIN_Y, K_LINE);
-    cv_dash((float)FG_X, (float)y0, (float)(FG_X + FG_W), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
-    tr_text(FG_X + FG_W / 2 - tr_w(F_LAB, "FREQ", 1) / 2, FG_Y + FG_H + 8, F_LAB, "FREQ", K_DIM, 1);
+        cv_grid(fx, fy, fw, fh, 8, MAIN_Y, K_LINE);
+    cv_dash((float)fx, (float)y0, (float)(fx + fw), (float)y0, 3.0f, 3.0f, 0.8f, K_DIM);
     if (off) {
-        cv_rect(FG_X, y0, FG_W, 2, K_DIM);
-        text_c(FG_X + FG_W / 2, y0 + 12, &FONT_XS, offmsg, K_DIM);
+        cv_rect(fx, y0, fw, 2, K_DIM);
+        text_c(fx + fw / 2, fh >= 46 ? y0 + 12 : fy + 4, &FONT_XS, offmsg, K_DIM);
         return;
     }
     if (band) {   /* a bus filter: the band that passes, its low cut (1) and its high cut (4) */
-        int32_t lo = fc, hh = FG_X + 10 + hi * (FG_W - 20) / 127 + 12;
+        int32_t lo = fc, hh = fx + 10 + hi * (fw - 20) / 127 + 12;
         if (hh < lo + 6)
             hh = lo + 6;
-        if (hh > FG_X + FG_W - 10)
-            hh = FG_X + FG_W - 10;
-        cv_rect(lo, y0, hh - lo, FG_H - 22, K_TINT);
+        if (hh > fx + fw - 10)
+            hh = fx + fw - 10;
+        cv_rect(lo, y0, hh - lo, fh - 22, K_TINT);
         cv_rect(lo, y0, hh - lo, 2, K_NOW);
-        cv_rect(lo, y0, 2, FG_H - 22, K_NOW);
-        cv_rect(hh - 2, y0, 2, FG_H - 22, K_NOW);
-        circ_num(lo, FG_Y + 9, "1", K_TEXT, K_BG);
-        circ_num(hh, FG_Y + 9, "4", K_TEXT, K_BG);
-        dot_line((float)lo, (float)FG_Y + 15.0f, (float)lo, (float)y0 - 2.0f, 3.0f, K_TEXT);
-        dot_line((float)hh, (float)FG_Y + 15.0f, (float)hh, (float)y0 - 2.0f, 3.0f, K_TEXT);
+        cv_rect(lo, y0, 2, fh - 22, K_NOW);
+        cv_rect(hh - 2, y0, 2, fh - 22, K_NOW);
+        circ_num(lo, fy + 9, "1", K_TEXT, K_BG);
+        circ_num(hh, fy + 9, "4", K_TEXT, K_BG);
+        dot_line((float)lo, (float)fy + 15.0f, (float)lo, (float)y0 - 2.0f, 3.0f, K_TEXT);
+        dot_line((float)hh, (float)fy + 15.0f, (float)hh, (float)y0 - 2.0f, 3.0f, K_TEXT);
         return;
     }
-    for (i = 0; i <= FG_W; i++) {
-        float y = filt_y(filt_db((float)(FG_X + i - fc), q, hp, bp, steep), FG_Y, FG_H);
-        float z = filt_y(filt_db((float)(FG_X + i - fc) - reach, q, hp, bp, steep), FG_Y, FG_H);
-        ys[i] = y < (float)FG_Y + 2.0f ? (float)FG_Y + 2.0f : y > (float)(FG_Y + FG_H - 1) ? (float)(FG_Y + FG_H - 1) : y;
-        ye[i] = z < (float)FG_Y + 2.0f ? (float)FG_Y + 2.0f : z > (float)(FG_Y + FG_H - 1) ? (float)(FG_Y + FG_H - 1) : z;
+    for (i = 0; i <= fw; i++) {
+        float y = filt_y(filt_db((float)(fx + i - fc), q, hp, bp, steep), fy, fh);
+        float z = filt_y(filt_db((float)(fx + i - fc) - reach, q, hp, bp, steep), fy, fh);
+        ys[i] = y < (float)fy + 2.0f ? (float)fy + 2.0f : y > (float)(fy + fh - 1) ? (float)(fy + fh - 1) : y;
+        ye[i] = z < (float)fy + 2.0f ? (float)fy + 2.0f : z > (float)(fy + fh - 1) ? (float)(fy + fh - 1) : z;
     }
-    for (i = 0; i < FG_W; i++) {
+    for (i = 0; i < fw; i++) {
         int32_t yt = f_floor(ys[i] + 1.5f);
-        if (yt < FG_Y + FG_H)
-            cv_rect(FG_X + i, yt, 1, FG_Y + FG_H - yt, K_TINT);
+        if (yt < fy + fh)
+            cv_rect(fx + i, yt, 1, fy + fh - yt, K_TINT);
     }
     if (env != 64) {
         pen_t pe = {0};
-        for (i = 0; i <= FG_W; i += 2)
-            pen_to(&pe, (float)(FG_X + i), ye[i], K_DIM), (i & 2) ? pen_up(&pe) : (void)0;
+        for (i = 0; i <= fw; i += 2)
+            pen_to(&pe, (float)(fx + i), ye[i], K_DIM), (i & 2) ? pen_up(&pe) : (void)0;
     }
     {
         pen_t pn = {0};
         pn.w = 2.0f;
-        for (i = 0; i <= FG_W; i++)
-            pen_to(&pn, (float)(FG_X + i), ys[i], K_NOW);
+        for (i = 0; i <= fw; i++)
+            pen_to(&pn, (float)(fx + i), ys[i], K_NOW);
     }
     {   /* 1: the cutoff */
-        int32_t cx = fc - FG_X < 0 ? 0 : fc - FG_X > FG_W ? FG_W : fc - FG_X;
-        int32_t nx = fc < FG_X + 8 ? FG_X + 8 : fc > FG_X + FG_W - 8 ? FG_X + FG_W - 8 : fc;
-        dot_line((float)fc, (float)FG_Y + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
-        circ_num(nx, FG_Y + 9, "1", K_TEXT, K_BG);
+        int32_t cx = fc - fx < 0 ? 0 : fc - fx > fw ? fw : fc - fx;
+        int32_t nx = fc < fx + 8 ? fx + 8 : fc > fx + fw - 8 ? fx + fw - 8 : fc;
+        dot_line((float)fc, (float)fy + 15.0f, (float)fc, ys[cx], 3.0f, K_TEXT);
+        circ_num(nx, fy + 9, "1", K_TEXT, K_BG);
     }
     {   /* 2: the resonance: the peak's height over 0 dB */
         float top = (float)y0;
         int32_t px = fc;
-        for (i = 0; i <= FG_W; i++)
+        for (i = 0; i <= fw; i++)
             if (ys[i] < top)
-                top = ys[i], px = FG_X + i;
+                top = ys[i], px = fx + i;
         if ((float)y0 - top >= 8.0f) {
             int32_t dx = hp ? px + 14 : px - 14;
-            dx = dx < FG_X + 16 ? FG_X + 16 : dx > FG_X + FG_W - 16 ? FG_X + FG_W - 16 : dx;
+            dx = dx < fx + 16 ? fx + 16 : dx > fx + fw - 16 ? fx + fw - 16 : dx;
             dim_line((float)dx, (float)y0, (float)dx, top, 3.0f, 3.0f, K_TEXT);
             circ_num(dx + (hp ? 9 : -9), (int32_t)((float)y0 + top) / 2 + 1, "2", K_TEXT, K_BG);
         } else
         {   /* (pushed in from the screen's edge; under the 0 dB line when that would sit it on 1) */
             int32_t nx = fc + (hp ? 12 : -12), ny = y0 - 10;
-            if (nx < FG_X + 8 || nx > FG_X + FG_W - 8)
-                nx = clampi(nx, FG_X + 8, FG_X + FG_W - 8), ny = y0 + 6;
+            if (nx < fx + 8 || nx > fx + fw - 8)
+                nx = clampi(nx, fx + 8, fx + fw - 8), ny = y0 + 6;
             circ_num(nx, ny, "2", K_TEXT, K_BG);
         }
     }
     if (env != 64 && (reach > 5.0f || reach < -5.0f)) {   /* 3: the envelope's reach */
-        float ay = (float)(FG_Y + FG_H - 12), xa = (float)fc, xb = (float)fc + reach;
-        if (xb < (float)FG_X + 4.0f) xb = (float)FG_X + 4.0f;
-        if (xb > (float)(FG_X + FG_W) - 4.0f) xb = (float)(FG_X + FG_W) - 4.0f;
+        float ay = (float)(fy + fh - 12), xa = (float)fc, xb = (float)fc + reach;
+        if (xb < (float)fx + 4.0f) xb = (float)fx + 4.0f;
+        if (xb > (float)(fx + fw) - 4.0f) xb = (float)(fx + fw) - 4.0f;
         dim_line(xa, ay, xb, ay, 3.0f, 3.0f, K_TEXT);
         circ_num((int32_t)((xa + xb) * 0.5f), (int32_t)ay - 9, "3", K_TEXT, K_BG);
     }
