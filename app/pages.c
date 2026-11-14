@@ -6865,7 +6865,7 @@ static void draw_players(void)
         if (!pr->nheld)
             e = s_cat(e, "-");
     }
-    if (pl == PL_ARP || pl == PL_HOLD ? !pr->nheld : pl == PL_STRUM && !pr->nchord)   /* nothing yet: what to do */
+    if (pl == PL_ARP || pl == PL_HOLD ? !pr->nheld && !(pl == PL_HOLD && pr->nsounding) : pl == PL_STRUM && !pr->nchord)   /* nothing yet: what to do */
         text_fit(KX, 84, &FONT_XS, pl == PL_HOLD ? "play keys to hold" : pl == PL_ARP ? "hold a chord" : "learn a chord", 88, K_DIM);
     else
         text_fit(KX, 84, &FONT_XS, t, 88, K_TEXT);
@@ -6877,25 +6877,21 @@ static void draw_players(void)
         cv_blit(0, MAIN_Y);
         return;
     }
-    cv_linef(104.0f, 62.0f, 114.0f, 62.0f, K_TEXT, 1.4f);
-    arrow_head(118.0f, 62.0f, 1.0f, 0.0f, K_TEXT);
-    {   /* the figure: notes by pitch rank, the staircase (arp), the stagger (strum), the long bars (hold), the dice (random) */
-        int32_t sx = 126, base = 100, ntop = 58;
-        uint8_t nt[24], ord[24];
-        int nn = 0, n = 0, i, j, steps = 0, nu = 0, cur = -1;
-        uint8_t uniq[24];
-        const player_t *q = pr;
+    cv_linef(98.0f, 62.0f, 106.0f, 62.0f, K_TEXT, 1.4f);
+    arrow_head(110.0f, 62.0f, 1.0f, 0.0f, K_TEXT);
+    {   /* the machine: arp a step box (its knobs 2-4, the pattern lit on its lamps), strum a neck strummed (the stroke's
+         * slant the roll, its arrow the direction), hold a sustain pedal, random a tumbler dropping notes in slots */
+        uint8_t nt[24], ord[12], uniq[24];
+        int nn = 0, ghost = 0, i, j, steps = 0, nu = 0, cur = -1;
         if (pl == PL_STRUM)
-            for (i = 0; i < q->nchord && i < SN * 2; i++)
-                nt[nn++] = q->chord[i];
+            for (i = 0; i < pr->nchord && i < SN * 2; i++)
+                nt[nn++] = pr->chord[i];
         else
-            for (i = 0; i < q->nheld && i < 8; i++)
-                nt[nn++] = q->held[i];
-        if (!nn && pl != PL_RAND) {              /* nothing held: a ghost (C E G) and the words */
-            nt[0] = 60, nt[1] = 64, nt[2] = 67, nn = 3;
-            n = -1;
-        }
-        if (pl == PL_ARP && pp[TP_P2] != 4)
+            for (i = 0; i < pr->nheld && i < 8; i++)
+                nt[nn++] = pr->held[i];
+        if (!nn)                                     /* nothing held: a ghost (C E G) */
+            nt[0] = 60, nt[1] = 64, nt[2] = 67, nn = 3, ghost = 1;
+        if (pl == PL_STRUM || (pl == PL_ARP && pp[TP_P2] != 4))
             for (i = 1; i < nn; i++)
                 for (j = i; j > 0 && nt[j - 1] > nt[j]; j--) {
                     uint8_t v = nt[j];
@@ -6903,128 +6899,118 @@ static void draw_players(void)
                 }
         if (pl == PL_ARP) {
             int range = clampi(pp[TP_P3], 1, 4), total = nn * range, pat = pp[TP_P2], cyc;
-            cyc = pat == 2 ? (total > 1 ? 2 * total - 2 : 1) : pat == 3 ? 2 * total : total * (pat == 5 ? 1 : 1);
+            int32_t sw, rs;
+            cyc = pat == 2 ? (total > 1 ? 2 * total - 2 : 1) : pat == 3 ? 2 * total : total;
             steps = cyc < 12 ? cyc : 12;
             for (i = 0; i < steps; i++) {
-                int k = i % (cyc ? cyc : 1), idx = pat == 1 ? total - 1 - k : pat == 2 ? (k < total ? k : 2 * total - 2 - k)
+                int k = i % cyc, idx = pat == 1 ? total - 1 - k : pat == 2 ? (k < total ? k : 2 * total - 2 - k)
                           : pat == 3 ? (k < total ? k : 2 * total - 1 - k) : pat == 5 ? (int)((uint32_t)(k * 2654435761u) >> 16) % total : k;
                 ord[i] = (uint8_t)(nt[idx % nn] + 12 * (idx / nn));
-            }
-        } else if (pl == PL_STRUM) {
-            int down = pp[TP_P2] == 1;
-            steps = nn;
-            for (i = 0; i < steps; i++)
-                ord[i] = nt[down ? nn - 1 - i : i];
-            for (i = 1; i < steps && !down && pp[TP_P2] != 0; i++)
-                ;
-        } else if (pl == PL_HOLD) {
-            steps = nn;
-            for (i = 0; i < steps; i++)
-                ord[i] = nt[i];
-        } else
-            steps = 0;
-        for (i = 0; i < steps; i++) {            /* the distinct pitches, sorted: the ranks */
-            for (j = 0; j < nu && uniq[j] != ord[i]; j++)
-                ;
-            if (j == nu)
-                uniq[nu++] = ord[i];
-        }
-        for (i = 1; i < nu; i++)
-            for (j = i; j > 0 && uniq[j - 1] > uniq[j]; j--) {
-                uint8_t v = uniq[j];
-                uniq[j] = uniq[j - 1], uniq[j - 1] = v;
-            }
-        if (pl == PL_ARP && pr->arp_note)
-            for (i = 0; i < steps && cur < 0; i++)
-                if (ord[i] == pr->arp_note)
+                for (j = 0; j < nu && uniq[j] != ord[i]; j++)
+                    ;
+                if (j == nu)
+                    uniq[nu++] = ord[i];
+                if (pr->arp_note && ord[i] == pr->arp_note && cur < 0)
                     cur = i;
-        if (pl == PL_ARP) {
-            int32_t sw = steps ? (228 - sx) / steps : 21, bw, rs = nu > 1 ? (base - ntop - 10) / (nu - 1) : 0;
-            if (sw > 21)
-                sw = 21;
-            if (rs > 13)
-                rs = 13;
-            bw = sw * 3 / 4;
-            for (i = 0; i < steps; i++) {
-                int rk = 0;
-                int32_t x = sx + i * sw, y;
-                for (j = 0; j < nu; j++)
-                    if (uniq[j] == ord[i])
-                        rk = j;
-                y = base - 10 - rk * rs;
-                cv_frame(x, y, bw, 10, 2, n < 0 ? K_LINE : K_TEXT, i == cur ? K_REC : n < 0 ? K_BG : K_TINT);
-                if (i + 1 < steps) {
-                    int rk2 = 0;
-                    for (j = 0; j < nu; j++)
-                        if (uniq[j] == ord[i + 1])
-                            rk2 = j;
-                    dot_line((float)(x + bw), (float)y + 5.0f, (float)(x + sw), (float)(base - 10 - rk2 * rs) + 5.0f, 3.0f, K_DIM);
+            }
+            for (i = 1; i < nu; i++)
+                for (j = i; j > 0 && uniq[j - 1] > uniq[j]; j--) {
+                    uint8_t v = uniq[j];
+                    uniq[j] = uniq[j - 1], uniq[j - 1] = v;
                 }
-                if (sw >= 15) {
+            p2_panel(114, 40, 118, 62, K_PANEL2);
+            for (i = 0; i < 3; i++)
+                p2_knob((float)(130 + i * 26), 62.0f, 7.0f, p2_u(pp, TP_P1 + i), i + 2, 0, -13);
+            fxm_lamp(200, 58, 22, pr->arp_note ? K_REC : K_LINE);
+            p2_panel(120, 75, 106, 22, K_TEXT);      /* the lamps: a column a step, a row a pitch */
+            sw = 104 / steps;
+            rs = nu > 1 ? 16 / (nu - 1) : 0;
+            if (rs > 5)
+                rs = 5;
+            for (i = 0; i < steps; i++) {
+                int32_t x = 121 + i * sw;
+                for (j = 0; j < nu && uniq[j] != ord[i]; j++)
+                    ;
+                cv_rect(x + 1, 91 - j * rs, sw - 2, 3, i == cur ? K_REC : ghost ? K_DIM : K_CARD);
+                if (sw >= 10) {
                     char nm[6];
                     note_name(ord[i], nm);
                     nm[1 + (nm[1] == '#' || nm[1] == 'b')] = 0;
-                    text_c(x + bw / 2, base + 3, &FONT_XS, nm, n < 0 ? K_FAINT : K_DIM);
+                    text_c(x + sw / 2, 104, &FONT_XS, nm, ghost ? K_FAINT : K_DIM);
                 }
             }
-            cv_rect(sx, base, 228 - sx, 1, K_TEXT);
-            {   /* 2: the rate, one step dimensioned; 4: the octave (a dotted line where the keys' set repeats an octave up) */
-                char num[12], unit[6];
-                dim_line((float)sx, 46.0f, (float)(sx + sw), 46.0f, 3.0f, 3.0f, K_TEXT);
-                p2_callout(sx + sw + 8, 46, 2, 0, K_TEXT);
-                tp_text_par(TP_P1, pp[TP_P1], pp, num, unit);
-                s_cat(s_cat(t, "rate "), num);
-                cv_text(sx + sw + 17, 39, &FONT_XS, t, K_TEXT);
-                if (pp[TP_P3] > 1 && nn < steps && n >= 0) {
-                    int32_t ox = sx + nn * sw - 2;
-                    dot_line((float)ox, (float)base - 3.0f, (float)ox, 56.0f, 3.0f, K_DIM);
-                }
+            if (range > 1 && nn < steps && !ghost)   /* where the keys' set repeats an octave up */
+                cv_dash((float)(121 + nn * sw), 77.0f, (float)(121 + nn * sw), 95.0f, 2.0f, 2.0f, 1.0f, K_DIM);
+        } else if (pl == PL_STRUM) {
+            int dir = pp[TP_P2] & 3;
+            float roll = 2.0f + 38.0f * (float)(pp[TP_P1] > 63 ? 63 : pp[TP_P1]) / 63.0f, gap = nn > 1 ? 40.0f / (float)(nn - 1) : 0.0f;
+            if (gap > 8.0f)
+                gap = 8.0f;
+            p2_panel(114, 46, 118, 52, K_PANEL2);    /* the neck: frets, inlays */
+            for (i = 0; i < 5; i++)
+                cv_rect(134 + i * 24, 47, 2, 50, K_DIM);
+            cv_disc(171.0f, 72.0f, 2.5f, K_LINE), cv_disc(219.0f, 72.0f, 2.5f, K_LINE);
+            cv_rect(114, 46, 5, 52, K_TEXT);         /* the nut */
+            for (i = 0; i < nn; i++) {               /* a string a note, the lowest at the bottom */
+                float y = 72.0f + gap * ((float)(nn - 1) * 0.5f - (float)i);
+                cv_linef(118.0f, y, 232.0f, y, i < pr->nsounding ? K_REC : ghost ? K_DIM : K_TEXT, i < nn / 2 ? 1.6f : 1.0f);
             }
-        } else if (pl == PL_STRUM || pl == PL_HOLD) {
-            int32_t dxr = pl == PL_STRUM ? 4 + (int32_t)pp[TP_P1] * 12 / 63 : 0, bw = pl == PL_STRUM ? 70 : 90;
-            for (i = 0; i < steps; i++) {
-                int rk = 0;
-                int32_t y;
-                for (j = 0; j < nu; j++)
-                    if (uniq[j] == ord[i])
-                        rk = j;
-                y = base - 12 - rk * (nu > 1 ? (base - ntop - 14) / (nu - 1) > 14 ? 14 : (base - ntop - 14) / (nu - 1) : 0);
-                if (pl == PL_STRUM) {
-                    cv_frame(sx + i * dxr, y, bw, 9, 2, n < 0 ? K_LINE : K_TEXT, n < 0 ? K_BG : K_TINT);
-                    cv_rect(sx + i * dxr - 1, y - 2, 2, 13, K_TEXT);
-                } else {
-                    cv_frame(sx, y, bw, 9, 2, n < 0 ? K_LINE : K_TEXT, n < 0 ? K_BG : K_TINT);
-                    arrow_head((float)(sx + bw + 8), (float)y + 4.5f, 1.0f, 0.0f, K_TEXT);
-                    cv_linef((float)(sx + bw), (float)y + 4.5f, (float)(sx + bw + 4), (float)y + 4.5f, K_TEXT, 1.0f);
-                }
+            {   /* the stroke, from the top string to the bottom one, slanted by the roll: down (high to low) its arrow at
+                 * the bottom, up at the top, alternating both, either way both and dashed */
+                float l = f_sqrt1(roll * roll + 44.0f * 44.0f), ux = roll / l, uy = 44.0f / l;
+                if (dir == 3)
+                    cv_dash(178.0f, 50.0f, 178.0f + roll, 94.0f, 3.0f, 2.0f, 1.6f, K_TEXT);
+                else
+                    cv_linef(178.0f, 50.0f, 178.0f + roll, 94.0f, K_TEXT, 1.6f);
+                if (dir != 0)
+                    arrow_head(178.0f + roll, 94.0f, ux, uy, K_TEXT);
+                if (dir != 1)
+                    arrow_head(178.0f, 50.0f, -ux, -uy, K_TEXT);
             }
-            cv_rect(sx - 4, base, 106 + (pl == PL_STRUM ? steps * dxr : 0), 1, K_TEXT);
-            if (pl == PL_STRUM) {   /* 2: the roll: the stagger between two notes */
-                char num[12], unit[6];
-                dim_line((float)sx, 46.0f, (float)(sx + dxr), 46.0f, 3.0f, 3.0f, K_TEXT);
-                p2_callout(sx + dxr + 8, 46, 2, 0, K_TEXT);
-                tp_text_par(TP_P1, pp[TP_P1], pp, num, unit);
-                s_cat(s_cat(t, "roll "), num);
-                cv_text(sx + dxr + 17, 39, &FONT_XS, t, K_TEXT);
-            } else
-                cv_text(sx, base + 3, &FONT_XS, "until the next change", K_DIM);
-        } else {   /* random: 16 slots, a note where the dice give one (note %), its pitch among the octaves (4), time and rhythm */
-            int32_t gx = sx - 4, gw = 108, rows = 6;
-            int pct = clampi(pp[TP_P1] * 100 / 127, 0, 100), span = clampi(pp[TP_P4], 0, 3) + 1, sl;
-            cv_rect(gx, base, gw, 1, K_TEXT);
-            for (sl = 0; sl < 16; sl++) {
-                uint32_t r = (uint32_t)(sl + 1) * 2654435761u;
-                int on = (int)((r >> 8) % 100u) < pct, row = (int)((r >> 20) % (uint32_t)(rows * span > 12 ? 12 : rows * span));
-                float x = (float)gx + 3.0f + (float)sl * 6.5f, y = (float)base - 6.0f - (float)row * 3.6f;
-                if (on) {
-                    cv_disc(x, y, 2.6f, K_NOW);
-                    cv_ring(x, y, 2.8f, 1.0f, K_TEXT);
-                } else
-                    cv_disc(x, (float)base - 3.0f, 1.0f, K_LINE);
+            dim_line(178.0f, 106.0f, 178.0f + roll, 106.0f, 3.0f, 3.0f, K_TEXT);
+            p2_callout(169, 106, 2, 0, K_TEXT);
+            p2_callout(166, 72, 3, 0, K_TEXT);
+        } else if (pl == PL_HOLD) {                  /* the sustain pedal: down while notes are held; its lead */
+            float ty = pr->nheld || pr->nsounding ? 96.0f : 84.0f, q[8] = {150.0f, 100.0f, 214.0f, ty, 216.0f, ty + 6.0f, 150.0f, 105.0f};
+            p2_panel(144, 104, 76, 10, K_PANEL2);
+            cv_poly(q, 4, K_PANEL, 256u, 0);
+            for (i = 0; i < 4; i++)
+                fxm_ln(q[2 * i], q[2 * i + 1], q[(2 * i + 2) & 7], q[(2 * i + 3) & 7], 1.2f);
+            for (i = 1; i < 5; i++)
+                fxm_ln(150.0f + 12.0f * (float)i, 100.0f + (ty - 100.0f) * (float)i / 5.3f, 156.0f + 12.0f * (float)i,
+                       100.0f + (ty - 100.0f) * ((float)i + 0.5f) / 5.3f, 0.8f);
+            p2_coil(118.0f, 109.0f, 3, 4.0f, K_TEXT);
+            fxm_ln(132.0f, 109.0f, 144.0f, 109.0f, 1.6f);
+            cv_rect(112, 106, 7, 6, K_TEXT);
+            cv_text(118, 42, &FONT_XS, pr->nheld || pr->nsounding ? "held notes ring" : "the pedal is up", K_TEXT);
+            cv_text(118, 56, &FONT_XS, "until the next change", K_DIM);
+        } else {                                     /* random: the tumbler, its stand and crank; the slots it drops into */
+            int pct = clampi(pp[TP_P1] * 100 / 127, 0, 100);
+            for (i = 0; i < 6; i++) {
+                float a = (float)i / 6.0f + 0.04f, b = a + 1.0f / 6.0f;
+                fxm_ln(146.0f + 18.0f * fm_sin_turns(a + 0.25f), 62.0f + 18.0f * fm_sin_turns(a), 146.0f + 18.0f * fm_sin_turns(b + 0.25f),
+                       62.0f + 18.0f * fm_sin_turns(b), 1.2f);
+                fxm_ln(146.0f + 15.0f * fm_sin_turns(a + 0.25f), 62.0f + 15.0f * fm_sin_turns(a), 146.0f + 15.0f * fm_sin_turns(b + 0.25f),
+                       62.0f + 15.0f * fm_sin_turns(b), 0.8f);
+                cv_disc(140.0f + (float)(i % 3) * 6.0f, 70.0f + (float)(i / 3) * 5.0f - (float)(i % 2) * 2.0f, 2.4f, K_NOW);
             }
-            p2_callout(gx + gw - 8, 46, 2, 0, K_TEXT);
-            s_cat(num_s((uint32_t)pct, t), "% of the slots");
-            cv_text(gx + 4, 39, &FONT_XS, t, K_TEXT);
+            fxm_ln(126.0f, 98.0f, 146.0f, 62.0f, 1.6f), fxm_ln(146.0f, 62.0f, 166.0f, 98.0f, 1.6f);
+            cv_disc(146.0f, 62.0f, 3.0f, K_TEXT);
+            fxm_ln(146.0f, 62.0f, 168.0f, 50.0f, 1.6f), fxm_ln(168.0f, 50.0f, 172.0f, 56.0f, 2.0f);   /* the crank */
+            fxm_ln(158.0f, 76.0f, 166.0f, 96.0f, 1.2f);  /* the chute */
+            p2_panel(118, 98, 112, 12, K_CARD);      /* the slots, a note where the dice give one */
+            for (i = 0; i < 16; i++) {
+                uint32_t r = (uint32_t)(i + 1) * 2654435761u;
+                float x = 122.0f + (float)i * 6.9f;
+                if ((int)((r >> 8) % 100u) < pct)
+                    cv_disc(x, 104.0f, 2.6f, K_NOW), cv_ring(x, 104.0f, 2.8f, 1.0f, K_TEXT);
+                else
+                    cv_disc(x, 104.0f, 1.0f, K_LINE);
+            }
+            p2_callout(110, 104, 2, 0, K_TEXT);
+            p2_panel(180, 42, 50, 46, K_PANEL2);     /* the chances: pitch and rhythm */
+            p2_knob(193.0f, 72.0f, 7.0f, p2_u(pp, TP_P2), 3, 0, -15);
+            p2_knob(217.0f, 72.0f, 7.0f, p2_u(pp, TP_P3), 4, 0, -15);
         }
     }
     cv_blit(0, MAIN_Y);
