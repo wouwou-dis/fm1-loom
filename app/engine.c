@@ -1514,6 +1514,7 @@ static void render_sub(uint32_t n, uint32_t at)
 static float vol_s;                                      /* MASTER's gain as it glides (the render only) */
 _Static_assert(SY_GLFO_TRK == AUX_BRAIN, "the shared LFO's knobs are the conductor's");
 float engine_glfo_now(void) { return synth_glfo_now(SY); }
+float engine_lfo_now(int trk, float *phase) { return synth_lfo_now(SY, trk, phase); }
 /* the shared LFO on the kits (synth.h GD_*; the synth moves the melodic tracks itself): once a block, over the engine's
  * own copy of the kit's knobs (epar, what drumline reads: at a hit, or each chunk for the filter), each value
  * modulated kept beside its base (the knob's, or a lock's: a write by anyone else since is the new base) and put

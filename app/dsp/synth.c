@@ -1978,6 +1978,38 @@ static float glfo_shape(int sh, float ph, float rnd)
 }
 void synth_glfo_restart(synth_t *s) { s->g_reset = 1; }
 float synth_glfo_now(const synth_t *s) { return s->g_now; }
+/* A track's LFO as the LFO page draws it. There is one LFO per TRACK (trk_t, stepped in synth_prepare once a block, on
+ * whichever core runs it), not one per voice: polyphony and unison voices all read the same slots, so there is no
+ * "most recent voice" to choose. Returns the output at its full depth: wave -1..1 (its shape at the phase), wobble
+ * -1..1, drift -1..1 (the slewed sample), pump the duck 1 (a hit) .. 0 (recovered); *phase is the LFO's phase in turns
+ * (0 for the pump, which has none). Read-only and lock-free: the audio side writes lfo_ph / lfo_sm / duck as plain
+ * floats, once a block, and a 32-bit aligned load is atomic on this core, so the reader gets some value the LFO really
+ * had (at worst one block old, or the phase of one block with the sample of the last). The loads are volatile so
+ * they are made on each call; the audio code does nothing extra. */
+float synth_lfo_now(const synth_t *s, int trk, float *phase)
+{
+    const trk_t *t;
+    float ph, v = 0.0f;
+    int type, sh;
+    *phase = 0.0f;
+    if (trk < 0 || trk >= NTRK)
+        return 0.0f;
+    t = &s->t[trk];
+    type = P(s, trk, TP_LTYPE);
+    sh = P(s, trk, TP_LX2);
+    if (type == LT_PUMP)
+        return *(const volatile float *)&t->duck;
+    ph = *(const volatile float *)&t->lfo_ph;
+    ph -= fm_floorf(ph);
+    *phase = ph;
+    if (type == LT_WAVE)
+        v = lfo_wave_value(sh, ph);
+    else if (type == LT_WOBBLE)
+        v = lfo_wave_trem(sh, ph);
+    else if (type == LT_DRIFT)
+        v = *(const volatile float *)&t->lfo_sm;
+    return v;
+}
 /* the shared LFO over the block's chunks (synth.h GS_*, GD_*): its offset per chunk, which voice_chunk adds to the
  * routed tracks' destination */
 static void glfo_prepare(synth_t *s)

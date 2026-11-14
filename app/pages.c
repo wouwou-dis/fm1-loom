@@ -6809,39 +6809,44 @@ static float lfo_shape_v(int shape, float ph)
 /* the LFO page: a function generator. Its round scope draws one cycle of the real shape (a negative depth turns it
  * over, the depth its height); the type (1) a selector, the rate (2) and the depth (3) its dials; its output jack's
  * lead runs off the page to what it moves (4, the words at the top). The one moving drawing on the instrument (the
- * owner's exception): the trace's bright dot runs along the shape at its rate while the LFO acts: free-running at
- * once, else while the sequencer plays or the track sounds (its phase restarted at the track's notes as the
- * engine's is: the meter's rise); the pump's dot drops down the duck from each hit of its source and climbs back.
- * Off: the scope's line flat, the lead unplugged on the bench, nothing moves */
-static const float LFO_BEATS[LS_SYNC_N] = {8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f};
-static uint32_t lfo_t0;                          /* the last restart (a note on the track, a hit on the duck's source), ms */
-static uint8_t lfo_was;
+ * owner's exception): the trace's bright dot is the REAL LFO, read from the audio side (engine_lfo_now: the track's
+ * phase and output, about 12 times a second, no model of its own) while the LFO acts: free-running at once, else
+ * while the sequencer plays or the track sounds; the pump's dot is its real duck (down the curve at each hit of its
+ * source, climbing back; resting at the top once it has). The LFO is the track's, one for all its voices. Drift: the
+ * dot rides the real wander. Off, or a depth of nothing: the scope's line flat or the dot at rest, nothing moves */
+static uint32_t lfo_tick, lfo_pw;                /* the picture's clock (84 ms) and the dot's last pixel (hash) */
+static float lfo_ph_c, lfo_v_c;                  /* the real LFO as of that tick */
 static void draw_lfo(void)
 {
     int trk = sel_trk();
     const uint8_t *p = par_now(trk);
     int lt = p[TP_LTYPE] % NLT, sh = p[TP_LX2], uni = lt == LT_DRIFT || lt == LT_PUMP;
     uint32_t now = plat_ms(), h;
-    int hit = ui_peak[lt == LT_PUMP ? (p[TP_LSPEED] < NTRK ? p[TP_LSPEED] : 0) : trk < NTRK ? trk : 0] > 1500;
     int fre = (lt == LT_WAVE || lt == LT_DRIFT) && p[TP_LDEST] >= LD_FREE, live;
     float v = uni ? (float)p[TP_LAMT] / 127.0f : fm_clampf(((float)p[TP_LAMT] - 64.0f) / 63.0f, -1.0f, 1.0f);
-    float A = 22.0f * (v < 0.0f ? -v : v), sg = v < 0.0f ? -1.0f : 1.0f, ph = 0.25f, hz;
+    float A = 22.0f * (v < 0.0f ? -v : v), sg = v < 0.0f ? -1.0f : 1.0f, ph = 0.25f, dv = 0.0f;
     char t[48], num[12], unit[6], ttl[16];
-    if (hit && !lfo_was)
-        lfo_t0 = now;
-    lfo_was = (uint8_t)hit;
-    hz = lt == LT_PUMP ? 1000.0f / (float)(120 + 6 * (p[TP_LDEST] + p[TP_LX]))
-         : p[TP_LSPEED] < LS_SYNC_N ? seq.bpm * (1.0f / 60.0f) / LFO_BEATS[p[TP_LSPEED]]
-                                    : 0.1f * fm_exp2f((float)(p[TP_LSPEED] - LS_SYNC_N) * (8.22881869f / 119.0f));
-    live = lt && A > 0.5f && (lt == LT_PUMP ? (float)(now - lfo_t0) * hz < 1000.0f : fre || playing() || hit || ui_peak[trk < NTRK ? trk : 0] > 200);
+    live = lt && A > 0.5f && trk < NTRK;
+    if (live && lt != LT_PUMP)
+        live = fre || playing() || ui_peak[trk] > 200;
     if (live) {
-        now = now / 84u * 84u;                       /* (about 12 pictures a second) */
-        ph = (float)(fre ? now : now - lfo_t0) * 0.001f * hz;
-        ph = lt == LT_PUMP ? ph : ph - fm_floorf(ph);
-    }
+        if (now / 84u != lfo_tick) {                 /* (about 12 pictures a second) */
+            lfo_tick = now / 84u;
+            lfo_v_c = engine_lfo_now(trk, &lfo_ph_c);
+        }
+        ph = lfo_ph_c, dv = lfo_v_c;
+        if (lt == LT_PUMP) {                         /* the duck 1 (a hit) .. 0 on the curve 1 - 2 ease_exp(u): where on it */
+            dv = fm_clampf(dv, 0.0f, 1.0f);
+            live = dv > 0.01f;
+            ph = live ? fm_clampf(-0.17328680f * fm_log2f(dv * 0.9816844f + 0.0183156f), 0.0f, 1.0f) : 1.0f;
+            dv = 1.0f - 2.0f * dv;
+        }
+    } else if (lt == LT_PUMP)
+        ph = 1.0f, dv = 1.0f;
+    lfo_pw = live || lt == LT_PUMP ? (uint32_t)(ph * 96.0f) | (uint32_t)((dv + 1.0f) * 24.0f) << 8 | 1u << 16 : 0u;
     h = hash_u(hash_u(2166136261u, 0x1Fu), (uint32_t)trk | (uint32_t)lt << 4 | (uint32_t)p[TP_LAMT] << 8 | (uint32_t)sh << 16);
     h = hash_u(h, (uint32_t)p[TP_LSPEED] << 8 | p[TP_LX] | (uint32_t)p[TP_LDEST] << 16 | (uint32_t)p2_touch() << 24);
-    h = hash_u(h, live ? now : 0u);
+    h = hash_u(h, lfo_pw);
     if (!begin_main(h))
         return;
 #define LFOV(u) (lt == LT_WAVE || lt == LT_WOBBLE ? lfo_shape_v(lt == LT_WAVE ? (sh & 3) == 1 ? 0 : (sh & 3) == 0 ? 3 : (sh & 3) == 2 ? 5 : 1 : sh, \
@@ -6885,13 +6890,13 @@ static void draw_lfo(void)
         cv_rect(26, 78, 53, 2, K_DIM);
     else {
         pen_t pn = {0};
-        float pu = lt == LT_PUMP ? fm_minf(ph, 1.0f) : ph;
+        float aa = A > 1.0f ? A : 1.0f;
         pn.w = 1.6f;
         for (int x = 0; x <= 48; x += 2) {
             float u = (float)x / 48.0f;
-            pen_to(&pn, 28.0f + (float)x, 78.0f - sg * (float)LFOV(u) * (A > 1.0f ? A : 1.0f), K_CARD);
+            pen_to(&pn, 28.0f + (float)x, 78.0f - sg * (float)LFOV(u) * aa, K_CARD);
         }
-        cv_disc(28.0f + 48.0f * pu, 78.0f - sg * (float)LFOV(pu) * (A > 1.0f ? A : 1.0f), 3.0f, live ? K_REC : K_CARD);
+        cv_disc(28.0f + 48.0f * ph, 78.0f - sg * (live ? dv : (float)LFOV(ph)) * aa, 3.0f, live ? K_REC : K_CARD);   /* (the real LFO's, else at rest) */
     }
     for (int k = 0; k < 3; k++) {                    /* the type, the rate, the depth */
         float x = 112.0f + 38.0f * (float)k;

@@ -295,6 +295,7 @@ typedef struct {
 typedef struct synth synth_t;         /* opaque: dsp/synth.c */
 void synth_glfo_restart(synth_t *s);              /* the shared LFO from its start (the transport started) */
 float synth_glfo_now(const synth_t *s);            /* its value now, -1..1 (the page's picture) */
+float synth_lfo_now(const synth_t *s, int trk, float *phase);   /* a track's LFO now: value (pump: duck 1..0), *phase in turns (UI, lock-free) */
 #define SYNTH_BYTES 12288             /* room for the struct (checked at compile time in synth.c) */
 
 void synth_init(synth_t *s, uint8_t (*par)[NTP]);   /* par: the tracks' parameter arrays, NTRK + 1 of them (the conductor's, SY_GLFO_TRK: the shared LFO) */
