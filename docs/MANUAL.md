@@ -1337,8 +1337,8 @@ Debug. The **SEL** list on Setup has the FM-1's own settings, in three groups:
 
 - Bluetooth: BT MIDI.
 - USB and MIDI: the USB audio level, USB PORT, CLOCK, NOTES, CC IN, CC OUT and SCENES OUT.
-- LOOM-8: LIGHTS, BEAT FLASH, THEME, AUTOSAVE and LOOP THROWS. BEAT FLASH (on by default) tints the paper of the SEQ
-  pages, Steps and Bar, coral on every beat while the sequencer plays, the bar's first beat a little more; above 180 BPM
+- LOOM-8: LIGHTS, BEAT FLASH, THEME, AUTOSAVE and LOOP THROWS. BEAT FLASH (on by default) tints the card of Steps and the
+  boxes of Bar coral on every beat while the sequencer plays, the bar's first beat a little more; above 180 BPM
   every second beat. It follows the sequencer's own clock, an external MIDI clock too.
 
 All of Setup's settings, the theme too, belong to the FM-1, not the project. Every project you load or start keeps
