@@ -10,9 +10,9 @@
  * (44.1 kHz: LOFI's 32-sample blocks are two to LOOM-8's 64-sample chunk); LOOM-8's own envelope, filter, LFO and
  * character stage follow the chip as on any engine.
  *
- *   E1 wave    pulse, triangle, saw, noise (a 15-bit shift register clocked once a cycle of the note), wave (the
+ *   E1 wave    pulse, triangle, saw, noise (a 15-bit shift register clocked once a cycle of the note), table (the
  *              wave memory: 32 steps of 4 bits, read step by step, no interpolation)
- *   E2 duty    the pulse's width, 12.5 / 25 / 37.5 / 50 % (step: 12.5 / 25 / 50 / 75 %); on wave the table (duty / 8:
+ *   E2 duty    the pulse's width, 12.5 / 25 / 37.5 / 50 % (step: 12.5 / 25 / 50 / 75 %); on table the table (duty / 8:
  *              CH_TABLE_N)
  *   E3 crush   the sample hold, 1 .. 16 samples (the output held at a lower rate: the chip's grain); past the
  *              middle the held value also falls to 16 steps
@@ -37,7 +37,7 @@
 #define CH_TOP 127                                     /* (the knobs' top) */
 enum { CW_PULSE, CW_TRI, CW_SAW, CW_NOISE, CW_WAVE, NCW };
 enum { CC_4BIT, CC_4LO, CC_8BIT, CC_1BIT, CC_STEP, NCC };
-static const char *const CH_WAVE_N[NCW] = {"pulse", "tri", "saw", "noise", "wave"};
+static const char *const CH_WAVE_N[NCW] = {"pulse", "tri", "saw", "noise", "table"};
 static const char *const CH_CHIP_N[NCC] = {"4 bit", "4 bit lo", "8 bit", "1 bit", "step"};
 static const char *const CH_ARP_N[4] = {"off", "octave", "major", "minor"};
 /* the wave memory: LOFI's sixteen tables x 32 samples x 4 bits, two samples a byte (high nibble first) */
@@ -209,4 +209,41 @@ static float ch_amp(voice_t *v)
         v->o[8] = fm_floorf(v->amp.level * 15.0f + 0.5f) * (1.0f / 15.0f);
     }
     return v->amp.stage == ENV_OFF ? 0.0f : v->o[8];
+}
+
+/* the Engine page's picture (synth.h chip_picture): a cycle of the wave as the chip holds it, 32 steps, each -1..1; the
+ * hold counted in steps (a step a sample: a note of ~1.4 kHz), the noise 32 bits of the shift register (from a seed
+ * that shows it: from 32767, the start, its first fifteen are all ones) */
+void chip_picture(const uint8_t *par, float y[32])
+{
+    int wave = par[TP_E1] < NCW ? par[TP_E1] : NCW - 1, duty = par[TP_E2] & 127, crush = par[TP_E3] & 127;
+    int chip = par[TP_X1] < NCC ? par[TP_X1] : NCC - 1, bits = chip == CC_8BIT ? 8 : chip == CC_1BIT ? 1 : 4;
+    int hold = 1 + crush / 8 + (chip == CC_4LO), k;
+    float lv = (float)(1 << (bits - 1)), dt = (float)(chip == CC_STEP ? (int[4]){1, 2, 4, 6}[duty >> 5] : 1 + (duty >> 5)) * 0.125f;
+    uint32_t l = 0x1D35u;
+    float s = 0.0f;
+    for (k = 0; k < 32; k++) {
+        float p = ((float)k + 0.5f) * (1.0f / 32.0f);
+        if (wave == CW_NOISE)
+            l = (l >> 1) | (((l ^ (l >> 1)) & 1u) << 14);
+        if (k % hold == 0) {
+            switch (wave) {
+            case CW_PULSE: s = p < dt ? 1.0f : -1.0f; break;
+            case CW_TRI:
+                s = chip == CC_STEP ? (float)(k < 16 ? 15 - k : k - 16) * (2.0f / 15.0f) - 1.0f
+                                    : ch_q(p < 0.5f ? 4.0f * p - 1.0f : 3.0f - 4.0f * p, lv, 1.0f / lv);
+                break;
+            case CW_SAW: s = ch_q(2.0f * p - 1.0f, lv, 1.0f / lv); break;
+            case CW_NOISE: s = l & 1u ? 1.0f : -1.0f; break;
+            default: {
+                int b = ch_nib(CH_WRAM[(duty >> 3) & 15], k);
+                s = bits == 1 ? (b >= 8 ? 1.0f : -1.0f) : (float)(2 * b - 15) * (1.0f / 15.0f);
+                break;
+            }
+            }
+            if (crush > 64)
+                s = ((float)(int)(s * 8.0f + 16.0f) - 16.0f) * 0.125f;
+        }
+        y[k] = fm_clampf(s, -1.0f, 1.0f);
+    }
 }

@@ -252,6 +252,9 @@ void char_bus(chbus_t *c, const uint8_t *par, float *l, float *r, int n);
 /* the Engine page's picture of the organ: the six drawbars' levels (16' 8' 4' 2 2/3' 2' 1 1/3', 0..1, the loudest 1) that
  * stops and pedal set (organ_prep's registration) */
 void organ_bars(const uint8_t *par, float bars[6]);
+/* the Engine page's picture of sequin's chip: a cycle of its wave as the chip holds it (wave, duty or table, crush, chip),
+ * 32 steps, each -1..1 (dsp/chip.h) */
+void chip_picture(const uint8_t *par, float y[32]);
 /* a track's level (TP_LEVEL) as a gain: a fader's law, cubic (60 dB over 0..100: half way -18 dB), 100 = 0 dB,
  * 127 = +6.2 dB, 0 = off. The drums and the FX returns take it as is; the synth's voices with 100/127 under it
  * (their headroom: synth.c) */
