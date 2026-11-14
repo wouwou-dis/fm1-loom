@@ -7660,11 +7660,15 @@ static void draw_mix(void)
             cv_rect(x - 5, cy - 3, 10, 1, grip), cv_rect(x - 5, cy + 2, 10, 1, grip);
             cv_rect(x - 6, cy, 12, 1, t == sel ? K_BG : quiet ? K_LINE : K_TEXT);
         }
-        text_c(x + 1, MIX_TOP + MIX_H + 4, F_XB, SHORT_NM[t], t == sel ? K_SEL : quiet ? K_LINE : K_TEXT);
+        if (quiet)                               /* its tag: a block of the track's ink, the number in paper */
+            cv_frame(x - 7, MIX_TOP + MIX_H + 2, 16, 16, 2, K_LINE, K_BG);
+        else
+            cv_round(x - 7, MIX_TOP + MIX_H + 2, 16, 16, 2, t < NTRK ? trk_ink(t) : K_TEXT);
+        text_c(x + 1, MIX_TOP + MIX_H + 4, F_XB, SHORT_NM[t], quiet ? K_LINE : K_BG);
         if (t == sel)
-            cv_rect(x - 6, MIX_TOP + MIX_H + 18, 13, 2, K_SEL);
+            cv_rect(x - 7, MIX_TOP + MIX_H + 19, 16, 2, K_SEL);
         if (solo || marked)                      /* soloed: an inked S; muted: an M */
-            key_cap(x - 5, MIX_TOP + MIX_H + 21, solo ? "S" : "M", solo);
+            key_cap(x - 5, MIX_TOP + MIX_H + 22, solo ? "S" : "M", solo);
     }
     if (ui.solo_lat)                             /* a solo that stays (two taps) */
         tr_text(8, 0, F_LAB, "SOLO STAYS", K_TEXT, 1);
