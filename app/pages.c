@@ -4436,11 +4436,23 @@ static void draw_bar(void)
     }
 #undef BX
 #undef SX
-    s_cat(num_s((uint32_t)len, t), len == 1 ? " step" : " steps");
-    spec_row(8, 232, 74, "length", t, K_TEXT);
-    spec_row(8, 232, 88, "one step", STEP_FRAC[tp->scale % NTS], K_TEXT);
-    s_cat(num_s((uint32_t)tp->nlen, t), "% of a step");
-    spec_row(8, 232, 102, "new notes last", t, K_TEXT);
+    {   /* one step drawn: its length (the scale) over it, a new note's length (2) inked inside it; the pattern's length */
+        int32_t nw = 134 * tp->nlen / 100, ex = 11 + nw;
+        tr_text(9, 74, F_LAB, "ONE STEP", K_DIM, 1);
+        text_r(150, 71, F_XB, STEP_FRAC[tp->scale % NTS], K_TEXT);
+        cv_frame(8, 89, 143, 21, 2, K_TEXT, K_CARD);
+        for (int q = 1; q < 4; q++)
+            cv_dash((float)(8 + q * 36) - 0.5f, 91.0f, (float)(8 + q * 36) - 0.5f, 107.0f, 1.5f, 2.0f, 0.8f, K_LINE);
+        if (nw > 0)
+            cv_rect(11, 93, nw, 13, K_NOW);
+        else
+            cv_rect(11, 92, 2, 15, K_NOW);
+        p2_callout(ex + 14 <= 146 ? ex + 9 : ex - 9, 100, 2, 0, K_TEXT);
+        cv_rect(161, 72, 1, 38, K_LINE);
+        tr_text(169, 74, F_LAB, "LENGTH", K_DIM, 1);
+        num_s((uint32_t)len, t);
+        cv_text(cv_text(168, 88, F_VAL, t, K_TEXT) + 4, 96, &FONT_XS, len == 1 ? "step" : "steps", K_TEXT);
+    }
     cv_blit(0, MAIN_Y);
 }
 
