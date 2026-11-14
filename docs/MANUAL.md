@@ -1375,9 +1375,11 @@ Turn **SELECT** for more pages:
   master level.
 
 On Setup, the knobs set the lights, the MIDI clock and sending MIDI notes. The clock is internal, receive
-or send (see MIDI, below). Sending notes is on to start with. The page also shows where the tempo comes from (LOOM-8, or a MIDI clock coming in), the USB audio level,
-the autosave and Bluetooth MIDI (see Bluetooth, below). The version is on the next page,
-Debug. The **SEL** list on Setup has the FM-1's own settings, in three groups:
+or send (see MIDI, below). Sending notes is on to start with. The page draws the back of the instrument: the CLOCK
+knob moves a three-position slide switch (int, recv, send), NOTES a toggle, LIGHTS four lamps (all lit on, two for
+keys only, none off). An inked EXT beside the clock switch means a MIDI clock coming in is setting the tempo. It also
+shows the USB audio level by the USB socket, Bluetooth MIDI under an antenna (see Bluetooth, below), and a rating
+plate with the version, the autosave and the battery. The next page is Debug. The **SEL** list on Setup has the FM-1's own settings, in three groups:
 
 - Bluetooth: BT MIDI.
 - USB and MIDI: the USB audio level, USB PORT, CLOCK, NOTES, CC IN, CC OUT and SCENES OUT.

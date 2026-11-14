@@ -249,8 +249,9 @@ wait 1600
 shot master_out.png
 tap PLAY
 spin K4 -21
-turn SELECT 1
+turn SELECT 3
 wait 1600
+expect page Setup
 shot setup.png
 # ---- a help card and a list
 turn ALGO -9
