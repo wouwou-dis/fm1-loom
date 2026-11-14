@@ -1,0 +1,151 @@
+# EUCLID HITS / EUCLID ROTATE / VARY BAR (Steps' SEL, the bar's section): N hits spread evenly over the bar's steps, turned
+# by a rotation, for the kit sound shown or the note remembered (that sound's steps in the bar replaced, the others
+# kept); a variation of the bar, the beats kept, different each time; one undo each; the list opens on the row last used
+wait 300
+projnew
+expect trk 1
+step 1 1 4 2 100
+step 1 1 5 1 100
+step 1 1 20 1 100
+tap SEQ
+listen
+tap SEL
+row EUCLID HITS
+wait 200
+said EUCLID HITS 4 of 16
+shot euclid_row.png
+turn ALGO 1
+wait 200
+said EUCLID HITS 5 of 16
+# 5 hits: steps 1 4 7 10 13; the old kick on step 5 gone, the snare on step 4 kept (a kick with it), bar 2 untouched
+tap SEL
+wait 100
+said EUCLID 5 of 16, turn 0
+shot euclid_done.png
+expect barmask 1 1 1 1 0x1249
+expect barmask 1 1 1 2 0x0008
+expect note 1 1 4 1
+expect note 1 1 20 1
+expect listopen 0
+# the list opens on the row again: SEL SEL does it once more, the same
+tap SEL
+wait 200
+said EUCLID HITS 5 of 16
+tap SEL
+wait 50
+expect barmask 1 1 1 1 0x1249
+# the rotation: 2 steps on (steps 3 6 9 12 15); its row does the fill too
+tap SEL
+row EUCLID ROTATE
+turn ALGO 2
+wait 200
+said EUCLID ROTATE by 2
+shot euclid_rot.png
+tap SEL
+wait 50
+expect barmask 1 1 1 1 0x4924
+expect barmask 1 1 1 2 0x0008
+# 16 hits: every step; 1 hit: one
+tap SEL
+row EUCLID HITS
+turn ALGO 20
+tap SEL
+wait 50
+expect barmask 1 1 1 1 0xffff
+tap SEL
+row EUCLID HITS
+turn ALGO -20
+tap SEL
+wait 50
+expect barmask 1 1 1 1 0x0004
+# one undo: the bar before (the 16 hits)
+press HOME
+tap REC
+release HOME
+wait 50
+expect barmask 1 1 1 1 0xffff
+press HOME
+tap REC
+release HOME
+wait 50
+expect barmask 1 1 1 1 0x4924
+# a synth track (T2), the note remembered (C4): 4 hits over a bar of 16 (steps 1 5 9 13), two turned: 3 7 11 15
+turn ALGO 1
+expect trk 2
+step 2 1 2 70 100
+tap SEQ
+tap SEL
+row EUCLID ROTATE
+turn ALGO -2
+row EUCLID HITS
+turn ALGO 3
+wait 200
+said EUCLID HITS 4 of 16
+tap SEL
+wait 50
+expect barmask 2 1 1 0 0x1111
+expect note 2 1 1 60
+expect note 2 1 2 0
+expect barmask 2 1 2 0 0x0000
+# a shorter pattern: 12 steps, the bar's 12 steps: 3 hits on steps 1 5 9 (step 13 is past the pattern: as it was)
+pat 2 1 12
+tap SEL
+wait 200
+said EUCLID HITS 4 of 12
+turn ALGO -1
+tap SEL
+wait 50
+expect barmask 2 1 1 0 0x1111
+expect note 2 1 13 60
+# VARY BAR: the beats (steps 1 5 9 13) stay, whatever happens to the rest, again and again; the bar changes
+pat 2 1 16
+step 2 1 1 60 100
+step 2 1 3 60 90
+step 2 1 5 60 100
+step 2 1 7 60 90
+step 2 1 9 60 100
+step 2 1 11 60 90
+step 2 1 14 60 90
+step 2 1 13 60 100
+tap SEL
+row VARY BAR
+wait 200
+said VARY BAR
+shot vary_row.png
+tap SEL
+wait 100
+said VARIED bar 1
+shot vary_done.png
+expect note 2 1 1 60
+expect note 2 1 5 60
+expect note 2 1 9 60
+expect note 2 1 13 60
+wait 30
+tap SEL
+tap SEL
+wait 30
+tap SEL
+tap SEL
+wait 30
+tap SEL
+tap SEL
+wait 100
+expect note 2 1 1 60
+expect note 2 1 5 60
+expect note 2 1 9 60
+expect note 2 1 13 60
+# one undo takes the last variation back; the hits are never more than they were, nor none
+press HOME
+tap REC
+release HOME
+wait 50
+said UNDO T2 P1
+# an empty bar (T3): nothing to vary, said
+wait 1300
+turn ALGO 1
+expect trk 3
+tap SEL
+row VARY BAR
+tap SEL
+wait 100
+said NOTHING TO VARY
